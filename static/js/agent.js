@@ -141,7 +141,10 @@ class SP500TraderAgent {
 
       if (res.status === 200) {
         const data = await res.json();
-        this.appendMessage("agent", data.response, data.provider);
+        const metaTag = data.tool_called 
+          ? `${data.provider || 'TRADER AGENT'} • TOOL: ${data.tool_called.toUpperCase()}`
+          : data.provider;
+        this.appendMessage("agent", data.response, metaTag);
 
         // If backtest was executed, feed to Backtest Studio
         if (data.backtest && window.backtestStudio) {

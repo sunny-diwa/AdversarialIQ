@@ -1,13 +1,28 @@
 """
 AdversarialIQ Conversational Router & Trader Agent
 Parses natural language execution commands, triggers adversarial tribunal debates,
-enforces non-LLM risk guardrail on user orders, and orchestrates multi-provider LLMs.
+enforces non-LLM risk guardrail on user orders, calls financial tools dynamically
+(news, technicals, SEC EDGAR, insider Form 4, macro FRED, earnings calendar),
+and orchestrates multi-provider LLMs.
 """
 
+import json
 import logging
 import re
 from typing import Any, Dict, Optional
 
+from src.agents.tools import (
+    AVAILABLE_TOOLS,
+    TOOL_SCHEMAS,
+    execute_tool,
+    tool_get_company_news,
+    tool_get_earnings_calendar,
+    tool_get_insider_activity,
+    tool_get_macro_regime,
+    tool_get_portfolio_status,
+    tool_get_sec_filings,
+    tool_get_stock_technicals,
+)
 from src.agents.tribunal import get_daily_desk_briefing, run_adversarial_trade_tribunal
 from src.backtest import StrategyGenerator
 from src.core.config import SP500_MAP
@@ -34,9 +49,11 @@ def process_chat_message(
     """
     Core AdversarialIQ Conversational Router:
     1. Parses trade execution orders with Non-LLM Risk Guardrail safety check.
-    2. Runs Adversarial Tribunal on demand.
-    3. Serves daily desk briefings.
-    4. Orchestrates LLMs across Groq, Gemini, Mistral, NVIDIA NIM, and Ollama.
+    2. Runs Backtest Strategy Simulations on demand.
+    3. Triggers Adversarial Tribunal Debates (Bull vs Bear vs Chief Judge).
+    4. Dynamically calls tools (Company News, Technicals, SEC Filings, Insider Activity, Macro Regime).
+    5. Serves daily desk briefings.
+    6. Injects live news & market data directly into LLM input context with tool-calling capabilities.
     """
     prompt = message.strip()
     target_sym = current_symbol.upper()
@@ -75,19 +92,37 @@ def process_chat_message(
                     f"{bracket_text}\n\n"
                     f"*Your portfolio ledger and position records have been updated.*"
                 ),
-                "trade": trade
+                "trade": trade,
+                "tool_called": "execute_paper_trade"
             }
         except Exception as e:
             return {"response": f"⚠️ **Trade Rejected by Risk Guardrail:** {str(e)}"}
 
-    # 2. Extract mentioned ticker
+    # 2. Extract mentioned ticker (prioritize explicit ticker in user message)
     words = re.findall(r"\b[A-Z]{1,5}\b", prompt.upper())
     for w in words:
         if w in SP500_MAP:
             target_sym = w
             break
 
-    # 3. Detect Backtest / Strategy Simulation intent
+    # 3. Detect tool catalog / discovery query
+    if any(k in prompt.lower() for k in ["what tools", "list tools", "available tools", "show tools", "help tools"]):
+        tools_list = "\n".join([
+            f"- **`{t['name']}`**: {t['description']}"
+            for t in TOOL_SCHEMAS
+        ])
+        return {
+            "response": f"""### 🛠️ AdversarialIQ Live Institutional Tool Suite
+The bot is equipped with autonomous real-time quantitative and data tools:
+
+{tools_list}
+
+---
+*You can invoke any tool directly by asking (e.g. `What is the latest news on NVDA?`, `Show technicals for AAPL`, `Check SEC filings for MSFT`, `What is the macro regime?`, or `Backtest RSI strategy on TSLA`).*""",
+            "tools": TOOL_SCHEMAS
+        }
+
+    # 4. Detect Backtest / Strategy Simulation intent
     if any(k in prompt.lower() for k in ["backtest", "back test", "test my strategy", "test strategy", "simulate strategy", "run backtest"]):
         try:
             bt = StrategyGenerator.synthesize_and_run(
@@ -99,7 +134,6 @@ def process_chat_message(
             ret_col = "🟢" if bt["total_return_pct"] >= 0 else "🔴"
             bench_col = "🟢" if bt["benchmark_return_pct"] >= 0 else "🔴"
             alpha_col = "🟢" if bt["alpha_pct"] >= 0 else "🔴"
-
             bench_final = bt["initial_capital"] * (1 + bt["benchmark_return_pct"] / 100)
 
             response_md = f"""### ⚡ AdversarialIQ 5-Year Backtest Engine: **{bt['symbol']}**
@@ -136,13 +170,14 @@ def process_chat_message(
 
             return {
                 "response": response_md,
-                "backtest": bt
+                "backtest": bt,
+                "tool_called": "run_backtest"
             }
         except Exception as e:
             logger.error(f"Backtest generation error: {e}")
             return {"response": f"⚠️ **Backtest Execution Notice:** {str(e)}"}
 
-    # 4. Detect AdversarialIQ Debate / Tribunal intent
+    # 5. Detect AdversarialIQ Debate / Tribunal intent
     if any(k in prompt.lower() for k in ["adversarial", "debate", "bull vs bear", "syndicate", "judge", "court", "tribunal"]):
         tribunal = run_adversarial_trade_tribunal(target_sym)
         bull = tribunal["prosecution_bull"]
@@ -191,9 +226,9 @@ def process_chat_message(
 ---
 *Say `Buy {judge_risk['recommended_shares']} {target_sym}` to execute this ruling on your {tribunal['execution_broker']}.*
 """
-        return {"response": court_md, "provider": "AdversarialIQ Court", "symbol": target_sym}
+        return {"response": court_md, "provider": "AdversarialIQ Court", "symbol": target_sym, "tool_called": "run_adversarial_tribunal"}
 
-    # 4. Detect Non-LLM Risk Gate & Sizing intent
+    # 6. Detect Non-LLM Risk Gate & Sizing intent
     if any(k in prompt.lower() for k in ["risk gate", "risk sizing", "bracket order", "position size", "position-sizing", "2% risk"]):
         from src.execution.portfolio import get_portfolio_state
         port = get_portfolio_state()
@@ -222,7 +257,7 @@ def process_chat_message(
 | Risk Guardrail Parameter | Institutional Value |
 |---|---|
 | **Capital Baseline** | `${gate['equity']:,.2f}` |
-| **Volatilty (14-Day ATR)** | `${gate['atr_14']:.2f}` (Stop Distance: `${gate['stop_distance']:.2f}`) |
+| **Volatility (14-Day ATR)** | `${gate['atr_14']:.2f}` (Stop Distance: `${gate['stop_distance']:.2f}`) |
 | **Max Trade Risk Budget** | `${gate['risk_budget_dollars']:,.2f}` ({gate['macro_regime']} Regime) |
 | **Raw ATR Position Size** | `{gate['raw_shares']} shares` |
 | **Adjusted Safe Size** | **`{gate['adjusted_shares']} shares`** (${gate['total_consideration']:,.2f}) |
@@ -236,37 +271,19 @@ def process_chat_message(
 ---
 *Mandatory Bracket Order Class: `{bracket.get('order_class', 'bracket').upper()}` attached to submission.*
 """
-        return {"response": risk_md, "provider": "Non-LLM Risk Gate", "symbol": target_sym}
+        return {"response": risk_md, "provider": "Non-LLM Risk Gate", "symbol": target_sym, "tool_called": "risk_guardrail"}
 
-    # 5. Detect 48-Hour Earnings Blackout Window intent
+    # 7. Detect 48-Hour Earnings Blackout Window intent
     if any(k in prompt.lower() for k in ["earnings blackout", "blackout window", "earnings date", "calendar"]):
-        from src.data.calendar import fetch_earnings_calendar
-        cal = fetch_earnings_calendar(target_sym)
-        date_display = cal.get("earnings_date") or "No immediate announcement detected"
-        hours_display = f"{cal['hours_to_earnings']} hours" if cal.get("hours_to_earnings") is not None else "N/A"
+        res = execute_tool("get_earnings_calendar", {"symbol": target_sym})
+        return {
+            "response": res.get("formatted_markdown", ""),
+            "earnings": res.get("result", {}),
+            "tool_called": "get_earnings_calendar",
+            "symbol": target_sym
+        }
 
-        badge = "🟢 CLEAR" if cal["action"] == "CLEAR" else ("🟡 WARNING (50% SIZING)" if cal["action"] == "HALVE" else "🔴 VETO BLACKOUT")
-
-        cal_md = f"""### 📅 48-Hour Earnings Blackout Window: **{target_sym}**
-*Binary Event Filter preventing pre-earnings algorithmic drawdown*
-
----
-
-- **Blackout Status:** **`{cal['blackout_status']}`** ({badge})
-- **Scheduled Earnings Date:** **`{date_display}`**
-- **Countdown to Earnings:** **`{hours_display}`**
-- **Sizing Action:** **`{cal['action']}`** (Multiplier: `{cal['size_multiplier']}x`)
-- **Intelligence Source:** `{cal.get('source', 'yfinance').upper()}`
-
-#### 📌 Risk Manager Audit:
-> *{cal['reason']}*
-
----
-*Rule: Orders within 24h of earnings are strictly VETOED. Orders within 24-48h are automatically halved.*
-"""
-        return {"response": cal_md, "provider": "Earnings Calendar Filter", "symbol": target_sym}
-
-    # 6. Detect Daily Desk Briefing intent
+    # 8. Detect Daily Desk Briefing intent
     if any(k in prompt.lower() for k in ["brief", "briefing", "morning note", "desk report"]):
         brief = get_daily_desk_briefing()
         buys = brief.get("top_setups", [])
@@ -294,29 +311,168 @@ def process_chat_message(
 """
         return {"response": briefing_md, "provider": "AdversarialIQ Briefing", "symbol": target_sym}
 
-    # 5. Build rich 5-layer system prompt and execute through multi-provider LLM engine
+    # 9. Detect Company News & Catalyst Query (Tool Calling)
+    is_news_query = any(k in prompt.lower() for k in [
+        "news", "headline", "headlines", "catalyst", "catalysts",
+        "what happened", "what is happening", "press release", "breaking news", "article"
+    ])
+    if is_news_query:
+        logger.info(f"Invoking tool 'get_company_news' for {target_sym}")
+        news_tool_res = execute_tool("get_company_news", {"symbol": target_sym, "limit": 5})
+        raw_news = news_tool_res.get("result", {})
+
+        is_direct_news_lookup = any(p in prompt.lower() for p in [
+            "what is the latest news", "what's the latest news", "what is the news", "what's the news",
+            "get news", "show news", "latest news", "breaking news", "tell me news", "catalysts for",
+            "what happened with", "any news", "is there any news", "headlines for", "news for", "news on"
+        ]) and not any(k in prompt.lower() for k in ["should i buy", "should i sell", "how does", "what does this mean for", "price target impact"])
+
+        if is_direct_news_lookup:
+            return {
+                "response": news_tool_res.get("formatted_markdown", ""),
+                "news": raw_news,
+                "tool_called": "get_company_news",
+                "symbol": target_sym,
+                "provider": "AdversarialIQ News Wire"
+            }
+
+        # Otherwise, feed the live news into LLM for an evidence-backed institutional synthesis
+        articles = raw_news.get("articles", [])
+        headlines_summary = "\n".join([f"- {a.get('title')} ({a.get('sentiment')}): {a.get('summary')[:140]}" for a in articles[:4]])
+        sentiment = raw_news.get("overall_sentiment", {})
+
+        system_prompt = f"""You are AdversarialIQ, a quantitative trader and financial analyst.
+The user is asking an analytical question regarding {target_sym}.
+You have just retrieved the latest real-time news articles and catalyst tags for {target_sym} using the `get_company_news` tool:
+- Aggregate Sentiment: {sentiment.get('label')} ({sentiment.get('score', 0):+.2f})
+- Top Catalysts: {', '.join(raw_news.get('top_catalysts', []))}
+- Live Breaking Headlines:
+{headlines_summary}
+
+Synthesize these live news articles directly to answer the user's inquiry with professional rigor.
+Highlight how the reported catalysts impact valuation, revenue visibility, and trade positioning."""
+
+        gen_result = LLMManager.generate(
+            prompt=prompt,
+            system_prompt=system_prompt,
+            preferred_provider=provider,
+            model=model,
+            groq_api_key=groq_api_key,
+            gemini_api_key=gemini_api_key,
+            mistral_api_key=mistral_api_key,
+            nvidia_api_key=nvidia_api_key,
+            ollama_base_url=ollama_base_url,
+            symbol=target_sym
+        )
+        return {
+            "response": gen_result["response"],
+            "news": raw_news,
+            "tool_called": "get_company_news",
+            "provider": gen_result["provider"],
+            "model": gen_result.get("model", ""),
+            "symbol": target_sym
+        }
+
+    # 10. Detect Technicals Query (Tool Calling)
+    if any(k in prompt.lower() for k in ["technical", "technicals", "rsi", "macd", "moving average", "sma", "ema", "bollinger", "indicators", "chart"]):
+        logger.info(f"Invoking tool 'get_stock_technicals' for {target_sym}")
+        tech_res = execute_tool("get_stock_technicals", {"symbol": target_sym})
+        return {
+            "response": tech_res.get("formatted_markdown", ""),
+            "technicals": tech_res.get("result", {}),
+            "tool_called": "get_stock_technicals",
+            "symbol": target_sym,
+            "provider": "Market Data Engine"
+        }
+
+    # 11. Detect SEC Filings & EDGAR Query (Tool Calling)
+    if any(k in prompt.lower() for k in ["sec filing", "sec edgar", "10-k", "10-q", "8-k", "mda", "risk factors", "edgar report", "filings"]):
+        logger.info(f"Invoking tool 'get_sec_filings' for {target_sym}")
+        sec_res = execute_tool("get_sec_filings", {"symbol": target_sym})
+        return {
+            "response": sec_res.get("formatted_markdown", ""),
+            "filings": sec_res.get("result", {}),
+            "tool_called": "get_sec_filings",
+            "symbol": target_sym,
+            "provider": "SEC EDGAR"
+        }
+
+    # 12. Detect Insider Form 4 & 13F Activity Query (Tool Calling)
+    if any(k in prompt.lower() for k in ["insider", "form 4", "13f", "insider buying", "insider selling", "whale", "executive transaction"]):
+        logger.info(f"Invoking tool 'get_insider_activity' for {target_sym}")
+        insider_res = execute_tool("get_insider_activity", {"symbol": target_sym})
+        return {
+            "response": insider_res.get("formatted_markdown", ""),
+            "insider": insider_res.get("result", {}),
+            "tool_called": "get_insider_activity",
+            "symbol": target_sym,
+            "provider": "SEC Form 4 Engine"
+        }
+
+    # 13. Detect Macro Regime Query (Tool Calling)
+    if any(k in prompt.lower() for k in ["macro regime", "fred", "yield curve", "interest rate", "inflation rate", "treasury yield", "cpi", "vix"]):
+        logger.info("Invoking tool 'get_macro_regime'")
+        macro_res = execute_tool("get_macro_regime", {})
+        return {
+            "response": macro_res.get("formatted_markdown", ""),
+            "macro": macro_res.get("result", {}),
+            "tool_called": "get_macro_regime",
+            "symbol": target_sym,
+            "provider": "FRED Macro Engine"
+        }
+
+    # 14. Detect Portfolio Query (Tool Calling)
+    if any(k in prompt.lower() for k in ["portfolio status", "my positions", "account balance", "portfolio equity", "cash balance", "my trades"]):
+        logger.info("Invoking tool 'get_portfolio_status'")
+        port_res = execute_tool("get_portfolio_status", {})
+        return {
+            "response": port_res.get("formatted_markdown", ""),
+            "portfolio": port_res.get("result", {}),
+            "tool_called": "get_portfolio_status",
+            "provider": "Portfolio Ledger"
+        }
+
+    # 15. Real-Time Multi-Layer Context Injection for General / Conversational Queries
+    # Pre-fetch live news, technicals, and tribunal dossier so the LLM gets everything in input
+    news_dossier = tool_get_company_news(target_sym, limit=3)
+    news_sentiment = news_dossier.get("overall_sentiment", {})
+    news_headlines = "; ".join([a.get("title", "") for a in news_dossier.get("articles", [])[:3]])
+
+    tech_dossier = tool_get_stock_technicals(target_sym)
     tribunal = run_adversarial_trade_tribunal(target_sym)
     bull_args_str = '; '.join(tribunal['prosecution_bull'].get('arguments', []))
     bear_args_str = '; '.join(tribunal['prosecution_bear'].get('arguments', []))
 
     system_prompt = f"""You are AdversarialIQ, an institutional quantitative hedge fund trader and adversarial intelligence syndicate.
-You evaluate every stock using an adversarial debate approach:
-- Agent Bull proves the case for Long.
-- Agent Bear proves the case for Short / Risk.
-- Agent Judge delivers the final conviction score (0-100), ruling, and disciplined ATR-based risk position sizing.
+You evaluate every stock using an adversarial debate approach with non-LLM risk guardrails and live real-time tools.
 
-LIVE DOSSIER FOR {target_sym}:
-- Price: ${tribunal['price']:.2f}
-- Bull Prosecution Arguments: {bull_args_str}
-- Bear Defense Arguments: {bear_args_str}
+LIVE DOSSIER IN INPUT FOR {target_sym}:
+- Current Price: ${tribunal['price']:.2f}
+- Breaking News Sentiment: {news_sentiment.get('label', 'NEUTRAL')} ({news_sentiment.get('score', 0):+.2f})
+- Top Catalysts: {', '.join(news_dossier.get('top_catalysts', []))}
+- Recent Headlines: {news_headlines or 'None'}
+- Key Technicals: RSI={tech_dossier.get('rsi', 50):.1f}, MACD={tech_dossier.get('macd', 0):.2f}, ATR14=${tech_dossier.get('atr_14', 2.0):.2f}, SMA50=${tech_dossier.get('sma50', 0):.2f}
+- Bull Prosecution Case: {bull_args_str}
+- Bear Defense Case: {bear_args_str}
 - AdversarialIQ Conviction Score: {tribunal['conviction_score']}/100
 - Adjudicated Ruling: {tribunal['verdict']}
-- Position Size: {tribunal['judicial_risk_parameters']['recommended_shares']} shares | Stop Loss: {tribunal['judicial_risk_parameters']['stop_loss']} | Target: {tribunal['judicial_risk_parameters']['take_profit']}
-- Past Post-Mortem Lessons: {tribunal.get('past_lessons_summary', 'None')}
+- Suggested Position Size: {tribunal['judicial_risk_parameters']['recommended_shares']} shares | Stop Loss: {tribunal['judicial_risk_parameters']['stop_loss']} | Target: {tribunal['judicial_risk_parameters']['take_profit']}
+
+AVAILABLE TOOLS YOU CAN CALL:
+You can invoke any of the following tools by responding with `TOOL_CALL: {{"tool": "<name>", "arguments": {{...}}}}`:
+- `get_company_news(symbol, limit)`: Breaking news, sentiment score, catalyst tags
+- `get_stock_technicals(symbol)`: RSI, MACD, ATR, moving averages, Bollinger Bands
+- `get_sec_filings(symbol)`: SEC EDGAR 10-K, 10-Q, 8-K filings and risk factors
+- `get_insider_activity(symbol)`: Form 4 executive buy/sell clusters, 13F holdings
+- `get_macro_regime()`: FRED interest rates, yield curve spread, CPI, VIX
+- `get_earnings_calendar(symbol)`: 48-hour earnings blackout window
+- `run_backtest(symbol, strategy)`: 5-year quantitative strategy backtest
+- `run_adversarial_tribunal(symbol)`: Bull vs Bear debate and judicial ruling
+- `execute_paper_trade(symbol, action, quantity)`: Order routing with bracket orders
+- `get_portfolio_status()`: Portfolio balance, positions, win rate
 
 Deliver structured, direct, professional institutional analysis using markdown tables and bullet points.
-If the user asks to execute a trade, remind them they can type 'Buy <qty> <symbol>' or 'Sell <qty> <symbol>'.
-"""
+If the user asks to execute a trade, remind them they can type 'Buy <qty> <symbol>' or 'Sell <qty> <symbol>'."""
 
     gen_result = LLMManager.generate(
         prompt=prompt,
@@ -331,8 +487,30 @@ If the user asks to execute a trade, remind them they can type 'Buy <qty> <symbo
         symbol=target_sym
     )
 
+    resp_text = gen_result.get("response", "")
+
+    # Check if the LLM emitted an explicit TOOL_CALL instruction
+    tool_call_match = re.search(r"TOOL_CALL:\s*(\{.*?\})", resp_text, re.DOTALL)
+    if tool_call_match:
+        try:
+            tool_payload = json.loads(tool_call_match.group(1))
+            t_name = tool_payload.get("tool")
+            t_args = tool_payload.get("arguments", {})
+            logger.info(f"LLM triggered dynamic tool call: {t_name} with {t_args}")
+            executed = execute_tool(t_name, t_args)
+            return {
+                "response": f"🛠️ **Tool Executed by Agent:** `{t_name}`\n\n" + executed.get("formatted_markdown", str(executed.get("result", ""))),
+                "tool_called": t_name,
+                "tool_result": executed,
+                "provider": gen_result["provider"],
+                "model": gen_result.get("model", ""),
+                "symbol": target_sym
+            }
+        except Exception as te:
+            logger.warning(f"Failed to execute LLM tool call: {te}")
+
     return {
-        "response": gen_result["response"],
+        "response": resp_text,
         "provider": gen_result["provider"],
         "model": gen_result.get("model", ""),
         "failover": gen_result.get("failover", False),

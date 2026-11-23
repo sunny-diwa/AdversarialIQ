@@ -41,7 +41,8 @@
       </div>
       <button id="btn-open-traces" class="btn-settings" style="border-color:#38bdf8; color:#38bdf8;">📡 TRACES /
         OBSERVABILITY</button>
-      <button id="btn-open-auth" class="btn-settings" style="border-color:#10b981; color:#10b981;">👤 <span id="user-display-label">LOGIN</span></button>
+      <button id="btn-open-auth" class="btn-settings" style="border-color:#10b981; color:#10b981;">👤 <span
+          id="user-display-label">LOGIN</span></button>
       <button id="btn-open-settings" class="btn-settings">⚙️ AI SETTINGS</button>
     </div>
   </header>
@@ -1365,17 +1366,21 @@ Paper trade ledger linked ($100K capital active).
       <div class="modal-body">
 
         <!-- Langfuse Cloud Telemetry Banner -->
-        <div style="background:rgba(56, 189, 248, 0.08); border:1px solid rgba(56, 189, 248, 0.3); border-radius:4px; padding:10px 14px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div
+          style="background:rgba(56, 189, 248, 0.08); border:1px solid rgba(56, 189, 248, 0.3); border-radius:4px; padding:10px 14px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
           <div>
             <div style="font-size:11px; font-weight:bold; color:#38bdf8; display:flex; align-items:center; gap:8px;">
               <span>⚡ LANGFUSE CLOUD OBSERVABILITY</span>
-              <span id="langfuse-status-pill" class="pill-badge" style="background:#0284c7; color:#fff; font-size:9px; padding:2px 6px;">CHECKING...</span>
+              <span id="langfuse-status-pill" class="pill-badge"
+                style="background:#0284c7; color:#fff; font-size:9px; padding:2px 6px;">CHECKING...</span>
             </div>
             <div style="font-size:10px; color:var(--text-muted); margin-top:3px;">
-              Host: <span id="langfuse-host-label" style="color:#cbd5e1;">https://cloud.langfuse.com</span> | Public Key: <span id="langfuse-pubkey-label" style="color:#cbd5e1;">--</span>
+              Host: <span id="langfuse-host-label" style="color:#cbd5e1;">https://cloud.langfuse.com</span> | Public
+              Key: <span id="langfuse-pubkey-label" style="color:#cbd5e1;">--</span>
             </div>
           </div>
-          <a href="https://cloud.langfuse.com" target="_blank" rel="noopener noreferrer" class="f-key" style="font-size:10px; padding:4px 10px; text-decoration:none; color:#38bdf8; border-color:#38bdf8;">
+          <a href="https://cloud.langfuse.com" target="_blank" rel="noopener noreferrer" class="f-key"
+            style="font-size:10px; padding:4px 10px; text-decoration:none; color:#38bdf8; border-color:#38bdf8;">
             OPEN LANGFUSE DASHBOARD ↗
           </a>
         </div>
@@ -1438,36 +1443,48 @@ Paper trade ledger linked ($100K capital active).
     <div class="modal-content" style="max-width:580px; max-height:85vh; overflow-y:auto;">
       <div class="modal-header">
         <span>👤 ADVERSARIALIQ IDENTITY &amp; ACCESS CONTROL</span>
-        <button id="btn-close-auth" aria-label="Close authentication modal" style="background:none; border:none; color:#fff; cursor:pointer; font-size:16px;">&times;</button>
+        <button id="btn-close-auth" aria-label="Close authentication modal"
+          style="background:none; border:none; color:#fff; cursor:pointer; font-size:16px;">&times;</button>
       </div>
 
       <div class="modal-body">
         <div class="setting-tabs" role="tablist">
           <button class="settings-tab-btn active" data-tab="tab-auth-login" role="tab">SIGN IN</button>
-          <button class="settings-tab-btn" data-tab="tab-auth-users" id="tab-btn-auth-users" role="tab">USER DIRECTORY (ADMIN)</button>
+          <button class="settings-tab-btn" data-tab="tab-auth-users" id="tab-btn-auth-users" role="tab">USER DIRECTORY
+            (ADMIN)</button>
         </div>
 
         <!-- Tab 1: Sign In -->
         <div id="tab-auth-login" class="tab-pane active" style="display:block;">
-          <div id="auth-logged-in-box" style="display:none; margin-bottom:14px; padding:12px; background:rgba(34, 197, 94, 0.1); border:1px solid rgba(34, 197, 94, 0.3); border-radius:4px;">
+          <div id="auth-logged-in-box"
+            style="display:none; margin-bottom:14px; padding:12px; background:rgba(34, 197, 94, 0.1); border:1px solid rgba(34, 197, 94, 0.3); border-radius:4px;">
             <div style="color:var(--green-up); font-weight:bold; font-size:13px;">ACTIVE SESSION AUTHENTICATED</div>
-            <div style="color:#cbd5e1; font-size:11px; margin-top:4px;">User: <b id="auth-active-username">admin</b> | Role: <span class="pill-badge" id="auth-active-role" style="background:#22c55e; color:#000; font-size:9px; padding:2px 6px;">ADMIN</span></div>
+            <div style="color:#cbd5e1; font-size:11px; margin-top:4px;">User: <b id="auth-active-username">admin</b> |
+              Role: <span class="pill-badge" id="auth-active-role"
+                style="background:#22c55e; color:#000; font-size:9px; padding:2px 6px;">ADMIN</span></div>
             <div style="margin-top:10px;">
-              <button id="btn-auth-logout" class="f-key" style="border-color:#ef4444; color:#ef4444; font-size:10px; padding:3px 10px;">LOGOUT OF SESSION</button>
+              <button id="btn-auth-logout" class="f-key"
+                style="border-color:#ef4444; color:#ef4444; font-size:10px; padding:3px 10px;">LOGOUT OF
+                SESSION</button>
             </div>
           </div>
 
           <form id="form-auth-login">
             <div class="form-group" style="margin-bottom:12px;">
-              <label style="font-size:10.5px; color:var(--text-muted); display:block; margin-bottom:4px;">USERNAME</label>
-              <input type="text" id="auth-login-username" class="terminal-input" placeholder="Enter username (e.g. admin)" required style="width:100%;" autocomplete="username">
+              <label
+                style="font-size:10.5px; color:var(--text-muted); display:block; margin-bottom:4px;">USERNAME</label>
+              <input type="text" id="auth-login-username" class="terminal-input"
+                placeholder="Enter username (e.g. admin)" required style="width:100%;" autocomplete="username">
             </div>
             <div class="form-group" style="margin-bottom:14px;">
-              <label style="font-size:10.5px; color:var(--text-muted); display:block; margin-bottom:4px;">PASSWORD</label>
-              <input type="password" id="auth-login-password" class="terminal-input" placeholder="Enter password" required style="width:100%;" autocomplete="current-password">
+              <label
+                style="font-size:10.5px; color:var(--text-muted); display:block; margin-bottom:4px;">PASSWORD</label>
+              <input type="password" id="auth-login-password" class="terminal-input" placeholder="Enter password"
+                required style="width:100%;" autocomplete="current-password">
             </div>
             <div id="auth-login-status" style="font-size:11px; margin-bottom:10px;"></div>
-            <button type="submit" id="btn-submit-login" class="f-key active" style="width:100%; padding:8px;">SIGN IN TO ADVERSARIALIQ</button>
+            <button type="submit" id="btn-submit-login" class="f-key active" style="width:100%; padding:8px;">SIGN IN TO
+              ADVERSARIALIQ</button>
           </form>
         </div>
 
@@ -1478,16 +1495,21 @@ Paper trade ledger linked ($100K capital active).
           </div>
 
           <!-- Add User Form -->
-          <div style="background:rgba(15, 23, 42, 0.7); border:1px solid var(--border-color); border-radius:4px; padding:12px; margin-bottom:14px;">
-            <div style="font-weight:bold; font-size:11px; color:var(--cyan-primary); margin-bottom:8px;">PROVISION NEW USER</div>
-            <form id="form-add-user" style="display:grid; grid-template-columns:1fr 1fr 1fr auto; gap:8px; align-items:flex-end;">
+          <div
+            style="background:rgba(15, 23, 42, 0.7); border:1px solid var(--border-color); border-radius:4px; padding:12px; margin-bottom:14px;">
+            <div style="font-weight:bold; font-size:11px; color:var(--cyan-primary); margin-bottom:8px;">PROVISION NEW
+              USER</div>
+            <form id="form-add-user"
+              style="display:grid; grid-template-columns:1fr 1fr 1fr auto; gap:8px; align-items:flex-end;">
               <div>
                 <label style="font-size:9.5px; color:var(--text-muted); display:block;">USERNAME</label>
-                <input type="text" id="new-user-name" class="terminal-input" placeholder="trader_john" required style="width:100%; font-size:10.5px;">
+                <input type="text" id="new-user-name" class="terminal-input" placeholder="trader_john" required
+                  style="width:100%; font-size:10.5px;">
               </div>
               <div>
                 <label style="font-size:9.5px; color:var(--text-muted); display:block;">PASSWORD</label>
-                <input type="password" id="new-user-pass" class="terminal-input" placeholder="••••••••" required style="width:100%; font-size:10.5px;">
+                <input type="password" id="new-user-pass" class="terminal-input" placeholder="••••••••" required
+                  style="width:100%; font-size:10.5px;">
               </div>
               <div>
                 <label style="font-size:9.5px; color:var(--text-muted); display:block;">ROLE</label>
@@ -1497,7 +1519,8 @@ Paper trade ledger linked ($100K capital active).
                   <option value="admin">Admin</option>
                 </select>
               </div>
-              <button type="submit" id="btn-create-user" class="f-key active" style="font-size:10px; padding:6px 10px;">ADD USER</button>
+              <button type="submit" id="btn-create-user" class="f-key active"
+                style="font-size:10px; padding:6px 10px;">ADD USER</button>
             </form>
             <div id="add-user-status" style="font-size:10px; margin-top:6px;"></div>
           </div>
@@ -1515,7 +1538,10 @@ Paper trade ledger linked ($100K capital active).
                 </tr>
               </thead>
               <tbody id="auth-users-tbody">
-                <tr><td colspan="5" style="text-align:center; padding:12px; color:var(--text-muted);">Loading users...</td></tr>
+                <tr>
+                  <td colspan="5" style="text-align:center; padding:12px; color:var(--text-muted);">Loading users...
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>

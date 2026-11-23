@@ -16,7 +16,7 @@ Production FastAPI Application orchestrating:
 import logging
 import os
 import warnings
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 import uvicorn
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -31,6 +31,8 @@ from src.agents import (
     process_chat_message,
     run_adversarial_trade_tribunal,
     PostMortemAgent,
+    TOOL_SCHEMAS,
+    execute_tool,
 )
 from src.core import (
     HOST,
@@ -127,6 +129,11 @@ class ChatRequest(BaseModel):
     current_symbol: Optional[str] = "AAPL"
     alpaca_key: Optional[str] = None
     alpaca_secret: Optional[str] = None
+
+
+class ToolExecuteRequest(BaseModel):
+    tool: str
+    arguments: Optional[Dict[str, Any]] = None
 
 
 class PingRequest(BaseModel):
@@ -467,6 +474,18 @@ async def chat_endpoint(req: ChatRequest):
         alpaca_key=req.alpaca_key,
         alpaca_secret=req.alpaca_secret
     )
+
+
+@app.get("/api/agent/tools")
+async def get_agent_tools_endpoint():
+    """Returns catalog of all 10 institutional quantitative tools and their JSON schemas."""
+    return {"status": "SUCCESS", "tools": TOOL_SCHEMAS}
+
+
+@app.post("/api/agent/tools/execute")
+async def execute_agent_tool_endpoint(req: ToolExecuteRequest):
+    """Dynamically executes a quantitative financial tool by name with arguments."""
+    return execute_tool(req.tool, req.arguments)
 
 
 # -----------------------------------------------------------------------------
