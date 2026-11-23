@@ -218,30 +218,37 @@ def fetch_breaking_news(symbol: str) -> Dict[str, Any]:
     if cached:
         return cached
 
-    # 1. Primary: Live Real-Time Financial RSS Feeds (Google News & Yahoo Finance)
-    articles = _fetch_live_rss_news(sym)
+    articles = []
+    seen_titles = set()
 
-    # 2. Secondary: Finnhub Company News
-    if not articles and FINNHUB_API_KEY:
+    # 1. Primary: Official Finnhub Company News API (if key configured)
+    if FINNHUB_API_KEY:
         try:
             today = datetime.date.today()
             from_date = (today - datetime.timedelta(days=7)).strftime("%Y-%m-%d")
             to_date = today.strftime("%Y-%m-%d")
             url = f"https://finnhub.io/api/v1/company-news?symbol={sym}&from={from_date}&to={to_date}&token={FINNHUB_API_KEY}"
             req = urllib.request.Request(url, headers={"User-Agent": "AdversarialIQ/1.0"})
-            with urllib.request.urlopen(req, timeout=4) as resp:
+            with urllib.request.urlopen(req, timeout=3.5) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
-                for item in data[:10]:
-                    title = item.get("headline", "")
-                    summary = item.get("summary", "")
-                    comb = f"{title}. {summary}"
+                for item in data[:8]:
+                    raw_title = _clean_rss_text(item.get("headline", ""))
+                    if not raw_title:
+                        continue
+                    norm = re.sub(r"[^\w\s]", "", raw_title.lower())
+                    if norm in seen_titles:
+                        continue
+                    seen_titles.add(norm)
+
+                    summary = _clean_rss_text(item.get("summary", "")) or raw_title
+                    comb = f"{raw_title}. {summary}"
                     sentiment = calculate_sentiment(comb)
                     catalysts = tag_catalysts(comb)
 
                     articles.append({
-                        "id": str(item.get("id", "")),
-                        "title": title,
-                        "headline": title,
+                        "id": str(item.get("id", f"fh_{len(articles)}")),
+                        "title": raw_title,
+                        "headline": raw_title,
                         "summary": summary[:250] + ("..." if len(summary) > 250 else ""),
                         "source": item.get("source", "Finnhub"),
                         "url": item.get("url", f"https://finance.yahoo.com/quote/{sym}/news"),
@@ -252,6 +259,17 @@ def fetch_breaking_news(symbol: str) -> Dict[str, Any]:
                     })
         except Exception as e:
             logger.debug(f"Finnhub fetch notice for {sym}: {e}")
+
+    # 2. Live RSS News Engine (Google News & Yahoo Finance RSS to fill or supplement)
+    if len(articles) < 10:
+        rss_arts = _fetch_live_rss_news(sym)
+        for ra in rss_arts:
+            norm = re.sub(r"[^\w\s]", "", ra["title"].lower())
+            if norm not in seen_titles:
+                seen_titles.add(norm)
+                articles.append(ra)
+            if len(articles) >= 10:
+                break
 
     # 3. Resilient yfinance News Fallback
     if not articles:

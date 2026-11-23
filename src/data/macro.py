@@ -4,6 +4,7 @@ Provides macroeconomic context (Interest rates, CPI, Treasury Yield Curve, VIX v
 via FRED API with resilient zero-key Yahoo Finance Treasury fallback.
 """
 
+from concurrent.futures import ThreadPoolExecutor
 import logging
 from typing import Any, Dict, Optional
 import yfinance as yf
@@ -14,42 +15,43 @@ logger = logging.getLogger("MacroEngine")
 
 
 def fetch_fred_indicators(api_key: str) -> Optional[Dict[str, Any]]:
-    """Fetch series from the official Federal Reserve Economic Data (FRED) API."""
+    """Fetch series from the official Federal Reserve Economic Data (FRED) API in parallel."""
     if not api_key:
         return None
     try:
         from fredapi import Fred
         fred = Fred(api_key=api_key)
 
-        # 10-Year Treasury Constant Maturity Rate
-        ten_year_series = fred.get_series("DGS10")
-        dgs10 = float(ten_year_series.dropna().iloc[-1])
+        def _get_s(sid: str):
+            try:
+                return sid, fred.get_series(sid)
+            except Exception:
+                return sid, None
 
-        # 2-Year Treasury Constant Maturity Rate
-        two_year_series = fred.get_series("DGS2")
-        dgs2 = float(two_year_series.dropna().iloc[-1])
+        series_ids = ["DGS10", "DGS2", "VIXCLS", "CPIAUCSL", "FEDFUNDS"]
+        with ThreadPoolExecutor(max_workers=5) as ex:
+            results = dict(ex.map(_get_s, series_ids))
 
-        # CBOE Volatility Index (VIX)
-        try:
-            vix_series = fred.get_series("VIXCLS")
-            vix = float(vix_series.dropna().iloc[-1])
-        except Exception:
-            vix = 15.5
+        ten_year_series = results.get("DGS10")
+        dgs10 = float(ten_year_series.dropna().iloc[-1]) if ten_year_series is not None and not ten_year_series.dropna().empty else 4.50
 
-        # CPI (Consumer Price Index for All Urban Consumers)
-        try:
-            cpi_series = fred.get_series("CPIAUCSL")
-            cpi_latest = float(cpi_series.dropna().iloc[-1])
-            cpi_prev_year = float(cpi_series.dropna().iloc[-13])
+        two_year_series = results.get("DGS2")
+        dgs2 = float(two_year_series.dropna().iloc[-1]) if two_year_series is not None and not two_year_series.dropna().empty else 4.25
+
+        vix_series = results.get("VIXCLS")
+        vix = float(vix_series.dropna().iloc[-1]) if vix_series is not None and not vix_series.dropna().empty else 15.5
+
+        cpi_series = results.get("CPIAUCSL")
+        if cpi_series is not None and len(cpi_series.dropna()) >= 13:
+            s_clean = cpi_series.dropna()
+            cpi_latest = float(s_clean.iloc[-1])
+            cpi_prev_year = float(s_clean.iloc[-13])
             cpi_yoy = ((cpi_latest - cpi_prev_year) / cpi_prev_year) * 100
-        except Exception:
+        else:
             cpi_yoy = 2.6
 
-        # Effective Federal Funds Rate
-        try:
-            fed_funds = float(fred.get_series("FEDFUNDS").dropna().iloc[-1])
-        except Exception:
-            fed_funds = 4.75
+        ff_series = results.get("FEDFUNDS")
+        fed_funds = float(ff_series.dropna().iloc[-1]) if ff_series is not None and not ff_series.dropna().empty else 4.75
 
         yield_spread = (dgs10 - dgs2) * 100  # in basis points
 
