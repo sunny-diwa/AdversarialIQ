@@ -138,6 +138,53 @@ def process_chat_message(
                             target_sym = w
                             break
 
+        # 2.5 Fast Conversational Greeting & Assistance Router (No heavy tool/tribunal overhead)
+        prompt_clean = prompt.lower().strip()
+        is_greeting = any(re.search(p, prompt_clean) for p in [
+            r"^(hi|hello|hey|greetings|howdy|sup|hola)\b",
+            r"^good\s+(morning|afternoon|evening)",
+            r"who are you",
+            r"what can you do",
+            r"what is (this|adversarialiq)",
+            r"how are you",
+            r"^help$"
+        ])
+        is_tool_intent = any(k in prompt_clean for k in [
+            "buy", "sell", "backtest", "debate", "tribunal", "news", "technical", "scanner",
+            "movers", "sectors", "briefing", "ecosystem", "filing", "insider", "macro"
+        ])
+
+        if is_greeting and not is_tool_intent:
+            system_prompt = f"""You are AdversarialIQ, a high-performance quantitative trading desk and adversarial intelligence agent.
+The user is greeting you or asking about your capabilities.
+The active symbol selected on the terminal is {target_sym} ({SP500_MAP.get(target_sym, {}).get('name', target_sym)}).
+Warmly greet the user, introduce yourself as AdversarialIQ, and succinctly explain what you can do:
+- Analyze {target_sym} or any of the 500 S&P stocks (technicals, live news catalysts, SEC filings, insider trades)
+- Run 3-agent Adversarial Trade Tribunals (Bull vs Bear vs Chief Judge)
+- Map company ecosystems (suppliers, buyers, competitors, A-CIS movement scores)
+- Run 5-year quantitative strategy backtests with Sharpe/Sortino and equity curves
+- Execute paper trades with non-LLM 2% ATR risk gates and bracket orders
+Invite them to ask any question or name a ticker to inspect."""
+
+            gen_result = LLMManager.generate(
+                prompt=prompt,
+                system_prompt=system_prompt,
+                preferred_provider=provider,
+                model=model,
+                groq_api_key=groq_api_key,
+                gemini_api_key=gemini_api_key,
+                mistral_api_key=mistral_api_key,
+                nvidia_api_key=nvidia_api_key,
+                ollama_base_url=ollama_base_url,
+                symbol=target_sym
+            )
+            return {
+                "response": gen_result.get("response", ""),
+                "provider": gen_result.get("provider", "Groq Cloud"),
+                "model": gen_result.get("model", model),
+                "symbol": target_sym
+            }
+
         # 3. Detect tool catalog / discovery query
         if any(k in prompt.lower() for k in ["what tools", "list tools", "available tools", "show tools", "help tools"]):
             tools_list = "\n".join([
@@ -474,32 +521,33 @@ Highlight how the reported catalysts impact valuation, revenue visibility, and t
         news_headlines = "; ".join([a.get("title", "") for a in news_dossier.get("articles", [])[:3]])
 
         tech_dossier = tool_get_stock_technicals(target_sym)
-        tribunal = run_adversarial_trade_tribunal(target_sym)
+        price = tech_dossier.get("price", 100.0)
+        atr = tech_dossier.get("atr_14", 2.0)
+        rsi = tech_dossier.get("rsi", 50.0)
+        macd = tech_dossier.get("macd", 0.0)
+        sma50 = tech_dossier.get("sma50", price)
 
-        bull_args = tribunal.get("prosecution_bull", {}).get("arguments", [])
-        bull_args_str = '; '.join(bull_args) if isinstance(bull_args, list) else str(bull_args)
-
-        bear_args = tribunal.get("prosecution_bear", {}).get("arguments", [])
-        bear_args_str = '; '.join(bear_args) if isinstance(bear_args, list) else str(bear_args)
-
-        j_risk = tribunal.get("judicial_risk_parameters", {})
-        rec_shares = j_risk.get("recommended_shares", 10)
-        stop_loss = j_risk.get("stop_loss", "$95.00")
-        take_profit = j_risk.get("take_profit", "$110.00")
+        bull_args_str = f"RSI momentum at {rsi:.1f}, holding above key support at ${sma50:.2f}"
+        bear_args_str = f"Overhead resistance near ${price * 1.05:.2f}, ATR volatility at ${atr:.2f}"
+        rec_shares = max(1, int(100.0 / (atr * 1.5))) if atr > 0 else 10
+        stop_loss = f"${price - atr * 1.5:.2f}"
+        take_profit = f"${price + atr * 3.0:.2f}"
+        conviction = 65 if price > sma50 and rsi > 50 else 45
+        verdict = "BUY" if conviction >= 65 else ("HOLD" if conviction >= 45 else "SELL")
 
         system_prompt = f"""You are AdversarialIQ, an institutional quantitative hedge fund trader and adversarial intelligence syndicate.
 You evaluate every stock using an adversarial debate approach with non-LLM risk guardrails and live real-time tools.
 
 LIVE DOSSIER IN INPUT FOR {target_sym}:
-- Current Price: ${tribunal.get('price', 100.0):.2f}
+- Current Price: ${price:.2f}
 - Breaking News Sentiment: {news_sentiment.get('label', 'NEUTRAL')} ({news_sentiment.get('score', 0):+.2f})
 - Top Catalysts: {', '.join(news_dossier.get('top_catalysts', []))}
 - Recent Headlines: {news_headlines or 'None'}
-- Key Technicals: RSI={tech_dossier.get('rsi', 50):.1f}, MACD={tech_dossier.get('macd', 0):.2f}, ATR14=${tech_dossier.get('atr_14', 2.0):.2f}, SMA50=${tech_dossier.get('sma50', 0):.2f}
+- Key Technicals: RSI={rsi:.1f}, MACD={macd:.2f}, ATR14=${atr:.2f}, SMA50=${sma50:.2f}
 - Bull Prosecution Case: {bull_args_str}
 - Bear Defense Case: {bear_args_str}
-- AdversarialIQ Conviction Score: {tribunal.get('conviction_score', 50)}/100
-- Adjudicated Ruling: {tribunal.get('verdict', 'HOLD')}
+- AdversarialIQ Conviction Score: {conviction}/100
+- Adjudicated Ruling: {verdict}
 - Suggested Position Size: {rec_shares} shares | Stop Loss: {stop_loss} | Target: {take_profit}
 
 AVAILABLE TOOLS YOU CAN CALL (Max 5 tool calls per turn with loop prevention):
@@ -523,6 +571,7 @@ You can invoke any tool by responding with `TOOL_CALL: {{"tool": "<name>", "argu
 - `get_post_mortem_lessons(symbol)`: Historical lessons learned on similar setups
 
 Deliver structured, direct, professional institutional analysis using markdown tables and bullet points.
+If the user's message is a greeting or general inquiry (e.g., 'hi', 'hello', 'who are you', 'how does this work'), respond cordially, introduce yourself as AdversarialIQ, mention the currently active stock on the terminal ({target_sym}), and briefly offer what you can help with.
 If the user asks to execute a trade, remind them they can type 'Buy <qty> <symbol>' or 'Sell <qty> <symbol>'."""
 
         gen_result = LLMManager.generate(

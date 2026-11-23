@@ -505,9 +505,36 @@ class LLMManager:
 
     @classmethod
     def _generate_quant_response(cls, prompt: str, symbol: Optional[str] = "AAPL") -> str:
-        """Autonomous Quantitative Rule-Based Response Generator."""
+        """Autonomous Quantitative Rule-Based Response Generator with conversational detection."""
         sym = (symbol or "AAPL").upper()
         meta = SP500_MAP.get(sym, {"name": sym, "sector": "S&P 500"})
+        prompt_clean = prompt.strip().lower()
+
+        # Check for conversational greeting or general assistant queries
+        is_greeting = any(re.search(p, prompt_clean) for p in [
+            r"^(hi|hello|hey|greetings|howdy|sup|hola)\b",
+            r"^good\s+(morning|afternoon|evening)",
+            r"who are you",
+            r"what can you do",
+            r"what is (this|adversarialiq)",
+            r"how are you",
+            r"help me",
+            r"^help$"
+        ])
+
+        if is_greeting:
+            return f"""### 🤖 Welcome to AdversarialIQ Institutional Trading Desk
+I am your real-time **Quantitative Trader & Financial Intelligence Agent**.
+
+The terminal is currently tracking **{sym}** ({meta.get('name')}). Here is what I can do:
+
+- **📊 Deep Ticker Analysis:** Inquire about any S&P 500 stock (e.g. *"What is happening with NVDA?"*, *"Show technicals for AAPL"*, *"Any news on MSFT?"*).
+- **⚖️ Adversarial Trade Tribunal:** Run 3-agent debates (*Bull vs Bear vs Chief Judge*) to evaluate conviction and risk gates (e.g. *"Debate {sym}"*).
+- **🕸️ Ecosystem & Supply Chain:** Review suppliers, customers, competitors, and A-CIS movement scores (e.g. *"Show ecosystem for {sym}"*).
+- **⚡ 5-Year Backtest Studio:** Simulate quantitative algorithmic strategies with live equity curves (e.g. *"Backtest RSI strategy on TSLA"*).
+- **🛡️ Risk Guardrails & Order Routing:** Test 2% ATR risk budgeting and route simulated or Alpaca US Paper trades (e.g. *"Buy 10 {sym}"*).
+
+*Ask any market question, request a stock analysis, or test a strategy!*"""
 
         price = 100.0
         rsi = 50.0
