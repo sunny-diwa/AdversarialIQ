@@ -20,6 +20,15 @@ STATIC_DIR = BASE_DIR / "static"
 SP500_FILE = DATA_DIR / "sp500.json"
 PORTFOLIO_FILE = DATA_DIR / "portfolio.json"
 
+# Load local .env configuration automatically
+try:
+    from dotenv import load_dotenv
+    env_path = BASE_DIR / ".env"
+    if env_path.exists():
+        load_dotenv(env_path, override=True)
+except Exception:
+    pass
+
 # Server Network Configuration
 HOST = os.environ.get("HOST", "0.0.0.0")
 PORT = int(os.environ.get("PORT", "8080"))
@@ -29,13 +38,21 @@ IS_DEV = ENV.lower() == "development"
 # SEC EDGAR Identity (User-Agent header required by SEC fair access policy)
 SEC_EDGAR_IDENTITY = os.environ.get("SEC_EDGAR_IDENTITY", "AdversarialIQ diwasunnyhack519@gmail.com")
 
-# External Data Layer API Keys
-FRED_API_KEY = os.environ.get("FRED_API_KEY", "")
-FINNHUB_API_KEY = os.environ.get("FINNHUB_API_KEY", "")
+# 1. Alpaca US Paper Trading API
+ALPACA_API_KEY = os.environ.get("ALPACA_API_KEY", "").strip()
+ALPACA_SECRET_KEY = os.environ.get("ALPACA_SECRET_KEY", "").strip()
+ALPACA_BASE_URL = os.environ.get("ALPACA_BASE_URL", "https://paper-api.alpaca.markets").strip().rstrip("/")
 
-# AI Model Provider Credentials
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
-OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
+# 2. AI Model Provider Credentials
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "").strip()
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
+MISTRAL_API_KEY = os.environ.get("MISTRAL_API_KEY", "").strip()
+NVIDIA_API_KEY = os.environ.get("NVIDIA_API_KEY", "").strip()
+OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434").strip()
+
+# 3. External Data Layer API Keys
+FRED_API_KEY = os.environ.get("FRED_API_KEY", "").strip()
+FINNHUB_API_KEY = os.environ.get("FINNHUB_API_KEY", "").strip()
 
 # Load S&P 500 Master Catalog
 SP500_STOCKS: List[dict] = []

@@ -266,40 +266,43 @@
         <div class="chat-container">
           <div class="chat-header">
             <div>
-              <span style="color:var(--amber-primary); font-weight:800; font-size:12px;">S&amp;P 500 QUANTITATIVE TRADER AGENT</span>
-              <span style="font-size:10px; color:var(--text-muted); margin-left:8px;">FINROBOT &amp; TRADINGAGENTS SYNDICATE</span>
+              <span style="color:var(--amber-primary); font-weight:800; font-size:12px;">ADVERSARIALIQ TRIBUNAL &amp; MULTI-AGENT SYNDICATE</span>
+              <span style="font-size:10px; color:var(--text-muted); margin-left:8px;">BULL PROSECUTOR VS. BEAR ADVERSARY VS. CHIEF JUDGE</span>
             </div>
             <div style="display:flex; gap:10px; align-items:center;">
-              <span style="font-size:10px; color:var(--cyan-primary);">PAPER ACCOUNT: $10,000 CAPITAL (0 POSITIONS)</span>
+              <span id="agent-broker-badge" style="font-size:10px; color:var(--cyan-primary); padding:2px 6px; background:#111927; border:1px solid #1f2b3e; border-radius:2px;">BROKER: ALPACA PAPER READY</span>
               <button id="btn-clear-chat" class="f-key" style="font-size:10px; padding:2px 6px;">CLEAR</button>
             </div>
           </div>
 
           <div class="chat-messages" id="chat-messages-container">
             <div class="chat-msg agent">
-              <div class="meta">TRADER AGENT • DESK ONLINE</div>
+              <div class="meta">ADVERSARIALIQ COURT • DESK ONLINE</div>
               <div class="msg-bubble">
-                Welcome to the <strong>S&amp;P 500 Multi-Agent Trading Desk</strong> (inspired by <em>FinGPT</em>, <em>TradingAgents</em>, and <em>FinRobot</em>).<br><br>
-                • <strong>Starting Capital:</strong> <code>$10,000.00 USD</code> in cash with <strong>0 open positions</strong>.<br>
-                • <strong>🥊 Multi-Agent Syndicate Debate:</strong> Run adversarial Bull vs. Bear debate with Chief Risk Officer sizing.<br>
-                • <strong>🛡️ Disciplined Risk Guardrails:</strong> 1% risk ($100), 2% risk ($200), max 25% single-stock allocation cap.<br>
-                • <strong>Virtual Paper Trades:</strong> Say <code>Buy 10 shares of NVDA</code> or <code>Sell 5 AAPL</code>.<br>
-                • Use the prompt chips below or type any ticker strategy question!
+                Welcome to <strong>AdversarialIQ</strong> — an institutional multi-agent trading court and quantitative syndicate.<br><br>
+                • <strong>Adversarial Trade Tribunal:</strong> For every trade or stock evaluation, we run TWO adversarial agents:<br>
+                &nbsp;&nbsp;🐂 <strong>Agent Bull (Advocate):</strong> Prosecutes the maximum upside case via momentum, SEC MD&amp;A disclosures, and news catalysts.<br>
+                &nbsp;&nbsp;🐻 <strong>Agent Bear (Adversary):</strong> Stress-tests downside risk, multiples compression, SEC risk factors, insider selling, and yield curve inversion.<br>
+                &nbsp;&nbsp;⚖️ <strong>Agent Judge (Chief Arbiter):</strong> Impartially cross-examines both, calculates the <strong>AdversarialIQ Conviction Score (0-100)</strong>, delivers ruling, and sets 2% risk position sizing.<br>
+                • <strong>Alpaca US Paper Trading:</strong> Direct API routing for market &amp; bracket orders (or simulated local desk fallback).<br>
+                • <strong>Multi-Model Engine:</strong> Groq, Google Gemini 2.0, Mistral AI, NVIDIA NIM, and Ollama Local.<br>
+                • Click any prompt chip below or ask any ticker inquiry!
               </div>
             </div>
           </div>
 
           <!-- Quick Prompts Bar -->
           <div class="quick-prompts-bar">
-            <button class="quick-pill" data-prompt="Run syndicate debate (Bull vs Bear vs CRO) for {symbol}">🥊 Syndicate Debate</button>
-            <button class="quick-pill" data-prompt="Generate S&P 500 daily desk morning briefing note">📋 Morning Desk Brief</button>
+            <button class="quick-pill" data-prompt="Run AdversarialIQ Trade Tribunal (Bull vs Bear vs Judge) for {symbol}">⚖️ AdversarialIQ Tribunal</button>
+            <button class="quick-pill" data-prompt="Prosecute the strongest Bull case for {symbol} with catalysts">🐂 Agent Bull Case</button>
+            <button class="quick-pill" data-prompt="Aggressively stress-test downside risks and Bear thesis for {symbol}">🐻 Agent Bear Case</button>
+            <button class="quick-pill" data-prompt="Generate AdversarialIQ daily desk morning briefing note">📋 Morning Desk Brief</button>
             <button class="quick-pill" data-prompt="Summarize latest SEC 10-K, 10-Q MD&A and risk factors for {symbol}">📑 SEC 10-K Filings</button>
             <button class="quick-pill" data-prompt="Analyze Form 4 insider trading clusters and 13F ownership for {symbol}">🕵️ Insider Form 4 & 13F</button>
             <button class="quick-pill" data-prompt="Fetch real-time breaking news catalysts and sentiment for {symbol}">📰 Breaking News</button>
             <button class="quick-pill" data-prompt="Provide macroeconomic regime and Treasury yield curve context">🌍 Macro Regime</button>
             <button class="quick-pill" data-prompt="Calculate 2% risk position size and stop-loss for {symbol} on $10K capital">🛡️ 2% Risk Sizing</button>
-            <button class="quick-pill" data-prompt="Buy 10 shares of {symbol}">⚡ Buy 10 Shares</button>
-            <button class="quick-pill" data-prompt="Show my paper trading portfolio risk metrics and PnL">💼 Portfolio Risk Desk</button>
+            <button class="quick-pill" data-prompt="Buy 10 shares of {symbol}">⚡ Route Buy Order</button>
           </div>
 
           <!-- Input Bar -->
@@ -879,6 +882,17 @@ Paper trade ledger linked ($10,000 capital active).
     <div id="view-portfolio" class="view-pane" style="display:none;">
       <div class="portfolio-layout">
         
+        <!-- Broker Header Bar -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; background:#090e18; border:1px solid #1a2538; padding:6px 12px; border-radius:2px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-weight:bold; color:#fff; font-size:12px;">ADVERSARIALIQ PAPER TRADING DESK</span>
+            <span id="port-broker-mode" style="font-size:10px; padding:2px 8px; border-radius:3px; font-weight:bold; background:#14532d; color:#86efac;">SIMULATED LOCAL DESK ($10,000 BASE)</span>
+          </div>
+          <div id="port-alpaca-sync-status" style="font-size:10.5px; color:var(--text-muted);">
+            Execution Broker: <strong style="color:var(--cyan-primary);" id="port-alpaca-indicator">Alpaca Paper / Local Desk</strong>
+          </div>
+        </div>
+
         <!-- Portfolio Overview Banner -->
         <div class="portfolio-overview-banner">
           <div class="portfolio-stat">
@@ -1053,24 +1067,29 @@ Paper trade ledger linked ($10,000 capital active).
 
   </main>
 
-  <!-- MODEL PROVIDER SETTINGS MODAL (GROQ & OLLAMA) -->
+  <!-- MODEL PROVIDER & ALPACA SETTINGS MODAL -->
   <div id="settings-modal" class="modal-overlay">
-    <div class="modal-content">
+    <div class="modal-content" style="max-width:540px; max-height:88vh; overflow-y:auto;">
       <div class="modal-header">
-        <span>⚙️ TRADER AGENT MODEL SETTINGS</span>
+        <span>⚙️ ADVERSARIALIQ ENGINE &amp; BROKER SETTINGS</span>
         <button id="btn-close-settings" style="background:none; border:none; color:#fff; cursor:pointer; font-size:16px;">&times;</button>
       </div>
       <div class="modal-body">
+        
+        <!-- SECTION 1: AI MODEL PROVIDERS -->
         <div class="form-group">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-            <label style="margin:0;">Model Provider</label>
+            <label style="margin:0; font-weight:bold; color:var(--amber-primary);">1. AI Model Provider</label>
             <div style="display:flex; align-items:center; gap:6px;">
               <span id="provider-ping-status" style="font-size:10px; padding:2px 8px; border-radius:3px; font-weight:bold; background:#1e293b; color:#94a3b8;">⚫ UNTESTED</span>
               <button type="button" id="btn-test-provider" class="f-key" style="font-size:9.5px; padding:2px 6px;">⚡ TEST PING</button>
             </div>
           </div>
           <select id="settings-provider-select" class="form-control">
-            <option value="groq">Groq Cloud (Ultra-Fast Inference)</option>
+            <option value="groq">Groq Cloud (Llama 3.3 70B / 3.1 8B)</option>
+            <option value="gemini">Google AI Studio (Gemini 2.0 Flash / Pro)</option>
+            <option value="mistral">Mistral AI (Mistral Small / Large)</option>
+            <option value="nvidia">NVIDIA NIM API (GLM 5.3 Flash / Llama 3.3)</option>
             <option value="ollama">Ollama Local (Offline / On-Device)</option>
             <option value="quant">Autonomous Quant Rule-Engine (No Key Needed)</option>
           </select>
@@ -1081,36 +1100,80 @@ Paper trade ledger linked ($10,000 capital active).
           <label>Model Selection</label>
           <select id="settings-model-select" class="form-control">
             <option value="llama-3.3-70b-versatile">Groq: Llama 3.3 70B (Recommended)</option>
-            <option value="llama-3.1-8b-instant">Groq: Llama 3.1 8B (Ultra Fast)</option>
-            <option value="mixtral-8x7b-32768">Groq: Mixtral 8x7B (32k Context)</option>
-            <option value="llama3">Ollama: llama3 (Local)</option>
+            <option value="gemini-2.0-flash">Gemini 2.0 Flash (Google AI Studio)</option>
+            <option value="mistral-small-latest">Mistral Small Latest (Mistral AI)</option>
+            <option value="z-ai/glm-5.3-flash">NVIDIA NIM: GLM 5.3 Flash</option>
           </select>
         </div>
 
-        <div class="form-group">
-          <label>Groq API Key (Optional)</label>
-          <input type="password" id="settings-groq-key" class="form-control" placeholder="gsk_...">
-          <span style="font-size:10px; color:var(--text-muted);">Get free API key at console.groq.com. Stored securely in your browser.</span>
+        <!-- Provider Specific Keys Grid -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+          <div class="form-group">
+            <label>Groq API Key</label>
+            <input type="password" id="settings-groq-key" class="form-control" placeholder="gsk_...">
+          </div>
+          <div class="form-group">
+            <label>Google Gemini Key</label>
+            <input type="password" id="settings-gemini-key" class="form-control" placeholder="AIzaSy...">
+          </div>
+          <div class="form-group">
+            <label>Mistral API Key</label>
+            <input type="password" id="settings-mistral-key" class="form-control" placeholder="Key from console.mistral.ai">
+          </div>
+          <div class="form-group">
+            <label>NVIDIA NIM Key</label>
+            <input type="password" id="settings-nvidia-key" class="form-control" placeholder="nvapi-...">
+          </div>
         </div>
 
         <div class="form-group">
-          <label>Ollama Base URL (If using Ollama)</label>
+          <label>Ollama Base URL (For Local Inference)</label>
           <input type="text" id="settings-ollama-url" class="form-control" value="http://localhost:11434">
         </div>
 
+        <!-- SECTION 2: ALPACA US PAPER TRADING -->
         <div style="border-top:1px solid #1a2538; margin:10px 0 6px 0; padding-top:6px;">
-          <span style="font-size:10px; color:var(--text-muted); font-weight:bold;">EXTERNAL DATA LAYER API KEYS (OPTIONAL OVERRIDES):</span>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <label style="margin:0; font-weight:bold; color:var(--cyan-primary);">2. Alpaca US Paper Trading (https://paper-api.alpaca.markets/v2)</label>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span id="alpaca-ping-status" style="font-size:10px; padding:2px 8px; border-radius:3px; font-weight:bold; background:#1e293b; color:#94a3b8;">⚫ UNTESTED</span>
+              <button type="button" id="btn-test-alpaca" class="f-key" style="font-size:9.5px; padding:2px 6px;">⚡ TEST ALPACA</button>
+            </div>
+          </div>
+          <div id="alpaca-ping-msg" style="font-size:10px; color:#cbd5e1; margin-bottom:6px; padding:4px 6px; background:#090e18; border:1px solid #1a2538; border-radius:2px; display:none;"></div>
         </div>
 
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+          <div class="form-group">
+            <label>Alpaca API Key ID</label>
+            <input type="password" id="settings-alpaca-key" class="form-control" placeholder="PK...">
+          </div>
+          <div class="form-group">
+            <label>Alpaca Secret Key</label>
+            <input type="password" id="settings-alpaca-secret" class="form-control" placeholder="Secret...">
+          </div>
+        </div>
         <div class="form-group">
-          <label>Finnhub API Key (Optional)</label>
-          <input type="password" id="settings-finnhub-key" class="form-control" placeholder="Free key from finnhub.io (Yahoo RSS fallback active)">
+          <label>Alpaca Base URL</label>
+          <input type="text" id="settings-alpaca-url" class="form-control" value="https://paper-api.alpaca.markets">
         </div>
 
-        <div class="form-group">
-          <label>FRED API Key (Optional)</label>
-          <input type="password" id="settings-fred-key" class="form-control" placeholder="Free key from stlouisfed.org (CBOE Treasury fallback active)">
+        <!-- SECTION 3: EXTERNAL DATA KEYS -->
+        <div style="border-top:1px solid #1a2538; margin:10px 0 6px 0; padding-top:6px;">
+          <label style="font-size:10px; color:var(--text-muted); font-weight:bold;">3. DATA LAYER API KEYS (OPTIONAL OVERRIDES):</label>
         </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+          <div class="form-group">
+            <label>Finnhub API Key</label>
+            <input type="password" id="settings-finnhub-key" class="form-control" placeholder="Free key (RSS fallback active)">
+          </div>
+          <div class="form-group">
+            <label>FRED API Key</label>
+            <input type="password" id="settings-fred-key" class="form-control" placeholder="Free key (Treasury fallback active)">
+          </div>
+        </div>
+
       </div>
       <div class="modal-footer">
         <button id="btn-save-settings" class="f-key active">SAVE &amp; APPLY SETTINGS</button>

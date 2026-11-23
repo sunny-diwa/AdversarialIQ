@@ -1,7 +1,7 @@
 """
 Paper Trading Portfolio & Risk Execution Engine
-Initializes paper portfolio with $10,000 baseline, zero initial positions,
-institutional risk controls (max concentration caps, Kelly sizing), and equity trajectory tracking.
+Supports Alpaca US Paper Trading API (https://paper-api.alpaca.markets/v2) with
+seamless fallback to Local Simulated Paper Ledger ($10,000 baseline, zero initial positions).
 """
 
 import json
@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 import yfinance as yf
 
+from src.alpaca_client import AlpacaPaperClient
 from src.config import PORTFOLIO_FILE, SP500_MAP
 
 logger = logging.getLogger("PortfolioEngine")
@@ -63,13 +64,88 @@ def reset_portfolio() -> Dict[str, Any]:
     return clean_p
 
 
-def get_portfolio_state() -> Dict[str, Any]:
+def get_portfolio_state(alpaca_key: Optional[str] = None, alpaca_secret: Optional[str] = None) -> Dict[str, Any]:
     """
     Returns live paper portfolio with marked-to-market valuations,
     advanced risk metrics (Win Rate %, Profit Factor, Concentration Risk %, Cash Ratio %),
     and equity trajectory history.
+    Syncs with Alpaca Paper Trading API if configured.
     """
+    alpaca = AlpacaPaperClient(api_key=alpaca_key, secret_key=alpaca_secret)
     p = load_portfolio()
+    trades = p.get("trades", [])
+
+    if alpaca.is_configured():
+        alpaca_acct = alpaca.get_account()
+        if alpaca_acct:
+            cash = alpaca_acct["cash"]
+            total_equity = alpaca_acct["portfolio_value"] or alpaca_acct["equity"] or cash
+            alpaca_positions = alpaca.get_positions()
+            holdings = []
+            total_holdings_val = 0.0
+
+            for pos in alpaca_positions:
+                sym = pos["symbol"]
+                cost_b = pos["cost_basis"]
+                mkt_v = pos["current_value"]
+                total_holdings_val += mkt_v
+                holdings.append({
+                    "symbol": sym,
+                    "name": SP500_MAP.get(sym, {}).get("name", sym),
+                    "quantity": pos["quantity"],
+                    "avg_price": pos["avg_price"],
+                    "current_price": pos["current_price"],
+                    "cost_basis": cost_b,
+                    "current_value": mkt_v,
+                    "unrealized_pnl": pos["unrealized_pnl"],
+                    "unrealized_pct": pos["unrealized_pct"],
+                    "status": "UP" if pos["unrealized_pnl"] >= 0 else "DOWN"
+                })
+
+            init_balance = p.get("initial_balance", 10000.0)
+            total_pnl = total_equity - init_balance
+            total_pnl_pct = (total_pnl / init_balance * 100) if init_balance else 0.0
+
+            # Advanced metrics
+            closed_trades = [t for t in trades if t.get("type") == "SELL" and "pnl" in t]
+            wins = [t for t in closed_trades if t.get("pnl", 0) > 0]
+            losses = [t for t in closed_trades if t.get("pnl", 0) <= 0]
+            win_rate = (len(wins) / len(closed_trades) * 100) if closed_trades else 0.0
+            gross_wins = sum(t.get("pnl", 0) for t in wins)
+            gross_losses = abs(sum(t.get("pnl", 0) for t in losses))
+            profit_factor = round(gross_wins / gross_losses, 2) if gross_losses > 0 else (round(gross_wins, 2) if gross_wins > 0 else 1.0)
+
+            max_stock_val = max([h["current_value"] for h in holdings], default=0.0)
+            concentration_risk = round((max_stock_val / total_equity * 100), 1) if total_equity else 0.0
+            cash_ratio = round((cash / total_equity * 100), 1) if total_equity else 100.0
+            invested_ratio = round(100.0 - cash_ratio, 1)
+
+            return {
+                "mode": "ALPACA_PAPER",
+                "account_number": alpaca_acct.get("account_number", ""),
+                "buying_power": round(alpaca_acct.get("buying_power", cash), 2),
+                "cash": round(cash, 2),
+                "holdings_value": round(total_holdings_val, 2),
+                "total_equity": round(total_equity, 2),
+                "initial_balance": round(init_balance, 2),
+                "realized_pnl": round(p.get("realized_pnl", 0.0), 2),
+                "unrealized_pnl": round(total_holdings_val - sum(h["cost_basis"] for h in holdings), 2),
+                "total_pnl": round(total_pnl, 2),
+                "total_pnl_pct": round(total_pnl_pct, 2),
+                "win_rate": round(win_rate, 1),
+                "profit_factor": profit_factor,
+                "total_trades": len(trades),
+                "concentration_risk": concentration_risk,
+                "cash_ratio": cash_ratio,
+                "invested_ratio": invested_ratio,
+                "positions": holdings,
+                "recent_trades": trades[-15:],
+                "equity_history": p.get("equity_history", [
+                    {"timestamp": datetime.now().strftime("%Y-%m-%d %H:%M"), "equity": round(total_equity, 2), "cash": round(cash, 2)}
+                ])
+            }
+
+    # Fallback to local paper trading ledger ($10,000 baseline)
     positions = p.get("positions", {})
     init_balance = p.get("initial_balance", 10000.0)
     cash = p.get("cash", 10000.0)
@@ -115,7 +191,6 @@ def get_portfolio_state() -> Dict[str, Any]:
     total_pnl_pct = (total_pnl / init_balance * 100) if init_balance else 0.0
 
     # Advanced Quant & Risk Metrics
-    trades = p.get("trades", [])
     closed_trades = [t for t in trades if t.get("type") == "SELL" and "pnl" in t]
     wins = [t for t in closed_trades if t.get("pnl", 0) > 0]
     losses = [t for t in closed_trades if t.get("pnl", 0) <= 0]
@@ -132,6 +207,8 @@ def get_portfolio_state() -> Dict[str, Any]:
     invested_ratio = round(100.0 - cash_ratio, 1)
 
     return {
+        "mode": "SIMULATED_LOCAL",
+        "buying_power": round(cash, 2),
         "cash": round(cash, 2),
         "holdings_value": round(total_holdings_val, 2),
         "total_equity": round(total_equity, 2),
@@ -162,15 +239,42 @@ def execute_order(
     limit_price: Optional[float] = None,
     stop_loss: Optional[float] = None,
     take_profit: Optional[float] = None,
-    rationale: str = "Manual Desk Execution"
+    rationale: str = "Manual Desk Execution",
+    alpaca_key: Optional[str] = None,
+    alpaca_secret: Optional[str] = None
 ) -> Dict[str, Any]:
-    """Executes a virtual paper trade (BUY or SELL) with order typing and risk tracking."""
+    """
+    Executes a virtual paper trade (BUY or SELL) with order typing and risk tracking.
+    Routes to Alpaca Paper Trading API if credentials are configured; otherwise executes locally.
+    """
     sym = symbol.strip().upper()
     act = action.strip().upper()
     qty = int(quantity)
 
     if qty <= 0:
         raise ValueError("Quantity must be greater than 0")
+
+    # If Alpaca Paper Trading is active, route order to Alpaca
+    alpaca = AlpacaPaperClient(api_key=alpaca_key, secret_key=alpaca_secret)
+    if alpaca.is_configured():
+        try:
+            alpaca_result = alpaca.place_order(
+                symbol=sym,
+                quantity=qty,
+                side=act.lower(),
+                order_type=order_type.lower(),
+                limit_price=limit_price,
+                stop_loss=stop_loss,
+                take_profit=take_profit
+            )
+            # Log into local trades blotter
+            p = load_portfolio()
+            p.setdefault("trades", []).append(alpaca_result["trade"])
+            save_portfolio(p)
+            return alpaca_result
+        except Exception as e:
+            logger.warning(f"Alpaca Paper routing failed, falling back to local desk: {e}")
+            # Fall through to local desk execution
 
     # Fetch live execution price
     try:
@@ -212,7 +316,6 @@ def execute_order(
         if cash < total_order_val:
             raise ValueError(f"Insufficient funds! Need ${total_order_val:.2f}, Cash available: ${cash:.2f}")
 
-        # Deduct cash
         p["cash"] = cash - total_order_val
         if sym in positions:
             prev_qty = positions[sym]["quantity"]

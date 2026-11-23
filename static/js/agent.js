@@ -13,7 +13,12 @@ class SP500TraderAgent {
     this.provider = localStorage.getItem("trader_provider") || "groq";
     this.model = localStorage.getItem("trader_model") || "llama-3.3-70b-versatile";
     this.groqApiKey = localStorage.getItem("trader_groq_key") || "";
+    this.geminiApiKey = localStorage.getItem("trader_gemini_key") || "";
+    this.mistralApiKey = localStorage.getItem("trader_mistral_key") || "";
+    this.nvidiaApiKey = localStorage.getItem("trader_nvidia_key") || "";
     this.ollamaUrl = localStorage.getItem("trader_ollama_url") || "http://localhost:11434";
+    this.alpacaKey = localStorage.getItem("alpaca_api_key") || "";
+    this.alpacaSecret = localStorage.getItem("alpaca_secret_key") || "";
   }
 
   init(symbol = "NVDA") {
@@ -42,9 +47,9 @@ class SP500TraderAgent {
         if (this.messagesContainer) {
           this.messagesContainer.innerHTML = `
             <div class="chat-msg agent">
-              <div class="meta">TRADER AGENT • DESK ONLINE</div>
+              <div class="meta">ADVERSARIALIQ COURT • DESK ONLINE</div>
               <div class="msg-bubble">
-                Chat cleared. S&amp;P 500 Quantitative Desk ready. Ask me any question about equities, technicals, or paper trades!
+                Court cleared. AdversarialIQ Trade Tribunal ready. Ask any ticker cross-examination, technical setup, or route paper trades!
               </div>
             </div>
           `;
@@ -69,15 +74,37 @@ class SP500TraderAgent {
   updateProviderBadge() {
     const badge = document.getElementById("agent-provider-tag");
     if (badge) {
-      if (this.provider === "groq") {
-        badge.innerText = `GROQ [${this.model.split('-')[0] || 'Llama'}]`;
+      const p = this.provider;
+      if (p === "groq") {
+        badge.innerText = `GROQ [${(this.model || 'Llama').split('-')[0]}]`;
         badge.style.color = "var(--amber-primary)";
-      } else if (this.provider === "ollama") {
-        badge.innerText = `OLLAMA LOCAL [${this.model}]`;
+      } else if (p === "gemini") {
+        badge.innerText = `GEMINI [${this.model || '2.0-flash'}]`;
+        badge.style.color = "#60a5fa";
+      } else if (p === "mistral") {
+        badge.innerText = `MISTRAL [${(this.model || 'small').split('-')[1] || 'AI'}]`;
+        badge.style.color = "#f97316";
+      } else if (p === "nvidia") {
+        badge.innerText = `NVIDIA NIM [${(this.model || 'glm').split('/')[1] || 'NIM'}]`;
+        badge.style.color = "#76b900";
+      } else if (p === "ollama") {
+        badge.innerText = `OLLAMA [${this.model || 'llama3'}]`;
         badge.style.color = "var(--cyan-primary)";
       } else {
-        badge.innerText = "QUANT RULE ENGINE";
+        badge.innerText = "QUANT ENGINE (AUTONOMOUS)";
         badge.style.color = "var(--green-up)";
+      }
+    }
+
+    const brokerBadge = document.getElementById("agent-broker-badge");
+    if (brokerBadge) {
+      const aKey = this.alpacaKey || localStorage.getItem("alpaca_api_key");
+      if (aKey) {
+        brokerBadge.innerText = "BROKER: ALPACA US PAPER READY";
+        brokerBadge.style.color = "var(--green-up)";
+      } else {
+        brokerBadge.innerText = "BROKER: LOCAL SIMULATED DESK ($10K)";
+        brokerBadge.style.color = "var(--cyan-primary)";
       }
     }
   }
@@ -100,8 +127,13 @@ class SP500TraderAgent {
           provider: this.provider,
           model: this.model,
           groq_api_key: this.groqApiKey,
+          gemini_api_key: this.geminiApiKey,
+          mistral_api_key: this.mistralApiKey,
+          nvidia_api_key: this.nvidiaApiKey,
           ollama_base_url: this.ollamaUrl,
-          current_symbol: this.currentSymbol
+          current_symbol: this.currentSymbol,
+          alpaca_key: this.alpacaKey,
+          alpaca_secret: this.alpacaSecret
         })
       });
 

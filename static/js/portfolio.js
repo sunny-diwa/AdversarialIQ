@@ -67,7 +67,14 @@ class SP500PaperPortfolio {
 
   async loadPortfolio() {
     try {
-      const res = await fetch("/api/portfolio/get");
+      const aKey = localStorage.getItem("alpaca_api_key") || "";
+      const aSec = localStorage.getItem("alpaca_secret_key") || "";
+      let url = "/api/portfolio/get";
+      if (aKey && aSec) {
+        url += `?alpaca_key=${encodeURIComponent(aKey)}&alpaca_secret=${encodeURIComponent(aSec)}`;
+      }
+
+      const res = await fetch(url);
       const data = await res.json();
       this.currentData = data;
       this.renderOverview(data);
@@ -85,7 +92,24 @@ class SP500PaperPortfolio {
       if (el) el.innerText = val !== undefined ? val : "--";
     };
 
-    // Primary Ledger Overview ($10K base)
+    // Broker mode badge
+    const brokerEl = document.getElementById("port-broker-mode");
+    const indicatorEl = document.getElementById("port-alpaca-indicator");
+    if (brokerEl) {
+      if (p.mode === "ALPACA_PAPER") {
+        brokerEl.innerText = `🟢 ALPACA US PAPER TRADING (Account: ${p.account_number || 'ACTIVE'})`;
+        brokerEl.style.background = "#14532d";
+        brokerEl.style.color = "#86efac";
+        if (indicatorEl) indicatorEl.innerText = "Connected to Alpaca Paper Desk";
+      } else {
+        brokerEl.innerText = "SIMULATED LOCAL DESK ($10,000 BASE)";
+        brokerEl.style.background = "#1e293b";
+        brokerEl.style.color = "var(--cyan-primary)";
+        if (indicatorEl) indicatorEl.innerText = "Local Simulated Desk (Alpaca Key in Settings)";
+      }
+    }
+
+    // Primary Ledger Overview ($10K base or Alpaca Live)
     setT("port-total-equity", `$${p.total_equity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
     setT("port-cash", `$${p.cash.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
     setT("port-holdings", `$${p.holdings_value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
@@ -309,6 +333,9 @@ class SP500PaperPortfolio {
     }
 
     try {
+      const aKey = localStorage.getItem("alpaca_api_key") || "";
+      const aSec = localStorage.getItem("alpaca_secret_key") || "";
+
       const res = await fetch("/api/portfolio/trade", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -317,7 +344,9 @@ class SP500PaperPortfolio {
           symbol,
           quantity,
           order_type,
-          rationale: `Manual Order Pad (${order_type})`
+          rationale: `Manual Order Pad (${order_type})`,
+          alpaca_key: aKey,
+          alpaca_secret: aSec
         })
       });
 

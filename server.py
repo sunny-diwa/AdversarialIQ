@@ -23,9 +23,10 @@ from pydantic import BaseModel
 
 from src.agent_syndicate import (
     get_daily_desk_briefing,
-    get_multi_agent_debate,
+    run_adversarial_trade_tribunal,
     process_chat_message,
 )
+from src.alpaca_client import AlpacaPaperClient
 from src.config import (
     HOST,
     IS_DEV,
@@ -85,6 +86,8 @@ class TradeRequest(BaseModel):
     stop_loss: Optional[float] = None
     take_profit: Optional[float] = None
     rationale: Optional[str] = "Manual Desk Execution"
+    alpaca_key: Optional[str] = None
+    alpaca_secret: Optional[str] = None
 
 
 class ChatRequest(BaseModel):
@@ -92,14 +95,25 @@ class ChatRequest(BaseModel):
     provider: Optional[str] = "groq"
     model: Optional[str] = "llama-3.3-70b-versatile"
     groq_api_key: Optional[str] = ""
+    gemini_api_key: Optional[str] = ""
+    mistral_api_key: Optional[str] = ""
+    nvidia_api_key: Optional[str] = ""
     ollama_base_url: Optional[str] = "http://localhost:11434"
     current_symbol: Optional[str] = "AAPL"
+    alpaca_key: Optional[str] = None
+    alpaca_secret: Optional[str] = None
 
 
 class PingRequest(BaseModel):
     provider: str
     model: Optional[str] = None
     api_key: Optional[str] = None
+    base_url: Optional[str] = None
+
+
+class AlpacaPingRequest(BaseModel):
+    api_key: Optional[str] = None
+    secret_key: Optional[str] = None
     base_url: Optional[str] = None
 
 
@@ -236,12 +250,12 @@ async def get_movers():
 
 
 # -----------------------------------------------------------------------------
-# Paper Trading Portfolio ($10,000 Clean Baseline)
+# Paper Trading Portfolio (Alpaca Paper Trading & $10,000 Clean Baseline)
 # -----------------------------------------------------------------------------
 @app.get("/api/portfolio/get")
-async def get_portfolio():
+async def get_portfolio(alpaca_key: Optional[str] = None, alpaca_secret: Optional[str] = None):
     """Returns live paper portfolio with risk metrics (Win Rate, Profit Factor, Concentration Cap)."""
-    return get_portfolio_state()
+    return get_portfolio_state(alpaca_key=alpaca_key, alpaca_secret=alpaca_secret)
 
 
 @app.post("/api/portfolio/trade")
@@ -256,7 +270,9 @@ async def post_trade(req: TradeRequest):
             limit_price=req.limit_price,
             stop_loss=req.stop_loss,
             take_profit=req.take_profit,
-            rationale=req.rationale or "Manual Desk Execution"
+            rationale=req.rationale or "Manual Desk Execution",
+            alpaca_key=req.alpaca_key,
+            alpaca_secret=req.alpaca_secret
         )
         return res
     except ValueError as ve:
@@ -274,11 +290,45 @@ async def reset_portfolio_endpoint():
 
 
 # -----------------------------------------------------------------------------
+# Alpaca US Paper Trading Direct Endpoints
+# -----------------------------------------------------------------------------
+@app.get("/api/alpaca/account")
+async def get_alpaca_account(api_key: Optional[str] = None, secret_key: Optional[str] = None):
+    """Fetches live Alpaca paper trading account status, buying power, and portfolio equity."""
+    client = AlpacaPaperClient(api_key=api_key, secret_key=secret_key)
+    acct = client.get_account()
+    if not acct:
+        return {"configured": False, "message": "Alpaca API credentials not set or invalid."}
+    return {"configured": True, "account": acct}
+
+
+@app.get("/api/alpaca/positions")
+async def get_alpaca_positions(api_key: Optional[str] = None, secret_key: Optional[str] = None):
+    """Fetches open positions from Alpaca paper account."""
+    client = AlpacaPaperClient(api_key=api_key, secret_key=secret_key)
+    return client.get_positions()
+
+
+@app.get("/api/alpaca/orders")
+async def get_alpaca_orders(api_key: Optional[str] = None, secret_key: Optional[str] = None):
+    """Fetches recent orders from Alpaca paper account."""
+    client = AlpacaPaperClient(api_key=api_key, secret_key=secret_key)
+    return client.get_orders()
+
+
+@app.post("/api/alpaca/ping")
+async def ping_alpaca(req: AlpacaPingRequest):
+    """On-demand connection test for Alpaca US Paper Trading API."""
+    client = AlpacaPaperClient(api_key=req.api_key, secret_key=req.secret_key, base_url=req.base_url)
+    return client.ping()
+
+
+# -----------------------------------------------------------------------------
 # AI Agent Syndicate & On-Demand LLM Health Check
 # -----------------------------------------------------------------------------
 @app.get("/api/agent/models")
 async def get_models():
-    """Detects available Ollama local models and provides recommended Groq models."""
+    """Detects available Ollama local models and provides recommended model catalogs."""
     return LLMManager.get_models_catalog()
 
 
@@ -298,8 +348,8 @@ async def ping_provider_endpoint(req: PingRequest):
 
 @app.get("/api/agent/debater")
 async def get_debate(symbol: str = "AAPL"):
-    """TradingAgents Multi-Persona Syndicate Debate (Bull Analyst vs Bear Risk Officer vs CRO)."""
-    return get_multi_agent_debate(symbol)
+    """AdversarialIQ Tribunal: Agent Bull vs. Agent Bear vs. Chief Risk Judge."""
+    return run_adversarial_trade_tribunal(symbol)
 
 
 @app.get("/api/agent/briefing")
@@ -311,14 +361,19 @@ async def get_briefing():
 
 @app.post("/api/agent/chat")
 async def chat_endpoint(req: ChatRequest):
-    """Chatbot Trader Agent endpoint with full multi-layer context and automatic failover."""
+    """AdversarialIQ Trader Agent endpoint with full multi-layer context and multi-provider failover."""
     return process_chat_message(
         message=req.message,
         provider=req.provider or "groq",
         model=req.model or "llama-3.3-70b-versatile",
         groq_api_key=req.groq_api_key or "",
+        gemini_api_key=req.gemini_api_key or "",
+        mistral_api_key=req.mistral_api_key or "",
+        nvidia_api_key=req.nvidia_api_key or "",
         ollama_base_url=req.ollama_base_url or "http://localhost:11434",
-        current_symbol=req.current_symbol or "AAPL"
+        current_symbol=req.current_symbol or "AAPL",
+        alpaca_key=req.alpaca_key,
+        alpaca_secret=req.alpaca_secret
     )
 
 
