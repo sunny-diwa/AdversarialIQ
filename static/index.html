@@ -634,6 +634,72 @@
                   </p>
                 </div>
 
+                <!-- AdversarialIQ Catalyst Impact & Ecosystem Volatility Predictor (A-CIS) -->
+                <div style="background:#090e18; border:1px solid #1a2538; padding:8px 10px; border-radius:3px; margin-bottom:8px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; border-bottom:1px solid #1c2738; padding-bottom:4px;">
+                    <div style="display:flex; align-items:center; gap:6px;">
+                      <span style="color:var(--amber-primary); font-weight:900; font-size:10.5px; letter-spacing:0.5px;">⚡ ECOSYSTEM CATALYST &amp; MOVEMENT PREDICTOR (A-CIS)</span>
+                      <span id="eco-movement-badge" class="quote-change-badge up" style="font-size:8px; padding:1px 5px;">CALCULATING</span>
+                    </div>
+                    <span id="eco-bias-badge" style="font-size:9px; font-weight:800; color:var(--cyan-primary); background:rgba(0,229,255,0.08); padding:1px 6px; border-radius:2px; border:1px solid rgba(0,229,255,0.2);">-- BIAS</span>
+                  </div>
+
+                  <!-- 3-Column Metrics: Movement Prob, Directional Vectors (Up vs Down), Technical Touch -->
+                  <div style="display:grid; grid-template-columns:1.2fr 1.5fr 1.3fr; gap:8px; align-items:stretch;">
+                    
+                    <!-- Column 1: Movement Probability Score (Non-Directional Impulse) -->
+                    <div style="background:#0c121e; padding:6px 8px; border-radius:3px; border:1px solid #1c2738; display:flex; flex-direction:column; justify-content:space-between;">
+                      <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="color:var(--text-muted); font-size:8.5px; font-weight:700;">MOVEMENT PROBABILITY</span>
+                        <strong id="eco-movement-score" style="color:#f1f5f9; font-size:12.5px; font-family:var(--font-mono);">-- / 100</strong>
+                      </div>
+                      <div style="background:#1e293b; height:5px; border-radius:2px; margin:4px 0; overflow:hidden;">
+                        <div id="eco-movement-bar" style="width:50%; height:100%; background:var(--amber-primary); transition:width 0.3s;"></div>
+                      </div>
+                      <div id="eco-movement-desc" style="color:#94a3b8; font-size:8px; line-height:1.2;">Impulse potential across direct sentiment and cross-entity dependencies.</div>
+                    </div>
+
+                    <!-- Column 2: Directional Prediction Vectors (Up Score vs Down Score) -->
+                    <div style="background:#0c121e; padding:6px 8px; border-radius:3px; border:1px solid #1c2738; display:flex; flex-direction:column; justify-content:space-between;">
+                      <div style="display:flex; justify-content:space-between; align-items:center; font-size:8.5px;">
+                        <span style="color:var(--green-up); font-weight:bold;">▲ UP SCORE: <strong id="eco-up-score" style="font-size:11px;">--</strong></span>
+                        <span style="color:var(--red-down); font-weight:bold;">▼ DOWN SCORE: <strong id="eco-down-score" style="font-size:11px;">--</strong></span>
+                      </div>
+                      <div style="display:flex; height:5px; border-radius:2px; overflow:hidden; background:#1e293b; margin:3px 0;">
+                        <div id="eco-bull-bar" style="width:50%; background:var(--green-up); transition:width 0.3s;"></div>
+                        <div id="eco-bear-bar" style="width:50%; background:var(--red-down); transition:width 0.3s;"></div>
+                      </div>
+                      <div style="display:flex; justify-content:space-between; font-size:7.5px; color:var(--text-muted);">
+                        <span>Customer demand &amp; positive sentiment</span>
+                        <span>Bottlenecks &amp; capex cutbacks</span>
+                      </div>
+                    </div>
+
+                    <!-- Column 3: Technical Touch Scorecard -->
+                    <div style="background:#0c121e; padding:6px 8px; border-radius:3px; border:1px solid #1c2738; display:flex; flex-direction:column; justify-content:space-between;">
+                      <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="color:var(--text-muted); font-size:8.5px; font-weight:700;">TECHNICAL REGIME</span>
+                        <span id="eco-tech-bias" style="font-size:8.5px; font-weight:bold; color:var(--cyan-primary);">--</span>
+                      </div>
+                      <div style="display:grid; grid-template-columns:1fr 1fr; gap:3px; font-size:8px;">
+                        <div>Trend: <strong id="eco-tech-trend" style="color:#f1f5f9;">--</strong></div>
+                        <div>Momentum: <strong id="eco-tech-mom" style="color:#f1f5f9;">--</strong></div>
+                        <div>Volatility: <strong id="eco-tech-vol" style="color:#f1f5f9;">--</strong></div>
+                        <div>Volume Flow: <strong id="eco-tech-flow" style="color:#f1f5f9;">--</strong></div>
+                      </div>
+                    </div>
+
+                  </div>
+
+                  <!-- Active Catalysts Pills Feed -->
+                  <div style="display:flex; gap:6px; align-items:center; margin-top:5px; overflow-x:auto; padding-top:4px; border-top:1px solid #141f30;" id="eco-catalysts-container">
+                    <span style="font-size:8px; color:var(--amber-primary); font-weight:bold; white-space:nowrap;">ACTIVE SPILLOVER:</span>
+                    <div id="eco-catalysts-tags" style="display:flex; gap:4px; flex-wrap:wrap;">
+                      <span style="font-size:7.5px; color:#94a3b8; background:#111927; padding:1px 5px; border-radius:2px; border:1px solid #1f2b3e;">Analyzing cross-entity feed...</span>
+                    </div>
+                  </div>
+                </div>
+
                 <!-- 2x2 Grid: Suppliers, Customers, Competitors, Consumer Breakdown -->
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
 
@@ -1008,13 +1074,19 @@
 
           <!-- Indicator Checkbox Toggles -->
           <div class="chart-toggles">
+            <label><input type="checkbox" id="toggle-vol" checked> <span style="color:#94a3b8;">Volume</span></label>
+            <label><input type="checkbox" id="toggle-vwap" checked> <span style="color:#f59e0b;">VWAP</span></label>
             <label><input type="checkbox" id="toggle-sma20" checked> <span style="color:#ffcc00;">SMA 20</span></label>
             <label><input type="checkbox" id="toggle-sma50" checked> <span style="color:#3b82f6;">SMA 50</span></label>
+            <label><input type="checkbox" id="toggle-ema20"> <span style="color:#ec4899;">EMA 20</span></label>
+            <label><input type="checkbox" id="toggle-sma200"> <span style="color:#8b5cf6;">SMA 200</span></label>
             <label><input type="checkbox" id="toggle-bb" checked> <span style="color:#00e5ff;">Bollinger
                 (20,2)</span></label>
             <label><input type="checkbox" id="toggle-rsi" checked> <span style="color:#ff9900;">RSI (14)</span></label>
             <label><input type="checkbox" id="toggle-macd" checked> <span style="color:#00ff66;">MACD
                 (12,26,9)</span></label>
+            <label><input type="checkbox" id="toggle-stoch"> <span style="color:#10b981;">Stoch (%K/%D)</span></label>
+            <label><input type="checkbox" id="toggle-williams"> <span style="color:#e11d48;">Williams %R</span></label>
           </div>
         </div>
 
@@ -1022,22 +1094,33 @@
         <div class="indicators-hud-bar">
           <div><span style="color:var(--text-muted);">PRICE:</span> <span id="val-price"
               style="font-weight:bold; color:#fff;">--</span></div>
-          <div><span style="color:var(--text-muted);">RSI (14):</span> <span id="val-rsi"
-              style="font-weight:bold; color:#fff;">--</span></div>
-          <div><span style="color:var(--text-muted);">MACD:</span> <span id="val-macd"
-              style="font-weight:bold; color:#fff;">--</span></div>
+          <div><span style="color:var(--text-muted);">VWAP:</span> <span id="val-vwap"
+              style="color:#f59e0b; font-weight:bold;">--</span></div>
           <div><span style="color:var(--text-muted);">SMA 20:</span> <span id="val-sma20"
               style="color:#ffcc00; font-weight:bold;">--</span></div>
           <div><span style="color:var(--text-muted);">SMA 50:</span> <span id="val-sma50"
               style="color:#3b82f6; font-weight:bold;">--</span></div>
+          <div><span style="color:var(--text-muted);">EMA 20:</span> <span id="val-ema20"
+              style="color:#ec4899; font-weight:bold;">--</span></div>
+          <div><span style="color:var(--text-muted);">SMA 200:</span> <span id="val-sma200"
+              style="color:#8b5cf6; font-weight:bold;">--</span></div>
           <div><span style="color:var(--text-muted);">BOLLINGER UPPER:</span> <span id="val-bb-up"
               style="color:var(--cyan-primary); font-weight:bold;">--</span></div>
           <div><span style="color:var(--text-muted);">BOLLINGER LOWER:</span> <span id="val-bb-low"
               style="color:var(--green-up); font-weight:bold;">--</span></div>
+          <div><span style="color:var(--text-muted);">RSI (14):</span> <span id="val-rsi"
+              style="font-weight:bold; color:#fff;">--</span></div>
+          <div><span style="color:var(--text-muted);">MACD:</span> <span id="val-macd"
+              style="font-weight:bold; color:#fff;">--</span></div>
+          <div><span style="color:var(--text-muted);">STOCH:</span> <span id="val-stoch"
+              style="color:#10b981; font-weight:bold;">--</span></div>
+          <div><span style="color:var(--text-muted);">WILLIAMS %R:</span> <span id="val-williams"
+              style="color:#e11d48; font-weight:bold;">--</span></div>
         </div>
 
         <!-- Main Chart Stage -->
-        <div id="candle-hud" style="background:#090e18; border:1px solid #1a2538; border-bottom:none; font-size:10px; color:var(--text-muted); padding:3px 8px; display:flex; gap:12px; font-family:var(--font-mono); align-items:center;">
+        <div id="candle-hud"
+          style="background:#090e18; border:1px solid #1a2538; border-bottom:none; font-size:10px; color:var(--text-muted); padding:3px 8px; display:flex; gap:12px; font-family:var(--font-mono); align-items:center;">
           <span style="color:var(--amber-primary); font-weight:bold;" id="hud-ticker">NVDA</span>
           <span id="hud-date" style="color:#94a3b8;">--</span>
           <span>O: <strong id="hud-open" style="color:#f1f5f9;">--</strong></span>
@@ -1049,7 +1132,8 @@
           <span style="margin-left:auto; font-size:9px; color:var(--text-muted);" id="hud-mode-label">CANDLESTICK MODE (JAPANESE OHLCV)</span>
         </div>
         <div class="chart-stage-container">
-          <div class="chart-canvas-wrapper" id="main-candlestick-wrapper" style="position:relative; width:100%; height:100%;">
+          <div class="chart-canvas-wrapper" id="main-candlestick-wrapper"
+            style="position:relative; width:100%; height:100%;">
             <canvas id="main-candlestick-canvas"></canvas>
           </div>
           <div class="chart-sub-wrapper" id="rsi-sub-container">
@@ -1057,6 +1141,12 @@
           </div>
           <div class="chart-sub-wrapper" id="macd-sub-container">
             <canvas id="macd-canvas"></canvas>
+          </div>
+          <div class="chart-sub-wrapper" id="stoch-sub-container" style="display:none; height:65px; border-top:1px solid #1a2538; position:relative;">
+            <canvas id="stoch-canvas"></canvas>
+          </div>
+          <div class="chart-sub-wrapper" id="williams-sub-container" style="display:none; height:65px; border-top:1px solid #1a2538; position:relative;">
+            <canvas id="williams-canvas"></canvas>
           </div>
         </div>
 

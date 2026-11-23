@@ -127,81 +127,188 @@ class SP500CompanyDashboard {
       if (!res.ok) return;
       const data = await res.json();
 
-      // 1. Summary & Grounding Badge
+      // 1. AdversarialIQ Catalyst Impact & Volatility Predictor (A-CIS)
+      const scores = data.catalyst_scores || {};
+      const movScore = Math.round(scores.movement_probability_score || 0);
+      const movBadge = document.getElementById("eco-movement-badge");
+      if (movBadge) {
+        movBadge.innerText = scores.movement_label || "CALCULATED";
+        movBadge.className = `quote-change-badge ${movScore >= 60 ? 'down' : (movScore >= 40 ? 'flat' : 'up')}`;
+      }
+
+      const movScoreEl = document.getElementById("eco-movement-score");
+      if (movScoreEl) movScoreEl.innerText = `${movScore} / 100`;
+
+      const movBar = document.getElementById("eco-movement-bar");
+      if (movBar) {
+        movBar.style.width = `${movScore}%`;
+        movBar.style.background = movScore >= 70 ? 'var(--red-down)' : (movScore >= 45 ? 'var(--amber-primary)' : 'var(--cyan-primary)');
+      }
+
+      const movDesc = document.getElementById("eco-movement-desc");
+      if (movDesc) movDesc.innerText = scores.movement_rationale || "Impulse potential across direct sentiment and cross-entity dependencies.";
+
+      // Directional Up vs Down Prediction Scores
+      const upScore = Math.round(scores.up_score || 0);
+      const downScore = Math.round(scores.down_score || 0);
+      const totalScore = Math.max(upScore + downScore, 1);
+      const upPct = Math.round((upScore / totalScore) * 100);
+      const downPct = 100 - upPct;
+
+      const upEl = document.getElementById("eco-up-score");
+      if (upEl) upEl.innerText = `${upScore}`;
+      const downEl = document.getElementById("eco-down-score");
+      if (downEl) downEl.innerText = `${downScore}`;
+
+      const bullBar = document.getElementById("eco-bull-bar");
+      if (bullBar) bullBar.style.width = `${upPct}%`;
+      const bearBar = document.getElementById("eco-bear-bar");
+      if (bearBar) bearBar.style.width = `${downPct}%`;
+
+      const biasBadge = document.getElementById("eco-bias-badge");
+      if (biasBadge) {
+        biasBadge.innerText = scores.dominant_bias || "-- BIAS";
+        if ((scores.dominant_bias || "").includes("BULLISH")) {
+          biasBadge.style.color = "var(--green-up)";
+          biasBadge.style.borderColor = "rgba(0, 255, 102, 0.3)";
+          biasBadge.style.background = "rgba(0, 255, 102, 0.08)";
+        } else if ((scores.dominant_bias || "").includes("BEARISH")) {
+          biasBadge.style.color = "var(--red-down)";
+          biasBadge.style.borderColor = "rgba(255, 51, 68, 0.3)";
+          biasBadge.style.background = "rgba(255, 51, 68, 0.08)";
+        } else {
+          biasBadge.style.color = "var(--cyan-primary)";
+          biasBadge.style.borderColor = "rgba(0, 229, 255, 0.3)";
+          biasBadge.style.background = "rgba(0, 229, 255, 0.08)";
+        }
+      }
+
+      // Technical Touch Scorecard
+      const tech = scores.technical_scorecard || {};
+      const techBias = document.getElementById("eco-tech-bias");
+      if (techBias) {
+        techBias.innerText = tech.composite_bias || "--";
+        techBias.style.color = tech.composite_bias === "BULLISH" ? "var(--green-up)" : (tech.composite_bias === "BEARISH" ? "var(--red-down)" : "var(--cyan-primary)");
+      }
+      const setMetric = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = val !== undefined && val !== null ? val : "--";
+      };
+      setMetric("eco-tech-trend", `${tech.trend_score || '--'}/100`);
+      setMetric("eco-tech-mom", `${tech.momentum_score || '--'}/100`);
+      setMetric("eco-tech-vol", `${tech.volatility_score || '--'}/100`);
+      setMetric("eco-tech-flow", `${tech.volume_pressure_score || '--'}/100`);
+
+      // Active Catalysts Tags
+      const catTags = document.getElementById("eco-catalysts-tags");
+      if (catTags && Array.isArray(scores.key_catalysts)) {
+        catTags.innerHTML = scores.key_catalysts.map(c => `
+          <span style="font-size:7.5px; color:#cbd5e1; background:#111927; padding:1.5px 6px; border-radius:2px; border:1px solid #1f2b3e;">${c}</span>
+        `).join("");
+      }
+
+      // 2. Summary & Grounding Badge
       const descEl = document.getElementById("eco-summary-desc");
       if (descEl) descEl.innerText = data.ecosystem_summary || "Ecosystem structure and supply chain relationships.";
 
       const badgeEl = document.getElementById("eco-grounding-badge");
       if (badgeEl) badgeEl.innerText = data.grounding_source || "Google Grounded + SEC 10-K";
 
-      // 2. Upstream Suppliers
+      // 3. Upstream Suppliers
       const suppEl = document.getElementById("eco-suppliers-list");
       if (suppEl && Array.isArray(data.upstream_suppliers)) {
         if (data.upstream_suppliers.length === 0) {
           suppEl.innerHTML = `<div style="font-size:9.5px; color:var(--text-muted); text-align:center; padding:10px;">No primary upstream bottlenecks identified.</div>`;
         } else {
           suppEl.innerHTML = data.upstream_suppliers.map(s => `
-            <div style="background:#090e18; border:1px solid #1a2538; padding:5px 7px; border-radius:2px; display:flex; justify-content:space-between; align-items:flex-start; gap:6px;">
-              <div style="flex:1;">
-                <div style="display:flex; align-items:center; gap:6px;">
-                  <button class="f-key btn-eco-ticker" data-sym="${s.symbol}" style="font-size:9.5px; font-weight:800; padding:1px 5px; color:var(--cyan-primary);">${s.symbol}</button>
-                  <strong style="color:#f1f5f9; font-size:10px;">${s.name}</strong>
+            <div style="background:#090e18; border:1px solid #1a2538; padding:6px 8px; border-radius:2px; display:flex; flex-direction:column; gap:4px;">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:6px;">
+                <div style="flex:1;">
+                  <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                    <button class="f-key btn-eco-ticker" data-sym="${s.symbol}" style="font-size:9.5px; font-weight:800; padding:1px 5px; color:var(--cyan-primary);">${s.symbol}</button>
+                    <strong style="color:#f1f5f9; font-size:10px;">${s.name}</strong>
+                    <span class="quote-change-badge ${s.status === 'UP' ? 'up' : (s.status === 'DOWN' ? 'down' : 'flat')}" style="font-size:8px; padding:1px 5px; font-weight:800;">
+                      $${Number(s.price || 100).toFixed(2)} (${s.pct_change >= 0 ? '+' : ''}${Number(s.pct_change || 0).toFixed(2)}%)
+                    </span>
+                  </div>
+                  <div style="color:var(--text-muted); font-size:9px; margin-top:2px;">${s.role}</div>
+                  <div style="color:#94a3b8; font-size:8.5px; margin-top:2px; line-height:1.2;">${s.description || ''}</div>
                 </div>
-                <div style="color:var(--text-muted); font-size:9px; margin-top:2px;">${s.role}</div>
-                <div style="color:#94a3b8; font-size:8.5px; margin-top:2px; line-height:1.2;">${s.description || ''}</div>
+                <div style="text-align:right; font-size:8.5px; white-space:nowrap;">
+                  <span class="quote-change-badge ${s.criticality === 'EXTREME' || s.criticality === 'CRITICAL' ? 'down' : 'up'}" style="font-size:8px; padding:1px 4px;">${s.criticality}</span>
+                  <div style="color:var(--text-muted); font-size:8px; margin-top:2px;">${s.tier}</div>
+                </div>
               </div>
-              <div style="text-align:right; font-size:8.5px; white-space:nowrap;">
-                <span class="quote-change-badge ${s.criticality === 'EXTREME' || s.criticality === 'CRITICAL' ? 'down' : 'up'}" style="font-size:8px; padding:1px 4px;">${s.criticality}</span>
-                <div style="color:var(--text-muted); font-size:8px; margin-top:2px;">${s.tier}</div>
+              <div style="font-size:8px; color:#cbd5e1; display:flex; gap:4px; align-items:center; background:#0c121d; padding:2px 5px; border-radius:2px; border:1px solid #1a2538;">
+                <span style="font-size:7.5px; font-weight:bold; color:${s.news_sentiment === 'POSITIVE' ? 'var(--green-up)' : (s.news_sentiment === 'NEGATIVE' ? 'var(--red-down)' : 'var(--cyan-primary)')};">[${s.news_sentiment || 'NEWS'}]</span>
+                <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1;" title="${s.latest_news || ''}">${s.latest_news || 'Operational telemetry baseline.'}</span>
               </div>
             </div>
           `).join("");
         }
       }
 
-      // 3. Downstream Customers
+      // 4. Downstream Customers
       const custEl = document.getElementById("eco-customers-list");
       if (custEl && Array.isArray(data.downstream_customers)) {
         if (data.downstream_customers.length === 0) {
           custEl.innerHTML = `<div style="font-size:9.5px; color:var(--text-muted); text-align:center; padding:10px;">Diversified commercial end customers.</div>`;
         } else {
           custEl.innerHTML = data.downstream_customers.map(c => `
-            <div style="background:#090e18; border:1px solid #1a2538; padding:5px 7px; border-radius:2px; display:flex; justify-content:space-between; align-items:flex-start; gap:6px;">
-              <div style="flex:1;">
-                <div style="display:flex; align-items:center; gap:6px;">
-                  <button class="f-key btn-eco-ticker" data-sym="${c.symbol}" style="font-size:9.5px; font-weight:800; padding:1px 5px; color:var(--green-up);">${c.symbol}</button>
-                  <strong style="color:#f1f5f9; font-size:10px;">${c.name}</strong>
+            <div style="background:#090e18; border:1px solid #1a2538; padding:6px 8px; border-radius:2px; display:flex; flex-direction:column; gap:4px;">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:6px;">
+                <div style="flex:1;">
+                  <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                    <button class="f-key btn-eco-ticker" data-sym="${c.symbol}" style="font-size:9.5px; font-weight:800; padding:1px 5px; color:var(--green-up);">${c.symbol}</button>
+                    <strong style="color:#f1f5f9; font-size:10px;">${c.name}</strong>
+                    <span class="quote-change-badge ${c.status === 'UP' ? 'up' : (c.status === 'DOWN' ? 'down' : 'flat')}" style="font-size:8px; padding:1px 5px; font-weight:800;">
+                      $${Number(c.price || 100).toFixed(2)} (${c.pct_change >= 0 ? '+' : ''}${Number(c.pct_change || 0).toFixed(2)}%)
+                    </span>
+                  </div>
+                  <div style="color:var(--text-muted); font-size:9px; margin-top:2px;">${c.role}</div>
+                  <div style="color:#94a3b8; font-size:8.5px; margin-top:2px; line-height:1.2;">${c.use_case || ''}</div>
                 </div>
-                <div style="color:var(--text-muted); font-size:9px; margin-top:2px;">${c.role}</div>
-                <div style="color:#94a3b8; font-size:8.5px; margin-top:2px; line-height:1.2;">${c.use_case || ''}</div>
+                <div style="text-align:right; font-size:8.5px; white-space:nowrap;">
+                  ${c.revenue_share_pct ? `<span style="color:var(--cyan-primary); font-weight:bold;">~${c.revenue_share_pct}% Rev</span>` : ''}
+                  <div style="color:var(--text-muted); font-size:8px; margin-top:2px;">${c.tier}</div>
+                </div>
               </div>
-              <div style="text-align:right; font-size:8.5px; white-space:nowrap;">
-                ${c.revenue_share_pct ? `<span style="color:var(--cyan-primary); font-weight:bold;">~${c.revenue_share_pct}% Rev</span>` : ''}
-                <div style="color:var(--text-muted); font-size:8px; margin-top:2px;">${c.tier}</div>
+              <div style="font-size:8px; color:#cbd5e1; display:flex; gap:4px; align-items:center; background:#0c121d; padding:2px 5px; border-radius:2px; border:1px solid #1a2538;">
+                <span style="font-size:7.5px; font-weight:bold; color:${c.news_sentiment === 'POSITIVE' ? 'var(--green-up)' : (c.news_sentiment === 'NEGATIVE' ? 'var(--red-down)' : 'var(--cyan-primary)')};">[${c.news_sentiment || 'NEWS'}]</span>
+                <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1;" title="${c.latest_news || ''}">${c.latest_news || 'Demand pipeline tracking.'}</span>
               </div>
             </div>
           `).join("");
         }
       }
 
-      // 4. Competitors
+      // 5. Competitors
       const compEl = document.getElementById("eco-competitors-list");
       if (compEl && Array.isArray(data.competitors)) {
         if (data.competitors.length === 0) {
           compEl.innerHTML = `<div style="font-size:9.5px; color:var(--text-muted); text-align:center; padding:10px;">No direct peer competitors identified.</div>`;
         } else {
           compEl.innerHTML = data.competitors.map(cp => `
-            <div style="background:#090e18; border:1px solid #1a2538; padding:5px 7px; border-radius:2px; display:flex; justify-content:space-between; align-items:flex-start; gap:6px;">
-              <div style="flex:1;">
-                <div style="display:flex; align-items:center; gap:6px;">
-                  <button class="f-key btn-eco-ticker" data-sym="${cp.symbol}" style="font-size:9.5px; font-weight:800; padding:1px 5px; color:var(--amber-primary);">${cp.symbol}</button>
-                  <strong style="color:#f1f5f9; font-size:10px;">${cp.name}</strong>
+            <div style="background:#090e18; border:1px solid #1a2538; padding:6px 8px; border-radius:2px; display:flex; flex-direction:column; gap:4px;">
+              <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:6px;">
+                <div style="flex:1;">
+                  <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                    <button class="f-key btn-eco-ticker" data-sym="${cp.symbol}" style="font-size:9.5px; font-weight:800; padding:1px 5px; color:var(--amber-primary);">${cp.symbol}</button>
+                    <strong style="color:#f1f5f9; font-size:10px;">${cp.name}</strong>
+                    <span class="quote-change-badge ${cp.status === 'UP' ? 'up' : (cp.status === 'DOWN' ? 'down' : 'flat')}" style="font-size:8px; padding:1px 5px; font-weight:800;">
+                      $${Number(cp.price || 100).toFixed(2)} (${cp.pct_change >= 0 ? '+' : ''}${Number(cp.pct_change || 0).toFixed(2)}%)
+                    </span>
+                  </div>
+                  <div style="color:#94a3b8; font-size:8.5px; margin-top:2px; line-height:1.2;">${cp.competitive_advantage || cp.key_products || ''}</div>
                 </div>
-                <div style="color:#94a3b8; font-size:8.5px; margin-top:2px; line-height:1.2;">${cp.competitive_advantage || cp.key_products || ''}</div>
+                <div style="text-align:right; font-size:8.5px; white-space:nowrap;">
+                  <span class="quote-change-badge ${cp.moat_rating === 'WIDE' ? 'up' : 'flat'}" style="font-size:8px; padding:1px 4px;">Moat: ${cp.moat_rating}</span>
+                  <div style="color:var(--text-muted); font-size:8px; margin-top:2px;">Threat: ${cp.threat_level}</div>
+                </div>
               </div>
-              <div style="text-align:right; font-size:8.5px; white-space:nowrap;">
-                <span class="quote-change-badge ${cp.moat_rating === 'WIDE' ? 'up' : 'flat'}" style="font-size:8px; padding:1px 4px;">Moat: ${cp.moat_rating}</span>
-                <div style="color:var(--text-muted); font-size:8px; margin-top:2px;">Threat: ${cp.threat_level}</div>
+              <div style="font-size:8px; color:#cbd5e1; display:flex; gap:4px; align-items:center; background:#0c121d; padding:2px 5px; border-radius:2px; border:1px solid #1a2538;">
+                <span style="font-size:7.5px; font-weight:bold; color:${cp.news_sentiment === 'POSITIVE' ? 'var(--green-up)' : (cp.news_sentiment === 'NEGATIVE' ? 'var(--red-down)' : 'var(--cyan-primary)')};">[${cp.news_sentiment || 'NEWS'}]</span>
+                <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; flex:1;" title="${cp.latest_news || ''}">${cp.latest_news || 'Competitive positioning monitoring.'}</span>
               </div>
             </div>
           `).join("");
