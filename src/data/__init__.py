@@ -10,6 +10,7 @@ from .sec_edgar import fetch_sec_filings, fetch_insider_and_13f_activity
 from .news import fetch_breaking_news, calculate_sentiment, tag_catalysts
 from .macro import fetch_macro_regime
 from .calendar import fetch_earnings_calendar
+from .ecosystem import fetch_company_ecosystem
 
 __all__ = [
     "compute_indicators",
@@ -25,4 +26,5 @@ __all__ = [
     "tag_catalysts",
     "fetch_macro_regime",
     "fetch_earnings_calendar",
+    "fetch_company_ecosystem",
 ]

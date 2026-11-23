@@ -122,7 +122,7 @@ def invoke_langchain_model(
     prompt_text: str,
     system_prompt: str = "You are an institutional trading syndicate agent.",
     provider: str = "groq",
-    model: str = "llama-3.3-70b-versatile",
+    model: str = "openai/gpt-oss-120b",
     symbol: str = "MARKET"
 ) -> str:
     """Dispatches prompt through LLMManager with automatic Langfuse Cloud tracing and failover."""
@@ -154,7 +154,7 @@ class LangChainTribunal:
         self.company_name = meta.get("name", self.symbol)
         self.account_capital = account_capital
         self.provider = provider
-        self.model = model or ("llama-3.3-70b-versatile" if provider == "groq" else "gemini-2.0-flash")
+        self.model = model or ("openai/gpt-oss-120b" if provider == "groq" else ("gemini-4-hydrogen" if provider in ("gemini", "google") else "codestral-latest"))
 
     def run(self, auto_execute: bool = False, alpaca_key: Optional[str] = None, alpaca_secret: Optional[str] = None) -> Dict[str, Any]:
         """Executes the full LangChain multi-agent tribunal."""

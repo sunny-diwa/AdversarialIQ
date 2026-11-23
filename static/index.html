@@ -41,7 +41,8 @@
       </div>
       <button id="btn-open-traces" class="btn-settings" style="border-color:#38bdf8; color:#38bdf8;">📡 TRACES /
         OBSERVABILITY</button>
-      <button id="btn-open-auth" class="btn-settings" style="border-color:#10b981; color:#10b981;">👤 <span id="user-display-label">LOGIN</span></button>
+      <button id="btn-open-auth" class="btn-settings" style="border-color:#10b981; color:#10b981;">👤 <span
+          id="user-display-label">LOGIN</span></button>
       <button id="btn-open-settings" class="btn-settings">⚙️ AI SETTINGS</button>
     </div>
   </header>
@@ -50,7 +51,9 @@
   <div class="global-search-bar">
     <div class="search-box-wrapper">
       <span class="search-icon" aria-hidden="true">🔍</span>
-      <input type="text" id="header-stock-search" class="global-search-input" placeholder="SEARCH 503 S&P 500 STOCKS BY TICKER OR NAME (e.g. AAPL, NVDA, TSLA, MSFT)..." autocomplete="off" spellcheck="false" aria-label="Search 503 S&P 500 stocks by ticker or company name">
+      <input type="text" id="header-stock-search" class="global-search-input"
+        placeholder="SEARCH 503 S&P 500 STOCKS BY TICKER OR NAME (e.g. AAPL, NVDA, TSLA, MSFT)..." autocomplete="off"
+        spellcheck="false" aria-label="Search 503 S&P 500 stocks by ticker or company name">
       <div id="header-stock-dropdown" class="stock-dropdown-results" role="listbox"></div>
     </div>
 
@@ -96,6 +99,9 @@
       </button>
       <button class="nav-tab" data-view="scanner" role="tab" aria-selected="false">
         <span class="fkey">&lt;F6&gt;</span> 🔍 S&amp;P 500 SCANNER
+      </button>
+      <button class="nav-tab" data-view="backtest" role="tab" aria-selected="false">
+        <span class="fkey">&lt;F7&gt;</span> ⚡ BACKTEST STUDIO
       </button>
     </div>
 
@@ -589,10 +595,112 @@
               </div>
             </div>
 
-            <!-- S&P 500 Sector Peer Matrix -->
-            <div class="panel">
-              <div class="panel-header"><span>S&amp;P 500 SAME-SECTOR PEER COMPARISON (CLICK TO SELECT)</span></div>
-              <div class="panel-body" style="padding:0;">
+            <!-- S&P 500 Multi-Layer Intelligence Dock -->
+            <div class="panel" style="margin-top:6px;">
+              <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; padding:3px 8px; border-bottom:1px solid #1f2b3e;">
+                <div style="display:flex; gap:4px; overflow-x:auto;">
+                  <button class="f-key stock-dock-tab active" data-tab="ecosystem" style="font-size:9.5px; padding:2px 7px;">🌐 SUPPLY CHAIN &amp; ECOSYSTEM</button>
+                  <button class="f-key stock-dock-tab" data-tab="peers" style="font-size:9.5px; padding:2px 7px;">📊 SECTOR PEERS</button>
+                  <button class="f-key stock-dock-tab" data-tab="sec" style="font-size:9.5px; padding:2px 7px;">📑 SEC 10-K / MD&amp;A</button>
+                  <button class="f-key stock-dock-tab" data-tab="insider" style="font-size:9.5px; padding:2px 7px;">👥 INSIDER &amp; 13F</button>
+                  <button class="f-key stock-dock-tab" data-tab="news" style="font-size:9.5px; padding:2px 7px;">📰 BREAKING NEWS</button>
+                  <button class="f-key stock-dock-tab" data-tab="macro" style="font-size:9.5px; padding:2px 7px;">🏛️ MACRO REGIME</button>
+                </div>
+                <span id="dock-status-source" style="font-size:9px; color:var(--cyan-primary);">GOOGLE GROUNDED &amp; SEC EDGAR</span>
+              </div>
+
+              <!-- PANE 1: SUPPLY CHAIN & ECOSYSTEM INTELLIGENCE -->
+              <div id="pane-dock-ecosystem" class="dock-pane-body" style="padding:8px;">
+                <!-- Summary Banner -->
+                <div style="background:#090e18; border:1px solid #1a2538; padding:8px; border-radius:3px; margin-bottom:8px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                    <strong style="color:var(--amber-primary); font-size:10.5px;">Ecosystem Profile &amp; Supply Chain Structure</strong>
+                    <span id="eco-grounding-badge" class="quote-change-badge up" style="font-size:8.5px; padding:1px 6px;">Google Grounded + SEC 10-K</span>
+                  </div>
+                  <p id="eco-summary-desc" style="font-size:10px; color:#cbd5e1; line-height:1.45; margin:0;">
+                    Loading supply chain ecosystem, customers, and competitor intelligence...
+                  </p>
+                </div>
+
+                <!-- 2x2 Grid: Suppliers, Customers, Competitors, Consumer Breakdown -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                  
+                  <!-- Card 1: Upstream Suppliers -->
+                  <div style="background:#0c121e; border:1px solid #1c2738; padding:8px; border-radius:3px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; border-bottom:1px solid #1f2b3e; padding-bottom:4px;">
+                      <span style="font-weight:800; font-size:10px; color:var(--cyan-primary);">🏭 UPSTREAM SUPPLIERS &amp; BOTTLENECKS</span>
+                      <span style="font-size:9px; color:var(--text-muted);">CLICK TICKER</span>
+                    </div>
+                    <div id="eco-suppliers-list" style="display:flex; flex-direction:column; gap:5px; max-height:220px; overflow-y:auto;">
+                      <div style="font-size:9.5px; color:var(--text-muted); text-align:center; padding:10px;">Loading suppliers...</div>
+                    </div>
+                  </div>
+
+                  <!-- Card 2: Downstream Customers (Companies it supplies to) -->
+                  <div style="background:#0c121e; border:1px solid #1c2738; padding:8px; border-radius:3px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; border-bottom:1px solid #1f2b3e; padding-bottom:4px;">
+                      <span style="font-weight:800; font-size:10px; color:var(--green-up);">🏢 DOWNSTREAM CUSTOMERS (SUPPLIED TO)</span>
+                      <span style="font-size:9px; color:var(--text-muted);">CLICK TICKER</span>
+                    </div>
+                    <div id="eco-customers-list" style="display:flex; flex-direction:column; gap:5px; max-height:220px; overflow-y:auto;">
+                      <div style="font-size:9.5px; color:var(--text-muted); text-align:center; padding:10px;">Loading customers...</div>
+                    </div>
+                  </div>
+
+                  <!-- Card 3: Direct Competitors & Moats -->
+                  <div style="background:#0c121e; border:1px solid #1c2738; padding:8px; border-radius:3px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; border-bottom:1px solid #1f2b3e; padding-bottom:4px;">
+                      <span style="font-weight:800; font-size:10px; color:var(--red-down);">⚔️ DIRECT COMPETITORS &amp; MOATS</span>
+                      <span style="font-size:9px; color:var(--text-muted);">CLICK TICKER</span>
+                    </div>
+                    <div id="eco-competitors-list" style="display:flex; flex-direction:column; gap:5px; max-height:220px; overflow-y:auto;">
+                      <div style="font-size:9.5px; color:var(--text-muted); text-align:center; padding:10px;">Loading competitors...</div>
+                    </div>
+                  </div>
+
+                  <!-- Card 4: Consumer & End-Market Breakdown -->
+                  <div style="background:#0c121e; border:1px solid #1c2738; padding:8px; border-radius:3px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; border-bottom:1px solid #1f2b3e; padding-bottom:4px;">
+                      <span style="font-weight:800; font-size:10px; color:var(--amber-primary);">👥 CONSUMER &amp; END-MARKET PROFILE</span>
+                      <span id="eco-b2b-label" style="font-size:9px; color:var(--cyan-primary);">B2B vs B2C</span>
+                    </div>
+                    <div id="eco-consumer-panel" style="display:flex; flex-direction:column; gap:6px; font-size:9.5px;">
+                      <!-- Visual Split Bar -->
+                      <div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:2px; font-size:9px;">
+                          <span id="eco-b2b-pct-txt" style="color:var(--cyan-primary); font-weight:bold;">B2B: --%</span>
+                          <span id="eco-b2c-pct-txt" style="color:var(--amber-primary); font-weight:bold;">B2C: --%</span>
+                        </div>
+                        <div style="display:flex; height:6px; border-radius:2px; overflow:hidden; background:#1e293b;">
+                          <div id="eco-b2b-bar" style="width:70%; background:var(--cyan-primary);"></div>
+                          <div id="eco-b2c-bar" style="width:30%; background:var(--amber-primary);"></div>
+                        </div>
+                      </div>
+                      <!-- Concentration & Pricing Power Metrics -->
+                      <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-top:2px;">
+                        <div style="background:#111927; padding:4px 6px; border-radius:2px; border:1px solid #1a2538;">
+                          <div style="color:var(--text-muted); font-size:8.5px;">Top 5 Client Concentration</div>
+                          <div id="eco-concentration-val" style="font-weight:bold; color:#cbd5e1;">--%</div>
+                        </div>
+                        <div style="background:#111927; padding:4px 6px; border-radius:2px; border:1px solid #1a2538;">
+                          <div style="color:var(--text-muted); font-size:8.5px;">Pricing Power Rating</div>
+                          <div id="eco-pricing-val" style="font-weight:bold; color:var(--green-up);">-- / 10</div>
+                        </div>
+                      </div>
+                      <div style="background:#111927; padding:4px 6px; border-radius:2px; border:1px solid #1a2538;">
+                        <div style="color:var(--text-muted); font-size:8.5px;">Moat Driver &amp; Switching Costs:</div>
+                        <div id="eco-switching-val" style="color:#cbd5e1; font-size:9px; line-height:1.3; margin-top:1px;">Loading...</div>
+                      </div>
+                      <div id="eco-endmarkets-chips" style="display:flex; flex-wrap:wrap; gap:3px; margin-top:2px;">
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              <!-- PANE 2: SECTOR PEERS -->
+              <div id="pane-dock-peers" class="dock-pane-body" style="padding:0; display:none;">
                 <table class="bloomberg-table">
                   <thead>
                     <tr>
@@ -606,12 +714,104 @@
                   </thead>
                   <tbody id="dash-peers-table-body">
                     <tr>
-                      <td colspan="6" style="text-align:center; padding:10px; color:var(--text-muted);">Loading sector
-                        peers...</td>
+                      <td colspan="6" style="text-align:center; padding:10px; color:var(--text-muted);">Loading sector peers...</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
+
+              <!-- PANE 3: SEC EDGAR FILINGS & MD&A -->
+              <div id="pane-dock-sec" class="dock-pane-body" style="padding:8px; display:none;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                  <strong id="sec-company-title" style="color:var(--cyan-primary); font-size:11px;">SEC EDGAR FORM 10-K / 10-Q INDEX</strong>
+                  <span id="sec-cik-badge" class="quote-change-badge flat" style="font-size:9px;">CIK: Indexed</span>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                  <div>
+                    <div style="font-weight:bold; color:var(--amber-primary); font-size:9.5px; margin-bottom:2px;">ITEM 7. MD&amp;A EXECUTIVE SUMMARY</div>
+                    <div id="sec-mda-content" style="background:#090e18; border:1px solid #1a2538; padding:6px; font-size:9.5px; color:#cbd5e1; line-height:1.45; max-height:120px; overflow-y:auto; border-radius:2px;">
+                      Loading Item 7 operational management discussion...
+                    </div>
+                  </div>
+                  <div>
+                    <div style="font-weight:bold; color:var(--red-down); font-size:9.5px; margin-bottom:2px;">ITEM 1A. PRINCIPAL RISK FACTORS</div>
+                    <div id="sec-risk-content" style="background:#090e18; border:1px solid #1a2538; padding:6px; font-size:9.5px; color:#cbd5e1; line-height:1.45; max-height:120px; overflow-y:auto; border-radius:2px;">
+                      Loading Item 1A risk factors...
+                    </div>
+                  </div>
+                </div>
+                <div style="margin-top:8px;">
+                  <div style="font-size:9.5px; color:var(--text-muted); margin-bottom:3px; font-weight:bold;">INDEXED SUBMISSIONS FEED:</div>
+                  <div id="sec-filings-list" style="display:flex; flex-wrap:wrap; gap:4px;">
+                  </div>
+                </div>
+              </div>
+
+              <!-- PANE 4: INSIDER & 13F CLUSTERS -->
+              <div id="pane-dock-insider" class="dock-pane-body" style="padding:8px; display:none;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                  <div>
+                    <span style="font-size:10px; color:var(--text-muted);">Executive Cluster Verdict:</span>
+                    <span id="insider-verdict-badge" class="quote-change-badge flat" style="margin-left:6px; font-size:9.5px; font-weight:bold;">BALANCED</span>
+                  </div>
+                  <span id="insider-ratio-badge" style="font-size:9.5px; color:var(--cyan-primary);">Net Flow: Calculating...</span>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                  <div>
+                    <div style="font-weight:bold; color:var(--cyan-primary); font-size:9.5px; margin-bottom:2px;">FORM 4 RECENT TRANSACTIONS</div>
+                    <table class="bloomberg-table" style="font-size:9px;">
+                      <thead><tr><th>INSIDER</th><th>TYPE</th><th style="text-align:right;">SHARES</th><th style="text-align:right;">PRICE</th></tr></thead>
+                      <tbody id="insider-tx-tbody"><tr><td colspan="4" style="text-align:center; padding:6px; color:var(--text-muted);">Loading transactions...</td></tr></tbody>
+                    </table>
+                  </div>
+                  <div>
+                    <div style="font-weight:bold; color:var(--amber-primary); font-size:9.5px; margin-bottom:2px;">13F INSTITUTIONAL OWNERSHIP</div>
+                    <table class="bloomberg-table" style="font-size:9px;">
+                      <thead><tr><th>INSTITUTION</th><th style="text-align:right;">STAKE %</th><th style="text-align:right;">VALUE</th></tr></thead>
+                      <tbody id="insider-13f-tbody"><tr><td colspan="3" style="text-align:center; padding:6px; color:var(--text-muted);">Loading 13F holdings...</td></tr></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <!-- PANE 5: BREAKING NEWS & CATALYSTS -->
+              <div id="pane-dock-news" class="dock-pane-body" style="padding:8px; display:none;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                  <div>
+                    <span style="font-size:10px; color:var(--text-muted);">Sentiment Polarity:</span>
+                    <span id="news-sentiment-badge" class="quote-change-badge up" style="margin-left:6px; font-size:9.5px; font-weight:bold;">BULLISH</span>
+                    <span id="news-counts-breakdown" style="font-size:9.5px; color:var(--text-muted); margin-left:6px;">(3 Bullish, 0 Bearish)</span>
+                  </div>
+                  <div id="news-catalysts-container" style="display:flex; gap:3px;"></div>
+                </div>
+                <div id="news-articles-feed" style="display:flex; flex-direction:column; gap:4px; max-height:240px; overflow-y:auto;">
+                  <div style="text-align:center; padding:10px; color:var(--text-muted); font-size:10px;">Loading news feed...</div>
+                </div>
+              </div>
+
+              <!-- PANE 6: MACRO REGIME CONTEXT -->
+              <div id="pane-dock-macro" class="dock-pane-body" style="padding:8px; display:none;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                  <div>
+                    <strong style="color:var(--amber-primary); font-size:10.5px;">FRED Federal Reserve Macroeconomic Regime:</strong>
+                    <span id="macro-regime-title" style="color:var(--green-up); font-weight:bold; margin-left:6px; font-size:10.5px;">EXPANSIONARY REGIME</span>
+                  </div>
+                  <span style="font-size:9px; color:var(--text-muted);">FRED API WIRE</span>
+                </div>
+                <div class="metrics-grid-4" style="margin-bottom:8px;">
+                  <div class="metric-cell"><div class="label">10-Year Yield (DGS10)</div><div class="val" id="macro-dock-10y">--%</div></div>
+                  <div class="metric-cell"><div class="label">2-Year Yield (DGS2)</div><div class="val" id="macro-dock-2y">--%</div></div>
+                  <div class="metric-cell"><div class="label">Yield Spread (10Y-2Y)</div><div class="val" id="macro-dock-spread">-- bps</div></div>
+                  <div class="metric-cell"><div class="label">CBOE VIX Index</div><div class="val" id="macro-dock-vix">--</div></div>
+                </div>
+                <div style="background:#090e18; border:1px solid #1a2538; padding:8px; border-radius:2px;">
+                  <div style="font-size:9px; color:var(--cyan-primary); font-weight:bold; margin-bottom:2px;">REGIME IMPLICATION FOR PORTFOLIO:</div>
+                  <p id="macro-dock-synopsis" style="font-size:10px; color:#cbd5e1; line-height:1.45; margin:0;">
+                    Yield curve steepening confirms supportive liquidity regime for large-cap momentum.
+                  </p>
+                </div>
+              </div>
+
             </div>
 
           </div>
@@ -1060,6 +1260,197 @@ Paper trade ledger linked ($100K capital active).
       </div>
     </div>
 
+    <!-- VIEW 7: 5-YEAR QUANTITATIVE BACKTEST STUDIO -->
+    <div id="view-backtest" class="view-pane" style="display:none; flex-direction:column; gap:12px;">
+
+      <!-- Top Control Bar -->
+      <div class="panel"
+        style="padding:10px 14px; background:rgba(15, 23, 42, 0.7); border:1px solid var(--border-color); border-radius:4px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+
+          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <div>
+              <span style="font-size:10px; color:var(--text-muted); display:block;">TARGET STOCK (10 MARQUEE 5Y
+                DATA)</span>
+              <select id="bt-symbol-select" class="terminal-select"
+                style="min-width:240px; font-weight:bold; color:var(--cyan-primary);">
+                <option value="NVDA">NVDA — NVIDIA Corporation (Semiconductors) [✓ 5Y CACHED]</option>
+              </select>
+            </div>
+
+            <div>
+              <span style="font-size:10px; color:var(--text-muted); display:block;">STRATEGY MODE</span>
+              <div style="display:flex; gap:4px; margin-top:2px;">
+                <button type="button" class="f-key bt-mode-btn active" data-mode="nlp">🤖 NATURAL LANGUAGE AI</button>
+                <button type="button" class="f-key bt-mode-btn" data-mode="preset">⚙️ QUANT PRESETS</button>
+              </div>
+            </div>
+
+            <div>
+              <span style="font-size:10px; color:var(--text-muted); display:block;">CAPITAL ($)</span>
+              <input type="number" id="bt-capital-input" class="terminal-input" value="10000" style="width:90px;"
+                step="1000">
+            </div>
+
+            <div>
+              <span style="font-size:10px; color:var(--text-muted); display:block;">STOP-LOSS %</span>
+              <input type="number" id="bt-stoploss-input" class="terminal-input" placeholder="e.g. 7"
+                style="width:70px;" step="1">
+            </div>
+
+            <div>
+              <span style="font-size:10px; color:var(--text-muted); display:block;">TAKE-PROFIT %</span>
+              <input type="number" id="bt-takeprofit-input" class="terminal-input" placeholder="e.g. 20"
+                style="width:70px;" step="1">
+            </div>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:10px;">
+            <button id="btn-run-backtest" class="f-key active"
+              style="padding:8px 18px; font-size:11px; font-weight:800; background:var(--cyan-primary); color:#000;">
+              ⚡ RUN 5-YEAR BACKTEST
+            </button>
+          </div>
+
+        </div>
+
+        <div id="bt-run-status" style="font-size:11px; margin-top:8px; color:var(--text-muted);">
+          Ready to backtest over 1,255 historical daily bars (5 Years cached locally).
+        </div>
+      </div>
+
+      <!-- Strategy Specification Box -->
+      <div id="bt-nlp-container" class="panel"
+        style="padding:10px 14px; background:rgba(9, 14, 24, 0.7); border:1px solid var(--border-color); border-radius:4px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <span style="font-size:10.5px; font-weight:bold; color:var(--cyan-primary);">💬 TELL YOUR STRATEGY TO THE AI
+            (NATURAL LANGUAGE):</span>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <span style="font-size:9.5px; color:var(--text-muted);">PRESETS:</span>
+            <button type="button" class="ticker-chip strategy-chip"
+              data-prompt="Buy when RSI < 35, sell when RSI > 65 or 6% stop loss">RSI Reversal</button>
+            <button type="button" class="ticker-chip strategy-chip"
+              data-prompt="Buy when SMA 20 crosses above SMA 50, sell when SMA 20 crosses below SMA 50">SMA Golden
+              Cross</button>
+            <button type="button" class="ticker-chip strategy-chip"
+              data-prompt="Buy when Close <= BB_LOWER, sell when Close >= BB_UPPER">Bollinger Mean Reversion</button>
+            <button type="button" class="ticker-chip strategy-chip"
+              data-prompt="Buy when MACD crosses above MACD_SIGNAL, sell when MACD crosses below MACD_SIGNAL">MACD
+              Trend</button>
+          </div>
+        </div>
+        <textarea id="bt-strategy-prompt" class="terminal-input" rows="2"
+          style="width:100%; resize:vertical; font-family:'JetBrains Mono', monospace; font-size:11px;"
+          placeholder="e.g. Buy when RSI drops below 35 and Close is above 50-day SMA. Sell when RSI rises above 65 or 6% stop loss."></textarea>
+      </div>
+
+      <div id="bt-preset-container" class="panel"
+        style="display:none; padding:10px 14px; background:rgba(9, 14, 24, 0.7); border:1px solid var(--border-color); border-radius:4px;">
+        <span style="font-size:10.5px; font-weight:bold; color:var(--amber-primary);">ALGORITHMIC PRESET
+          STRATEGY:</span>
+        <select id="bt-preset-select" class="terminal-select" style="margin-left:10px; width:260px;">
+          <option value="sma_cross">SMA 20/50 Golden Cross</option>
+          <option value="rsi_reversal">RSI (14) Oversold Reversal (&lt;35 / &gt;65)</option>
+          <option value="macd_momentum">MACD Signal Line Cross</option>
+          <option value="bollinger_bands">Bollinger Bands Mean Reversion</option>
+          <option value="atr_breakout">20-Day High Breakout + ATR</option>
+        </select>
+      </div>
+
+      <!-- KPI Summary Cards -->
+      <div style="display:grid; grid-template-columns:repeat(8, 1fr); gap:8px;">
+        <div class="metric-cell" style="padding:8px;">
+          <div class="label">Total Return</div>
+          <div class="val" id="bt-kpi-return" style="font-size:15px; font-weight:800; color:var(--green-up);">--</div>
+        </div>
+        <div class="metric-cell" style="padding:8px;">
+          <div class="label">Benchmark (B&amp;H)</div>
+          <div class="val" id="bt-kpi-benchmark" style="font-size:15px; font-weight:800; color:#cbd5e1;">--</div>
+        </div>
+        <div class="metric-cell" style="padding:8px;">
+          <div class="label">Alpha (vs B&amp;H)</div>
+          <div class="val" id="bt-kpi-alpha" style="font-size:15px; font-weight:800; color:var(--cyan-primary);">--
+          </div>
+        </div>
+        <div class="metric-cell" style="padding:8px;">
+          <div class="label">Sharpe Ratio</div>
+          <div class="val" id="bt-kpi-sharpe" style="font-size:15px; font-weight:800; color:#fff;">--</div>
+        </div>
+        <div class="metric-cell" style="padding:8px;">
+          <div class="label">Max Drawdown</div>
+          <div class="val" id="bt-kpi-drawdown" style="font-size:15px; font-weight:800; color:var(--red-down);">--</div>
+        </div>
+        <div class="metric-cell" style="padding:8px;">
+          <div class="label">Win Rate %</div>
+          <div class="val" id="bt-kpi-winrate" style="font-size:15px; font-weight:800; color:var(--green-up);">--</div>
+        </div>
+        <div class="metric-cell" style="padding:8px;">
+          <div class="label">Profit Factor</div>
+          <div class="val" id="bt-kpi-profitfactor" style="font-size:15px; font-weight:800; color:#fff;">--</div>
+        </div>
+        <div class="metric-cell" style="padding:8px;">
+          <div class="label">Total Trades</div>
+          <div class="val" id="bt-kpi-trades" style="font-size:15px; font-weight:800; color:var(--cyan-primary);">--
+          </div>
+        </div>
+      </div>
+
+      <!-- Equity Curve Canvas Chart -->
+      <div class="panel" style="height:320px; display:flex; flex-direction:column;">
+        <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+          <span>📈 5-YEAR STRATEGY EQUITY CURVE VS. BUY &amp; HOLD BENCHMARK</span>
+          <span style="font-size:10px; color:var(--text-muted);">1,255 DAILY BARS // SLIPPAGE: 5 BPS // INITIAL:
+            $10,000</span>
+        </div>
+        <div class="panel-body" style="flex:1; position:relative; min-height:260px;">
+          <canvas id="bt-equity-chart"></canvas>
+        </div>
+      </div>
+
+      <!-- Code & Trade Log Split View -->
+      <div class="panel" style="display:flex; flex-direction:column;">
+        <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; gap:6px;">
+            <button type="button" class="f-key bt-subtab-btn active" data-subtab="code">💻 GENERATED PYTHON STRATEGY
+              CODE</button>
+            <button type="button" class="f-key bt-subtab-btn" data-subtab="trades">📋 TRADE EXECUTION LOG</button>
+          </div>
+        </div>
+
+        <div class="panel-body">
+          <!-- Code Subtab -->
+          <div id="bt-subtab-code" style="display:block;">
+            <pre id="bt-generated-code"
+              style="margin:0; padding:12px; background:#040711; border:1px solid #1e293b; border-radius:4px; color:#38bdf8; font-family:'JetBrains Mono', monospace; font-size:11px; line-height:1.45; overflow-x:auto; max-height:220px;">// Strategy code will be rendered here...</pre>
+          </div>
+
+          <!-- Trade Log Subtab -->
+          <div id="bt-subtab-trades" style="display:none; overflow-x:auto;">
+            <table class="bloomberg-table">
+              <thead>
+                <tr>
+                  <th>ENTRY DATE</th>
+                  <th>EXIT DATE</th>
+                  <th style="text-align:right;">ENTRY ($)</th>
+                  <th style="text-align:right;">EXIT ($)</th>
+                  <th style="text-align:right;">P&amp;L ($ / %)</th>
+                  <th style="text-align:center;">DURATION</th>
+                  <th>EXIT TRIGGER</th>
+                </tr>
+              </thead>
+              <tbody id="bt-trades-tbody">
+                <tr>
+                  <td colspan="7" style="text-align:center; padding:12px; color:var(--text-muted);">Run a backtest to
+                    inspect trades.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
   </main>
 
   <!-- MODEL PROVIDER & ALPACA SETTINGS MODAL -->
@@ -1067,7 +1458,8 @@ Paper trade ledger linked ($100K capital active).
     <div class="modal-content" style="max-width:540px; max-height:88vh; overflow-y:auto;">
       <div class="modal-header">
         <span>⚙️ ADVERSARIALIQ ENGINE &amp; BROKER SETTINGS</span>
-        <button id="btn-close-settings" aria-label="Close settings modal" style="background:none; border:none; color:#fff; cursor:pointer; font-size:16px;">&times;</button>
+        <button id="btn-close-settings" aria-label="Close settings modal"
+          style="background:none; border:none; color:#fff; cursor:pointer; font-size:16px;">&times;</button>
       </div>
       <div class="modal-body">
 
@@ -1193,22 +1585,27 @@ Paper trade ledger linked ($100K capital active).
     <div class="modal-content" style="max-width:820px; max-height:88vh; overflow-y:auto;">
       <div class="modal-header">
         <span>📡 REAL-TIME LLM OBSERVABILITY &amp; TRACE LOGS</span>
-        <button id="btn-close-traces" aria-label="Close traces modal" style="background:none; border:none; color:#fff; cursor:pointer; font-size:16px;">&times;</button>
+        <button id="btn-close-traces" aria-label="Close traces modal"
+          style="background:none; border:none; color:#fff; cursor:pointer; font-size:16px;">&times;</button>
       </div>
       <div class="modal-body">
 
         <!-- Langfuse Cloud Telemetry Banner -->
-        <div style="background:rgba(56, 189, 248, 0.08); border:1px solid rgba(56, 189, 248, 0.3); border-radius:4px; padding:10px 14px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div
+          style="background:rgba(56, 189, 248, 0.08); border:1px solid rgba(56, 189, 248, 0.3); border-radius:4px; padding:10px 14px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
           <div>
             <div style="font-size:11px; font-weight:bold; color:#38bdf8; display:flex; align-items:center; gap:8px;">
               <span>⚡ LANGFUSE CLOUD OBSERVABILITY</span>
-              <span id="langfuse-status-pill" class="pill-badge" style="background:#0284c7; color:#fff; font-size:9px; padding:2px 6px;">CHECKING...</span>
+              <span id="langfuse-status-pill" class="pill-badge"
+                style="background:#0284c7; color:#fff; font-size:9px; padding:2px 6px;">CHECKING...</span>
             </div>
             <div style="font-size:10px; color:var(--text-muted); margin-top:3px;">
-              Host: <span id="langfuse-host-label" style="color:#cbd5e1;">https://cloud.langfuse.com</span> | Public Key: <span id="langfuse-pubkey-label" style="color:#cbd5e1;">--</span>
+              Host: <span id="langfuse-host-label" style="color:#cbd5e1;">https://cloud.langfuse.com</span> | Public
+              Key: <span id="langfuse-pubkey-label" style="color:#cbd5e1;">--</span>
             </div>
           </div>
-          <a href="https://cloud.langfuse.com" target="_blank" rel="noopener noreferrer" class="f-key" style="font-size:10px; padding:4px 10px; text-decoration:none; color:#38bdf8; border-color:#38bdf8;">
+          <a href="https://cloud.langfuse.com" target="_blank" rel="noopener noreferrer" class="f-key"
+            style="font-size:10px; padding:4px 10px; text-decoration:none; color:#38bdf8; border-color:#38bdf8;">
             OPEN LANGFUSE DASHBOARD ↗
           </a>
         </div>
@@ -1271,36 +1668,48 @@ Paper trade ledger linked ($100K capital active).
     <div class="modal-content" style="max-width:580px; max-height:85vh; overflow-y:auto;">
       <div class="modal-header">
         <span>👤 ADVERSARIALIQ IDENTITY &amp; ACCESS CONTROL</span>
-        <button id="btn-close-auth" aria-label="Close authentication modal" style="background:none; border:none; color:#fff; cursor:pointer; font-size:16px;">&times;</button>
+        <button id="btn-close-auth" aria-label="Close authentication modal"
+          style="background:none; border:none; color:#fff; cursor:pointer; font-size:16px;">&times;</button>
       </div>
 
       <div class="modal-body">
         <div class="setting-tabs" role="tablist">
           <button class="settings-tab-btn active" data-tab="tab-auth-login" role="tab">SIGN IN</button>
-          <button class="settings-tab-btn" data-tab="tab-auth-users" id="tab-btn-auth-users" role="tab">USER DIRECTORY (ADMIN)</button>
+          <button class="settings-tab-btn" data-tab="tab-auth-users" id="tab-btn-auth-users" role="tab">USER DIRECTORY
+            (ADMIN)</button>
         </div>
 
         <!-- Tab 1: Sign In -->
         <div id="tab-auth-login" class="tab-pane active" style="display:block;">
-          <div id="auth-logged-in-box" style="display:none; margin-bottom:14px; padding:12px; background:rgba(34, 197, 94, 0.1); border:1px solid rgba(34, 197, 94, 0.3); border-radius:4px;">
+          <div id="auth-logged-in-box"
+            style="display:none; margin-bottom:14px; padding:12px; background:rgba(34, 197, 94, 0.1); border:1px solid rgba(34, 197, 94, 0.3); border-radius:4px;">
             <div style="color:var(--green-up); font-weight:bold; font-size:13px;">ACTIVE SESSION AUTHENTICATED</div>
-            <div style="color:#cbd5e1; font-size:11px; margin-top:4px;">User: <b id="auth-active-username">admin</b> | Role: <span class="pill-badge" id="auth-active-role" style="background:#22c55e; color:#000; font-size:9px; padding:2px 6px;">ADMIN</span></div>
+            <div style="color:#cbd5e1; font-size:11px; margin-top:4px;">User: <b id="auth-active-username">admin</b> |
+              Role: <span class="pill-badge" id="auth-active-role"
+                style="background:#22c55e; color:#000; font-size:9px; padding:2px 6px;">ADMIN</span></div>
             <div style="margin-top:10px;">
-              <button id="btn-auth-logout" class="f-key" style="border-color:#ef4444; color:#ef4444; font-size:10px; padding:3px 10px;">LOGOUT OF SESSION</button>
+              <button id="btn-auth-logout" class="f-key"
+                style="border-color:#ef4444; color:#ef4444; font-size:10px; padding:3px 10px;">LOGOUT OF
+                SESSION</button>
             </div>
           </div>
 
           <form id="form-auth-login">
             <div class="form-group" style="margin-bottom:12px;">
-              <label style="font-size:10.5px; color:var(--text-muted); display:block; margin-bottom:4px;">USERNAME</label>
-              <input type="text" id="auth-login-username" class="terminal-input" placeholder="Enter username (e.g. admin)" required style="width:100%;" autocomplete="username">
+              <label
+                style="font-size:10.5px; color:var(--text-muted); display:block; margin-bottom:4px;">USERNAME</label>
+              <input type="text" id="auth-login-username" class="terminal-input"
+                placeholder="Enter username (e.g. admin)" required style="width:100%;" autocomplete="username">
             </div>
             <div class="form-group" style="margin-bottom:14px;">
-              <label style="font-size:10.5px; color:var(--text-muted); display:block; margin-bottom:4px;">PASSWORD</label>
-              <input type="password" id="auth-login-password" class="terminal-input" placeholder="Enter password" required style="width:100%;" autocomplete="current-password">
+              <label
+                style="font-size:10.5px; color:var(--text-muted); display:block; margin-bottom:4px;">PASSWORD</label>
+              <input type="password" id="auth-login-password" class="terminal-input" placeholder="Enter password"
+                required style="width:100%;" autocomplete="current-password">
             </div>
             <div id="auth-login-status" style="font-size:11px; margin-bottom:10px;"></div>
-            <button type="submit" id="btn-submit-login" class="f-key active" style="width:100%; padding:8px;">SIGN IN TO ADVERSARIALIQ</button>
+            <button type="submit" id="btn-submit-login" class="f-key active" style="width:100%; padding:8px;">SIGN IN TO
+              ADVERSARIALIQ</button>
           </form>
         </div>
 
@@ -1311,16 +1720,21 @@ Paper trade ledger linked ($100K capital active).
           </div>
 
           <!-- Add User Form -->
-          <div style="background:rgba(15, 23, 42, 0.7); border:1px solid var(--border-color); border-radius:4px; padding:12px; margin-bottom:14px;">
-            <div style="font-weight:bold; font-size:11px; color:var(--cyan-primary); margin-bottom:8px;">PROVISION NEW USER</div>
-            <form id="form-add-user" style="display:grid; grid-template-columns:1fr 1fr 1fr auto; gap:8px; align-items:flex-end;">
+          <div
+            style="background:rgba(15, 23, 42, 0.7); border:1px solid var(--border-color); border-radius:4px; padding:12px; margin-bottom:14px;">
+            <div style="font-weight:bold; font-size:11px; color:var(--cyan-primary); margin-bottom:8px;">PROVISION NEW
+              USER</div>
+            <form id="form-add-user"
+              style="display:grid; grid-template-columns:1fr 1fr 1fr auto; gap:8px; align-items:flex-end;">
               <div>
                 <label style="font-size:9.5px; color:var(--text-muted); display:block;">USERNAME</label>
-                <input type="text" id="new-user-name" class="terminal-input" placeholder="trader_john" required style="width:100%; font-size:10.5px;">
+                <input type="text" id="new-user-name" class="terminal-input" placeholder="trader_john" required
+                  style="width:100%; font-size:10.5px;">
               </div>
               <div>
                 <label style="font-size:9.5px; color:var(--text-muted); display:block;">PASSWORD</label>
-                <input type="password" id="new-user-pass" class="terminal-input" placeholder="••••••••" required style="width:100%; font-size:10.5px;">
+                <input type="password" id="new-user-pass" class="terminal-input" placeholder="••••••••" required
+                  style="width:100%; font-size:10.5px;">
               </div>
               <div>
                 <label style="font-size:9.5px; color:var(--text-muted); display:block;">ROLE</label>
@@ -1330,7 +1744,8 @@ Paper trade ledger linked ($100K capital active).
                   <option value="admin">Admin</option>
                 </select>
               </div>
-              <button type="submit" id="btn-create-user" class="f-key active" style="font-size:10px; padding:6px 10px;">ADD USER</button>
+              <button type="submit" id="btn-create-user" class="f-key active"
+                style="font-size:10px; padding:6px 10px;">ADD USER</button>
             </form>
             <div id="add-user-status" style="font-size:10px; margin-top:6px;"></div>
           </div>
@@ -1348,7 +1763,10 @@ Paper trade ledger linked ($100K capital active).
                 </tr>
               </thead>
               <tbody id="auth-users-tbody">
-                <tr><td colspan="5" style="text-align:center; padding:12px; color:var(--text-muted);">Loading users...</td></tr>
+                <tr>
+                  <td colspan="5" style="text-align:center; padding:12px; color:var(--text-muted);">Loading users...
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -1366,6 +1784,7 @@ Paper trade ledger linked ($100K capital active).
   <script src="/static/js/agent.js"></script>
   <script src="/static/js/homepage.js"></script>
   <script src="/static/js/auth.js"></script>
+  <script src="/static/js/backtest.js"></script>
   <script src="/static/js/app.js"></script>
 </body>
 

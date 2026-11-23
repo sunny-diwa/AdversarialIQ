@@ -103,7 +103,9 @@ class SP500Homepage {
     }
 
     tbody.innerHTML = list.map((item, idx) => {
-      const isUp = item.pct_change >= 0;
+      const price = typeof item.price === 'number' ? item.price : 100.0;
+      const pct = typeof item.pct_change === 'number' ? item.pct_change : 0.0;
+      const isUp = pct >= 0;
       const sign = isUp ? "+" : "";
       const colorCls = isUp ? "color:var(--green-up);" : "color:var(--red-down);";
 
@@ -112,8 +114,8 @@ class SP500Homepage {
           <td style="color:var(--text-muted); font-size:10px;">${idx + 1}</td>
           <td style="font-weight:800; color:var(--cyan-primary);">${item.symbol}</td>
           <td style="color:#cbd5e1; max-width:110px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.name || item.sector || ''}</td>
-          <td style="text-align:right; font-weight:700;">$${item.price.toFixed(2)}</td>
-          <td style="text-align:right; font-weight:800; ${colorCls}">${sign}${item.pct_change.toFixed(2)}%</td>
+          <td style="text-align:right; font-weight:700;">$${price.toFixed(2)}</td>
+          <td style="text-align:right; font-weight:800; ${colorCls}">${sign}${pct.toFixed(2)}%</td>
           <td style="text-align:center; white-space:nowrap;">
             <button class="f-key btn-action-term" data-sym="${item.symbol}" style="font-size:9.5px; padding:1px 5px;" title="Open Terminal">📈 TERM</button>
             <button class="f-key btn-action-stock" data-sym="${item.symbol}" style="font-size:9.5px; padding:1px 5px;" title="View Fundamentals">🏢 INFO</button>
@@ -128,9 +130,8 @@ class SP500Homepage {
         // If an explicit action button was clicked, don't trigger general row click
         if (e.target.closest(".btn-action-term") || e.target.closest(".btn-action-stock")) return;
         const sym = row.dataset.sym;
-        if (window.terminalApp) {
-          window.terminalApp.selectStock(sym);
-          window.terminalApp.switchView("dashboard");
+        if (sym && window.terminalApp) {
+          window.terminalApp.selectStock(sym, "dashboard");
         }
       });
     });
@@ -140,9 +141,8 @@ class SP500Homepage {
       btn.addEventListener("click", (e) => {
         e.stopPropagation();
         const sym = btn.dataset.sym;
-        if (window.terminalApp) {
-          window.terminalApp.selectStock(sym);
-          window.terminalApp.switchView("terminal");
+        if (sym && window.terminalApp) {
+          window.terminalApp.selectStock(sym, "terminal");
         }
       });
     });
@@ -152,9 +152,8 @@ class SP500Homepage {
       btn.addEventListener("click", (e) => {
         e.stopPropagation();
         const sym = btn.dataset.sym;
-        if (window.terminalApp) {
-          window.terminalApp.selectStock(sym);
-          window.terminalApp.switchView("dashboard");
+        if (sym && window.terminalApp) {
+          window.terminalApp.selectStock(sym, "dashboard");
         }
       });
     });
