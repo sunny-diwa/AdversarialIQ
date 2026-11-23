@@ -1,6 +1,6 @@
 """
 AdversarialIQ Institutional Tool Registry & Autonomous Execution Engine
-Provides 18 callable financial tools with standardized schemas, loop protection,
+Provides 19 callable financial tools with standardized schemas, loop protection,
 execution call limits, and error logging:
 
 1. get_company_news: Real-time Finnhub/RSS news, catalyst classification, and sentiment scores.
@@ -14,13 +14,14 @@ execution call limits, and error logging:
 9. get_sp500_sectors: All 11 GICS sectors with constituent counts, sample leaders, and sector allocations.
 10. get_market_benchmarks: Live S&P 500 (^GSPC), Dow Jones (^DJI), Nasdaq (^IXIC), VIX, and Oil benchmarks.
 11. get_company_profile: Valuation metrics, market cap, P/E, beta, 52-week ranges, and sector peers.
-12. run_backtest: 5-year quantitative strategy backtest with Sharpe, Sortino, Alpha, and Max Drawdown.
-13. run_adversarial_tribunal: Cross-examination between Agent Bull, Agent Bear, and Chief Judge.
-14. evaluate_risk_guardrail: Deterministic non-LLM risk gate checking ATR sizing, caps, and bracket orders.
-15. execute_paper_trade: Deterministic Non-LLM Risk Guardrail execution with mandatory bracket orders.
-16. get_portfolio_status: Live equity, cash balance, active positions, and win rate.
-17. get_desk_briefing: FinGPT-style morning desk intelligence brief across market leaders.
-18. get_post_mortem_lessons: Historical post-trade reflection memory and lessons learned from SQLite.
+12. get_company_ecosystem: 4D supply chain, upstream suppliers, downstream customers, competitors with moats, and B2B/B2C consumer breakdown.
+13. run_backtest: 5-year quantitative strategy backtest with Sharpe, Sortino, Alpha, and Max Drawdown.
+14. run_adversarial_tribunal: Cross-examination between Agent Bull, Agent Bear, and Chief Judge.
+15. evaluate_risk_guardrail: Deterministic non-LLM risk gate checking ATR sizing, caps, and bracket orders.
+16. execute_paper_trade: Deterministic Non-LLM Risk Guardrail execution with mandatory bracket orders.
+17. get_portfolio_status: Live equity, cash balance, active positions, and win rate.
+18. get_desk_briefing: FinGPT-style morning desk intelligence brief across market leaders.
+19. get_post_mortem_lessons: Historical post-trade reflection memory and lessons learned from SQLite.
 """
 
 from datetime import datetime
@@ -870,6 +871,80 @@ def tool_get_post_mortem_lessons(symbol: str) -> Dict[str, Any]:
         }
 
 
+def tool_get_company_ecosystem(symbol: str) -> Dict[str, Any]:
+    """Fetches comprehensive 4D supply chain ecosystem, upstream suppliers, downstream enterprise customers, direct competitors with moat ratings, and B2B/B2C consumer breakdown."""
+    sym = symbol.strip().upper()
+    try:
+        from src.data.ecosystem import fetch_company_ecosystem
+        data = fetch_company_ecosystem(sym)
+        suppliers = data.get("upstream_suppliers", [])
+        customers = data.get("downstream_customers", [])
+        competitors = data.get("competitors", [])
+        consumer = data.get("consumer_breakdown", {})
+        b2b_vs_b2c = consumer.get("b2b_vs_b2c", {})
+        pricing = consumer.get("pricing_power", {})
+        switching = consumer.get("switching_costs", {})
+        concentration = consumer.get("customer_concentration", {})
+
+        supp_bullets = "\n".join([
+            f"- **`{s.get('symbol', 'N/A')}` ({s.get('name', 'Supplier')})**: {s.get('role', 'Component')} [{s.get('tier', 'Tier 1')}] — *Criticality: {s.get('criticality', 'HIGH')}*"
+            for s in suppliers[:5]
+        ]) or "- No critical upstream bottleneck dependencies identified."
+
+        cust_bullets = "\n".join([
+            f"- **`{c.get('symbol', 'N/A')}` ({c.get('name', 'Customer')})**: {c.get('role', 'Client')} (~{c.get('revenue_share_pct', 0)}% Rev) — *{c.get('use_case', 'Commercial deployment')}*"
+            for c in customers[:5]
+        ]) or "- Diversified commercial client accounts."
+
+        comp_bullets = "\n".join([
+            f"- **`{cp.get('symbol', 'N/A')}` ({cp.get('name', 'Competitor')})**: Moat `{cp.get('moat_rating', 'NARROW')}` | Threat `{cp.get('threat_level', 'MODERATE')}` | Share ~{cp.get('market_share_pct', 0)}% — *{cp.get('competitive_advantage', '')}*"
+            for cp in competitors[:5]
+        ]) or "- Sector peers in same GICS classification."
+
+        md = f"""### 🌐 Supply Chain & Ecosystem Intelligence: **{sym}** ({data.get('company_name', sym)})
+**Sector:** `{data.get('sector', 'N/A')}` | **Sub-Industry:** `{data.get('sub_industry', 'N/A')}` | **Source:** `{data.get('grounding_source', 'SEC 10-K & Knowledge Graph')}`
+
+---
+
+#### 🏭 Upstream Suppliers & Key Bottlenecks:
+{supp_bullets}
+
+---
+
+#### 🏢 Downstream Customers (Companies It Supplies To):
+{cust_bullets}
+
+---
+
+#### ⚔️ Direct Competitors & Competitive Moats:
+{comp_bullets}
+
+---
+
+#### 👥 Consumer & End-Market Analysis:
+- **B2B vs. B2C Exposure:** **`{b2b_vs_b2c.get('b2b_pct', 50)}% B2B`** vs. **`{b2b_vs_b2c.get('b2c_pct', 50)}% B2C`**
+- **Customer Concentration:** Top 5 clients account for **`{concentration.get('top_5_customers_pct', 0)}%`** of revenue (*Risk: {concentration.get('risk_level', 'MODERATE')}*)
+- **Pricing Power Score:** **`{pricing.get('score_out_of_10', 8.0)} / 10`** (*{pricing.get('level', 'HIGH')}*) — Gross Margin: `{pricing.get('gross_margin_pct', 0)}%`
+- **Switching Costs:** **`{switching.get('score_out_of_10', 8.0)} / 10`** (*{switching.get('level', 'HIGH')}*) — Moat Driver: `{switching.get('moat_driver', 'Product Integration')}`
+
+*{data.get('ecosystem_summary', '')}*"""
+
+        return {
+            "tool": "get_company_ecosystem",
+            "symbol": sym,
+            "data": data,
+            "formatted_markdown": md
+        }
+    except Exception as e:
+        logger.exception(f"Error in tool_get_company_ecosystem({sym}): {e}")
+        return {
+            "tool": "get_company_ecosystem",
+            "symbol": sym,
+            "error": str(e),
+            "formatted_markdown": f"⚠️ **Ecosystem Notice:** Could not extract supply chain graph for `{sym}`: {e}"
+        }
+
+
 # -----------------------------------------------------------------------------
 # Tool Registry Map & Dispatcher with Loop Protection
 # -----------------------------------------------------------------------------
@@ -886,6 +961,7 @@ AVAILABLE_TOOLS: Dict[str, Callable[..., Dict[str, Any]]] = {
     "get_sp500_sectors": tool_get_sp500_sectors,
     "get_market_benchmarks": tool_get_market_benchmarks,
     "get_company_profile": tool_get_company_profile,
+    "get_company_ecosystem": tool_get_company_ecosystem,
     "run_backtest": tool_run_backtest,
     "run_adversarial_tribunal": tool_run_adversarial_tribunal,
     "evaluate_risk_guardrail": tool_evaluate_risk_guardrail,
@@ -1077,6 +1153,17 @@ TOOL_SCHEMAS: List[Dict[str, Any]] = [
             "type": "object",
             "properties": {
                 "symbol": {"type": "string", "description": "The stock ticker symbol, e.g. AAPL, NVDA"}
+            },
+            "required": ["symbol"]
+        }
+    },
+    {
+        "name": "get_company_ecosystem",
+        "description": "Fetches 4D supply chain ecosystem, upstream suppliers, companies it supplies to (downstream customers), direct competitors with moat ratings, and B2B vs B2C consumer breakdown.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "symbol": {"type": "string", "description": "The stock ticker symbol, e.g. NVDA, AAPL, MSFT, TSLA"}
             },
             "required": ["symbol"]
         }

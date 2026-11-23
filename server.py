@@ -46,6 +46,7 @@ from src.data import (
     fetch_benchmarks,
     fetch_breaking_news,
     fetch_company_details,
+    fetch_company_ecosystem,
     fetch_earnings_calendar,
     fetch_insider_and_13f_activity,
     fetch_macro_regime,
@@ -247,6 +248,26 @@ async def get_company_details(symbol: str):
     except Exception as e:
         logger.error(f"Error fetching company details for {symbol}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/stock/{symbol}/ecosystem")
+async def get_company_ecosystem_endpoint(symbol: str):
+    """
+    Returns 4D Supply Chain Ecosystem: Upstream Suppliers, Downstream Customers,
+    Direct Competitors with Moats, and B2B/B2C Consumer Breakdown.
+    """
+    try:
+        return fetch_company_ecosystem(symbol)
+    except Exception as e:
+        logger.error(f"Error fetching ecosystem for {symbol}: {e}")
+        return {
+            "error": str(e),
+            "symbol": symbol.upper(),
+            "upstream_suppliers": [],
+            "downstream_customers": [],
+            "competitors": [],
+            "consumer_breakdown": {}
+        }
 
 
 @app.get("/api/stock/{symbol}/technicals")

@@ -107,11 +107,36 @@ def process_chat_message(
                 return {"response": f"⚠️ **Trade Rejected by Risk Guardrail:** {str(e)}"}
 
         # 2. Extract mentioned ticker (prioritize explicit ticker in user message)
-        words = re.findall(r"\b[A-Z]{1,5}\b", prompt.upper())
-        for w in words:
-            if w in SP500_MAP:
-                target_sym = w
+        cashtags = re.findall(r"\$([A-Za-z]{1,5})\b", prompt)
+        for ct in cashtags:
+            if ct.upper() in SP500_MAP:
+                target_sym = ct.upper()
                 break
+        else:
+            # Common English words that collide with S&P 500 tickers
+            TICKER_STOP_WORDS = {
+                "A", "ARE", "IT", "ALL", "AN", "AM", "AT", "BE", "BY", "DO", "FOR", "GO",
+                "HE", "IF", "IN", "IS", "ME", "MY", "NO", "OF", "ON", "OR", "SO", "TO",
+                "UP", "US", "WE", "SEE", "CAN", "NOW", "KEY", "FAST", "OUT", "WELL", "HAS",
+                "HAD", "THE", "AND", "WHO", "HOW", "WHY", "WHAT", "BIG", "BEST", "NEXT", "MAN"
+            }
+            # First pass: check words that are ALREADY uppercase in the user prompt (e.g. "NVDA", "AAPL")
+            orig_upper_words = re.findall(r"\b[A-Z]{1,5}\b", prompt)
+            non_stop_matches = [w for w in orig_upper_words if w in SP500_MAP and w not in TICKER_STOP_WORDS]
+            if non_stop_matches:
+                target_sym = non_stop_matches[0]
+            else:
+                # Second pass: check case-insensitive words that are not in STOP_WORDS
+                all_words = re.findall(r"\b[A-Za-z]{1,5}\b", prompt)
+                non_stop_any = [w.upper() for w in all_words if w.upper() in SP500_MAP and w.upper() not in TICKER_STOP_WORDS]
+                if non_stop_any:
+                    target_sym = non_stop_any[0]
+                else:
+                    # Third pass: check if any uppercase word matches (even stop word if explicitly capitalized like "ON")
+                    for w in orig_upper_words:
+                        if w in SP500_MAP:
+                            target_sym = w
+                            break
 
         # 3. Detect tool catalog / discovery query
         if any(k in prompt.lower() for k in ["what tools", "list tools", "available tools", "show tools", "help tools"]):
@@ -304,7 +329,25 @@ The bot is equipped with autonomous real-time quantitative and analytical tools:
                 "symbol": target_sym
             }
 
-        # 12. Detect Company News & Catalyst Query (Tool Calling)
+        # 12. Detect Ecosystem, Supply Chain, Competitors & Customers Query (Tool Calling)
+        is_ecosystem_query = any(k in prompt.lower() for k in [
+            "supplier", "suppliers", "supply chain", "supplies to", "who does it supply", "who does",
+            "customer", "customers", "who buys from", "competitor", "competitors", "competition",
+            "competitive moat", "moat", "b2b", "b2c", "consumer breakdown", "pricing power",
+            "switching cost", "ecosystem"
+        ])
+        if is_ecosystem_query:
+            logger.info(f"Invoking tool 'get_company_ecosystem' for {target_sym}")
+            eco_res = execute_tool("get_company_ecosystem", {"symbol": target_sym}, call_history)
+            return {
+                "response": eco_res.get("formatted_markdown", ""),
+                "ecosystem": eco_res.get("data", {}),
+                "tool_called": "get_company_ecosystem",
+                "symbol": target_sym,
+                "provider": "Ecosystem Intelligence Graph"
+            }
+
+        # 13. Detect Company News & Catalyst Query (Tool Calling)
         is_news_query = any(k in prompt.lower() for k in [
             "news", "headline", "headlines", "catalyst", "catalysts",
             "what happened", "what is happening", "press release", "breaking news", "article"
