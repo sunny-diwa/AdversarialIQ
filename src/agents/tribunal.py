@@ -5,6 +5,7 @@ Exposes run_adversarial_trade_tribunal with unified key normalization and resili
 
 from datetime import datetime
 import logging
+import time
 from typing import Any, Dict, Optional
 
 from src.agents.langchain_agent import LangChainTribunal
@@ -14,6 +15,8 @@ from src.data.macro import fetch_macro_regime
 from src.execution.portfolio import load_portfolio
 
 logger = logging.getLogger("Tribunal")
+
+_TRIBUNAL_CACHE: Dict[str, Dict[str, Any]] = {}
 
 
 def _normalize_tribunal_dict(res: Dict[str, Any], symbol: str) -> Dict[str, Any]:
@@ -100,16 +103,26 @@ def run_adversarial_trade_tribunal(
     6. Langfuse Cloud Tracing Telemetry
     """
     sym = symbol.strip().upper()
+    cache_key = f"{sym}_{provider}_{model or 'default'}"
+    if cache_key in _TRIBUNAL_CACHE:
+        entry = _TRIBUNAL_CACHE[cache_key]
+        if time.time() - entry["ts"] < 180:
+            return entry["data"]
+
     try:
         runner = LangChainTribunal(symbol=sym, account_capital=account_capital, provider=provider, model=model)
         res = runner.run(auto_execute=False)
-        return _normalize_tribunal_dict(res, sym)
+        result = _normalize_tribunal_dict(res, sym)
+        _TRIBUNAL_CACHE[cache_key] = {"data": result, "ts": time.time()}
+        return result
     except Exception as e:
         logger.warning(f"LangChain tribunal runner fallback: {e}, falling back to state machine")
         try:
             fsm = AdversarialStateMachine(symbol=sym, account_capital=account_capital)
             res = fsm.run_full_pipeline(auto_execute=False)
-            return _normalize_tribunal_dict(res, sym)
+            result = _normalize_tribunal_dict(res, sym)
+            _TRIBUNAL_CACHE[cache_key] = {"data": result, "ts": time.time()}
+            return result
         except Exception as fe:
             logger.error(f"FSM fallback also failed: {fe}, constructing baseline tribunal")
             # Build safe offline baseline tribunal
