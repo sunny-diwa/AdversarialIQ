@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BLOOMBERG // S&amp;P 500 AI TRADER AGENT &amp; ANALYTICS</title>
+  
+  <!-- Fonts & Styles -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/bloomberg.css">
+
+  <!-- Chart.js for Technical Indicators -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+  <!-- TOP BLOOMBERG TERMINAL STATUS HEADER -->
+  <header class="terminal-header">
+    <div class="brand-badge">
+      <span class="logo-tag">BLOOMBERG</span>
+      <span>S&amp;P 500 AI TRADER TERMINAL // INSTITUTIONAL DESK</span>
+    </div>
+
+    <div class="market-clocks">
+      <div class="clock-item"><span class="city">NEW YORK</span> <span class="time" id="clock-newyork">--:--:--</span></div>
+      <div class="clock-item"><span class="city">LONDON</span> <span class="time" id="clock-london">--:--:--</span></div>
+      <div class="clock-item"><span class="city">TOKYO</span> <span class="time" id="clock-tokyo">--:--:--</span></div>
+    </div>
+
+    <div style="display:flex; align-items:center; gap:14px;">
+      <div class="live-indicator">
+        <div class="pulse-dot"></div>
+        <span id="agent-provider-tag">GROQ / QUANT ENGINE</span>
+      </div>
+      <button id="btn-open-settings" class="btn-settings">⚙️ AI SETTINGS</button>
+    </div>
+  </header>
+
+  <!-- GLOBAL PERSISTENT SEARCH & HOT TICKERS BAR -->
+  <div class="global-search-bar">
+    <div class="search-box-wrapper">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="header-stock-search" class="global-search-input" placeholder="SEARCH 503 S&P 500 STOCKS BY TICKER OR NAME (e.g. AAPL, NVDA, TSLA, MSFT)..." autocomplete="off">
+      <div id="header-stock-dropdown" class="stock-dropdown-results"></div>
+    </div>
+
+    <div class="hot-tickers-strip">
+      <span class="hot-label">🔥 HOT S&amp;P 500:</span>
+      <button class="ticker-chip" data-sym="NVDA">NVDA</button>
+      <button class="ticker-chip" data-sym="AAPL">AAPL</button>
+      <button class="ticker-chip" data-sym="TSLA">TSLA</button>
+      <button class="ticker-chip" data-sym="MSFT">MSFT</button>
+      <button class="ticker-chip" data-sym="AMZN">AMZN</button>
+      <button class="ticker-chip" data-sym="GOOGL">GOOGL</button>
+      <button class="ticker-chip" data-sym="META">META</button>
+      <button class="ticker-chip" data-sym="AMD">AMD</button>
+      <button class="ticker-chip" data-sym="JPM">JPM</button>
+      <button class="ticker-chip" data-sym="BRK-B">BRK-B</button>
+    </div>
+
+    <div class="active-badge-display">
+      <span style="color:var(--text-muted); font-size:10px;">ACTIVE:</span>
+      <span id="global-active-ticker" style="color:var(--cyan-primary); font-weight:800;">NVDA</span>
+      <span id="global-active-price" style="color:#fff; font-weight:700;">$--.--</span>
+      <span id="global-active-chg" class="quote-change-badge up">+0.00%</span>
+    </div>
+  </div>
+
+  <!-- MAIN NAVIGATION TABS (F1 - F6) -->
+  <nav class="navigation-bar">
+    <div class="nav-tabs-group">
+      <button class="nav-tab active" data-view="homepage">
+        <span class="fkey">&lt;F1&gt;</span> 🏠 HOMEPAGE
+      </button>
+      <button class="nav-tab" data-view="agent">
+        <span class="fkey">&lt;F2&gt;</span> 🤖 CHATBOT TRADER
+      </button>
+      <button class="nav-tab" data-view="dashboard">
+        <span class="fkey">&lt;F3&gt;</span> 🏢 STOCK PAGE
+      </button>
+      <button class="nav-tab" data-view="terminal">
+        <span class="fkey">&lt;F4&gt;</span> 📈 STOCK TERMINAL
+      </button>
+      <button class="nav-tab" data-view="portfolio">
+        <span class="fkey">&lt;F5&gt;</span> 💼 PAPER PORTFOLIO
+      </button>
+      <button class="nav-tab" data-view="scanner">
+        <span class="fkey">&lt;F6&gt;</span> 🔍 S&amp;P 500 SCANNER
+      </button>
+    </div>
+
+    <div class="nav-right-actions">
+      <button id="btn-quick-terminal" class="nav-quick-btn">⚡ LAUNCH TERMINAL [<span id="nav-btn-sym">NVDA</span>]</button>
+      <button id="btn-quick-chat" class="nav-quick-btn chat">💬 ASK AI ABOUT [<span id="nav-chat-sym">NVDA</span>]</button>
+    </div>
+  </nav>
+
+  <!-- LIVE S&P 500 & US MARKET BENCHMARK TICKER STRIP -->
+  <div class="ticker-strip" id="ticker-strip">
+    <div class="ticker-item"><span class="ticker-name">CONNECTING TO S&amp;P 500 REAL-TIME WIRE...</span></div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MAIN WORKSPACE CONTAINING ALL VIEWS                                      -->
+  <!-- ========================================================================= -->
+  <main class="main-workspace">
+
+    <!-- VIEW 1: HOMEPAGE (MARKET OVERVIEW & MOVERS) -->
+    <div id="view-homepage" class="view-pane" style="display:flex;">
+      <div class="homepage-layout">
+        
+        <!-- Row 1: Major Market Benchmark Indices -->
+        <div class="benchmark-cards-row">
+          <div class="macro-card">
+            <div class="macro-card-header">
+              <span class="index-name">S&amp;P 500 INDEX</span>
+              <span class="index-code">^GSPC</span>
+            </div>
+            <div class="macro-card-val" id="macro-sp500-price">5,960.25</div>
+            <div class="macro-card-sub">
+              <span id="macro-sp500-chg" class="quote-change-badge up">+18.40 (+0.31%)</span>
+              <span class="range-info">52W: 4,953 - 6,025</span>
+            </div>
+          </div>
+
+          <div class="macro-card">
+            <div class="macro-card-header">
+              <span class="index-name">NASDAQ 100</span>
+              <span class="index-code">^IXIC</span>
+            </div>
+            <div class="macro-card-val" id="macro-nasdaq-price">18,720.50</div>
+            <div class="macro-card-sub">
+              <span id="macro-nasdaq-chg" class="quote-change-badge up">+95.20 (+0.51%)</span>
+              <span class="range-info">52W: 14,800 - 19,100</span>
+            </div>
+          </div>
+
+          <div class="macro-card">
+            <div class="macro-card-header">
+              <span class="index-name">DOW JONES INDUSTRIALS</span>
+              <span class="index-code">^DJI</span>
+            </div>
+            <div class="macro-card-val" id="macro-dow-price">43,870.10</div>
+            <div class="macro-card-sub">
+              <span id="macro-dow-chg" class="quote-change-badge down">-42.30 (-0.10%)</span>
+              <span class="range-info">52W: 37,122 - 44,486</span>
+            </div>
+          </div>
+
+          <div class="macro-card">
+            <div class="macro-card-header">
+              <span class="index-name">VIX VOLATILITY (FEAR)</span>
+              <span class="index-code">^VIX</span>
+            </div>
+            <div class="macro-card-val" id="macro-vix-price">14.85</div>
+            <div class="macro-card-sub">
+              <span id="macro-vix-chg" class="quote-change-badge down">-0.65 (-4.19%)</span>
+              <span class="range-info" style="color:var(--green-up);">COMPLACENCY / LOW RISK</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 2: 3-Column S&P 500 Market Movers (Gainers, Losers, Most Active) -->
+        <div class="movers-row">
+          
+          <!-- Column 1: Highest Gainers -->
+          <div class="panel">
+            <div class="panel-header">
+              <span style="color:var(--green-up);">🚀 S&amp;P 500 HIGHEST GAINERS</span>
+              <span id="home-gainers-count" style="font-size:10px; color:var(--text-muted);">TOP 10</span>
+            </div>
+            <div class="panel-body" style="padding:0; overflow-y:auto;">
+              <table class="bloomberg-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>SYMBOL</th>
+                    <th>COMPANY</th>
+                    <th style="text-align:right;">PRICE</th>
+                    <th style="text-align:right;">DAY CHG</th>
+                    <th style="text-align:center;">ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody id="home-gainers-tbody">
+                  <tr><td colspan="6" style="text-align:center; padding:15px; color:var(--text-muted);">Scanning S&amp;P 500 gainers...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Column 2: Highest Losers -->
+          <div class="panel">
+            <div class="panel-header">
+              <span style="color:var(--red-down);">🔻 S&amp;P 500 HIGHEST LOSERS</span>
+              <span id="home-losers-count" style="font-size:10px; color:var(--text-muted);">TOP 10</span>
+            </div>
+            <div class="panel-body" style="padding:0; overflow-y:auto;">
+              <table class="bloomberg-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>SYMBOL</th>
+                    <th>COMPANY</th>
+                    <th style="text-align:right;">PRICE</th>
+                    <th style="text-align:right;">DAY CHG</th>
+                    <th style="text-align:center;">ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody id="home-losers-tbody">
+                  <tr><td colspan="6" style="text-align:center; padding:15px; color:var(--text-muted);">Scanning S&amp;P 500 losers...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Column 3: Most Active / Volatile Stocks -->
+          <div class="panel">
+            <div class="panel-header">
+              <span style="color:var(--cyan-primary);">⚡ MOST ACTIVE / MOMENTUM LEADERS</span>
+              <span id="home-active-count" style="font-size:10px; color:var(--text-muted);">TOP 10</span>
+            </div>
+            <div class="panel-body" style="padding:0; overflow-y:auto;">
+              <table class="bloomberg-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>SYMBOL</th>
+                    <th>SECTOR</th>
+                    <th style="text-align:right;">PRICE</th>
+                    <th style="text-align:right;">CHG %</th>
+                    <th style="text-align:center;">ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody id="home-actives-tbody">
+                  <tr><td colspan="6" style="text-align:center; padding:15px; color:var(--text-muted);">Scanning market momentum...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Row 3: 11 GICS Sector Distribution -->
+        <div class="panel">
+          <div class="panel-header">
+            <span>S&amp;P 500 GICS SECTOR PERFORMANCE &amp; CONSTITUENT BREAKDOWN</span>
+            <span style="font-size:10px; color:var(--text-muted);">11 GICS SECTORS // 503 EQUITIES</span>
+          </div>
+          <div class="panel-body" style="padding:10px;">
+            <div class="sectors-grid" id="home-sectors-grid">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- VIEW 2: CHATBOT TRADER AGENT PAGE -->
+    <div id="view-agent" class="view-pane" style="display:none;">
+      <div class="agent-layout">
+        
+        <!-- Left: Interactive Chat Engine -->
+        <div class="chat-container">
+          <div class="chat-header">
+            <div>
+              <span style="color:var(--amber-primary); font-weight:800; font-size:12px;">S&amp;P 500 QUANTITATIVE TRADER AGENT</span>
+              <span style="font-size:10px; color:var(--text-muted); margin-left:8px;">GROQ CLOUD &amp; LOCAL OLLAMA DESK</span>
+            </div>
+            <div style="display:flex; gap:10px; align-items:center;">
+              <span style="font-size:10px; color:var(--cyan-primary);">PAPER ACCOUNT: $100K CAPITAL</span>
+              <button id="btn-clear-chat" class="f-key" style="font-size:10px; padding:2px 6px;">CLEAR</button>
+            </div>
+          </div>
+
+          <div class="chat-messages" id="chat-messages-container">
+            <div class="chat-msg agent">
+              <div class="meta">TRADER AGENT • DESK ONLINE</div>
+              <div class="msg-bubble">
+                Welcome to the <strong>S&amp;P 500 AI Quantitative Trading Desk</strong>. I analyze real-time market data directly from <code>yfinance</code> for all 503 S&amp;P 500 constituents.<br><br>
+                • <strong>Technical Analysis:</strong> Ask <code>Analyze NVDA setup</code> or <code>What are AAPL support and resistance levels?</code><br>
+                • <strong>Market Screener:</strong> <code>Find oversold tech stocks</code> or <code>Scan bullish MACD crossovers</code><br>
+                • <strong>Virtual Paper Trading:</strong> Execute trades: <code>Buy 25 shares of TSLA</code> or <code>Sell 10 AAPL</code>.<br>
+                • Click any prompt chip below or type your strategy question.
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Prompts Bar -->
+          <div class="quick-prompts-bar">
+            <button class="quick-pill" data-prompt="Analyze technical setup and indicators for {symbol}">📊 Technical Setup</button>
+            <button class="quick-pill" data-prompt="What are key support and resistance levels for {symbol}?">🎯 Support &amp; Resistance</button>
+            <button class="quick-pill" data-prompt="Scan S&P 500 for oversold RSI stocks right now">🔍 Scan Oversold Stocks</button>
+            <button class="quick-pill" data-prompt="Compare valuation and margins of {symbol} vs sector peers">🏢 Peer Valuation</button>
+            <button class="quick-pill" data-prompt="Buy 15 shares of {symbol}">⚡ Buy 15 Shares</button>
+            <button class="quick-pill" data-prompt="Show my paper trading portfolio and PnL">💼 My Portfolio</button>
+          </div>
+
+          <!-- Input Bar -->
+          <div class="chat-input-bar">
+            <input type="text" id="chat-user-input" class="chat-input" placeholder="ASK AGENT (e.g. 'Analyze NVDA setup', 'Buy 20 TSLA', 'Scan oversold tech stocks')...">
+            <button id="chat-send-btn" class="chat-send-btn">TRANSMIT &gt;</button>
+          </div>
+        </div>
+
+        <!-- Right: Active Stock Snapshot & Quick Order Pad -->
+        <aside class="agent-sidebar">
+          
+          <!-- Active Stock Highlight -->
+          <div class="panel">
+            <div class="panel-header">
+              <span id="dash-quote-sym">NVDA // NVIDIA CORP</span>
+              <span class="quote-change-badge up" id="dash-quote-change">+0.00%</span>
+            </div>
+            <div class="panel-body">
+              <div style="font-size:26px; font-weight:900; color:#fff;" id="dash-quote-price">$0.00</div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:8px;">
+                <div class="metric-cell">
+                  <div class="label">Market Cap</div>
+                  <div class="val" id="dash-val-mcap" style="color:var(--cyan-primary); font-size:12px;">--</div>
+                </div>
+                <div class="metric-cell">
+                  <div class="label">Trailing P/E</div>
+                  <div class="val" id="dash-val-pe" style="color:var(--amber-primary); font-size:12px;">--</div>
+                </div>
+                <div class="metric-cell">
+                  <div class="label">Day Range</div>
+                  <div class="val" id="dash-val-range" style="font-size:10px;">--</div>
+                </div>
+                <div class="metric-cell">
+                  <div class="label">52W Range</div>
+                  <div class="val" id="dash-val-52w" style="font-size:10px;">--</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Virtual Order Pad -->
+          <div class="panel">
+            <div class="panel-header">
+              <span>QUICK PAPER ORDER PAD</span>
+              <span style="color:var(--green-up); font-size:10px;">$100K CAPITAL</span>
+            </div>
+            <div class="panel-body" style="display:flex; flex-direction:column; gap:8px;">
+              <div class="form-group">
+                <label>Symbol</label>
+                <input type="text" id="order-symbol-input" class="form-control" value="NVDA" style="text-transform:uppercase;">
+              </div>
+              <div class="form-group">
+                <label>Quantity (Shares)</label>
+                <input type="number" id="order-qty-input" class="form-control" value="10" min="1">
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:4px;">
+                <button id="btn-quick-buy" style="background:var(--green-up); color:#000; border:none; padding:9px; font-weight:900; font-family:var(--font-mono); border-radius:2px; cursor:pointer;">BUY (MARKET)</button>
+                <button id="btn-quick-sell" style="background:var(--red-down); color:#fff; border:none; padding:9px; font-weight:900; font-family:var(--font-mono); border-radius:2px; cursor:pointer;">SELL (MARKET)</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Portfolio Summary Mini-Box -->
+          <div class="panel">
+            <div class="panel-header"><span>ACCOUNT LIQUIDITY</span></div>
+            <div class="panel-body">
+              <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                <span style="color:var(--text-muted);">Total Equity:</span>
+                <span id="agent-mini-equity" style="color:var(--cyan-primary); font-weight:bold;">$100,000.00</span>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                <span style="color:var(--text-muted);">Cash Available:</span>
+                <span id="agent-mini-cash" style="color:var(--green-up); font-weight:bold;">$100,000.00</span>
+              </div>
+              <div style="display:flex; justify-content:space-between;">
+                <span style="color:var(--text-muted);">Total Return:</span>
+                <span id="agent-mini-pnl" style="font-weight:bold;">$0.00 (+0.00%)</span>
+              </div>
+            </div>
+          </div>
+
+        </aside>
+
+      </div>
+    </div>
+
+    <!-- VIEW 3: STOCK PAGE (COMPANY FUNDAMENTALS + GAINERS & LOSERS ON THE SAME PAGE) -->
+    <div id="view-dashboard" class="view-pane" style="display:none;">
+      <div class="stock-page-layout">
+        
+        <!-- Top Active Stock Banner -->
+        <div class="stock-hero-banner">
+          <div class="hero-left">
+            <div class="hero-symbol-row">
+              <span class="hero-symbol" id="stockpage-symbol">NVDA</span>
+              <span class="hero-name" id="stockpage-name">NVIDIA Corporation</span>
+              <span class="hero-sector" id="stockpage-sector">Information Technology</span>
+            </div>
+            <div class="hero-subinfo">
+              <span>Sub-Industry: <strong id="stockpage-industry">Semiconductors</strong></span>
+              <span style="margin:0 8px;">|</span>
+              <span>CEO: <strong id="dash-profile-ceo">Jensen Huang</strong></span>
+              <span style="margin:0 8px;">|</span>
+              <span>HQ: <strong id="dash-profile-city">Santa Clara, CA</strong></span>
+            </div>
+          </div>
+
+          <div class="hero-right">
+            <div class="hero-price-block">
+              <span class="hero-price" id="stockpage-price">$0.00</span>
+              <span class="quote-change-badge up" id="stockpage-chg">+0.00 (+0.00%)</span>
+            </div>
+            <div class="hero-actions">
+              <button class="f-key active" id="btn-hero-open-terminal">📈 OPEN TERMINAL</button>
+              <button class="f-key" id="btn-hero-ask-ai">🤖 ASK AI AGENT</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Split View: Left 70% Financials & Peers | Right 30% Highest Gainers & Losers -->
+        <div class="stock-split-grid">
+          
+          <!-- Left Column: Fundamentals & Peers -->
+          <div class="stock-left-col">
+            
+            <!-- Business Profile Card -->
+            <div class="panel">
+              <div class="panel-header">
+                <span id="dash-profile-name">COMPANY BUSINESS PROFILE</span>
+                <a id="dash-profile-web" href="#" target="_blank" style="color:var(--cyan-primary); text-decoration:none;">VISIT OFFICIAL WEBSITE ↗</a>
+              </div>
+              <div class="panel-body">
+                <p id="dash-profile-desc" style="font-size:11px; color:#cbd5e1; line-height:1.55; max-height:110px; overflow-y:auto;">
+                  Loading company profile...
+                </p>
+              </div>
+            </div>
+
+            <!-- Valuation Multiples & Enterprise Value -->
+            <div class="panel">
+              <div class="panel-header"><span>VALUATION MULTIPLES &amp; ENTERPRISE VALUE</span></div>
+              <div class="panel-body">
+                <div class="metrics-grid-4">
+                  <div class="metric-cell"><div class="label">Enterprise Value</div><div class="val" id="val-ev">--</div></div>
+                  <div class="metric-cell"><div class="label">Trailing P/E</div><div class="val" id="val-pe-stock">--</div></div>
+                  <div class="metric-cell"><div class="label">Forward P/E</div><div class="val" id="val-fpe">--</div></div>
+                  <div class="metric-cell"><div class="label">PEG Ratio</div><div class="val" id="val-peg">--</div></div>
+                  <div class="metric-cell"><div class="label">Price / Book</div><div class="val" id="val-pb">--</div></div>
+                  <div class="metric-cell"><div class="label">Price / Sales</div><div class="val" id="val-ps">--</div></div>
+                  <div class="metric-cell"><div class="label">EV / EBITDA</div><div class="val" id="val-evebitda">--</div></div>
+                  <div class="metric-cell"><div class="label">Market Cap</div><div class="val" id="val-mcap-stock">--</div></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Profitability Margins & Balance Sheet Liquidity -->
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+              <div class="panel">
+                <div class="panel-header"><span>PROFITABILITY &amp; MARGINS</span></div>
+                <div class="panel-body">
+                  <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+                    <div class="metric-cell"><div class="label">Gross Margin</div><div class="val" id="prof-gross">--</div></div>
+                    <div class="metric-cell"><div class="label">Operating Margin</div><div class="val" id="prof-oper">--</div></div>
+                    <div class="metric-cell"><div class="label">Net Profit Margin</div><div class="val" id="prof-net">--</div></div>
+                    <div class="metric-cell"><div class="label">Return on Equity</div><div class="val" id="prof-roe">--</div></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="panel">
+                <div class="panel-header"><span>BALANCE SHEET &amp; LIQUIDITY</span></div>
+                <div class="panel-body">
+                  <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+                    <div class="metric-cell"><div class="label">Total Cash</div><div class="val" id="bal-cash">--</div></div>
+                    <div class="metric-cell"><div class="label">Total Debt</div><div class="val" id="bal-debt">--</div></div>
+                    <div class="metric-cell"><div class="label">Debt / Equity</div><div class="val" id="bal-de">--</div></div>
+                    <div class="metric-cell"><div class="label">Free Cash Flow</div><div class="val" id="bal-fcf">--</div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- S&P 500 Sector Peer Matrix -->
+            <div class="panel">
+              <div class="panel-header"><span>S&amp;P 500 SAME-SECTOR PEER COMPARISON (CLICK TO SELECT)</span></div>
+              <div class="panel-body" style="padding:0;">
+                <table class="bloomberg-table">
+                  <thead>
+                    <tr>
+                      <th>TICKER</th>
+                      <th>COMPANY</th>
+                      <th style="text-align:right;">PRICE ($)</th>
+                      <th style="text-align:right;">DAY CHG %</th>
+                      <th style="text-align:right;">MARKET CAP</th>
+                      <th style="text-align:center;">ACTION</th>
+                    </tr>
+                  </thead>
+                  <tbody id="dash-peers-table-body">
+                    <tr><td colspan="6" style="text-align:center; padding:10px; color:var(--text-muted);">Loading sector peers...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Right Column: S&P 500 Gainers & Losers on the SAME page! -->
+          <div class="stock-right-col">
+            
+            <!-- Mini-Card 1: Highest Gainers -->
+            <div class="panel" style="flex:1;">
+              <div class="panel-header">
+                <span style="color:var(--green-up);">🚀 S&amp;P 500 TOP GAINERS</span>
+                <span style="font-size:10px; color:var(--text-muted);">CLICK TICKER</span>
+              </div>
+              <div class="panel-body" style="padding:0; overflow-y:auto; max-height:260px;">
+                <table class="bloomberg-table">
+                  <thead>
+                    <tr>
+                      <th>TICKER</th>
+                      <th style="text-align:right;">PRICE</th>
+                      <th style="text-align:right;">CHG %</th>
+                    </tr>
+                  </thead>
+                  <tbody id="stockpage-gainers-tbody">
+                    <tr><td colspan="3" style="text-align:center; padding:10px; color:var(--text-muted);">Loading gainers...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Mini-Card 2: Highest Losers -->
+            <div class="panel" style="flex:1;">
+              <div class="panel-header">
+                <span style="color:var(--red-down);">🔻 S&amp;P 500 TOP LOSERS</span>
+                <span style="font-size:10px; color:var(--text-muted);">CLICK TICKER</span>
+              </div>
+              <div class="panel-body" style="padding:0; overflow-y:auto; max-height:260px;">
+                <table class="bloomberg-table">
+                  <thead>
+                    <tr>
+                      <th>TICKER</th>
+                      <th style="text-align:right;">PRICE</th>
+                      <th style="text-align:right;">CHG %</th>
+                    </tr>
+                  </thead>
+                  <tbody id="stockpage-losers-tbody">
+                    <tr><td colspan="3" style="text-align:center; padding:10px; color:var(--text-muted);">Loading losers...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Mini-Card 3: Active Stock Quant Trading Setup -->
+            <div class="panel">
+              <div class="panel-header"><span>🎯 QUANT ACTION PLAN</span></div>
+              <div class="panel-body" style="padding:8px; display:flex; flex-direction:column; gap:6px;">
+                <div style="display:flex; justify-content:space-between;">
+                  <span style="color:var(--text-muted);">Recommended Entry:</span>
+                  <span id="plan-entry" style="color:var(--cyan-primary); font-weight:bold;">$--.--</span>
+                </div>
+                <div style="display:flex; justify-content:space-between;">
+                  <span style="color:var(--text-muted);">Support / Stop-Loss:</span>
+                  <span id="plan-stop" style="color:var(--red-down); font-weight:bold;">$--.--</span>
+                </div>
+                <div style="display:flex; justify-content:space-between;">
+                  <span style="color:var(--text-muted);">Breakout Target:</span>
+                  <span id="plan-target" style="color:var(--green-up); font-weight:bold;">$--.--</span>
+                </div>
+                <button id="btn-stockpage-trade" class="f-key active" style="margin-top:4px; width:100%; text-align:center;">QUICK TRADE THIS STOCK</button>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+    <!-- VIEW 4: STOCK TERMINAL (CANDLESTICKS, INDICATORS, ORDER PAD & CLI) -->
+    <div id="view-terminal" class="view-pane" style="display:none;">
+      <div class="terminal-layout">
+        
+        <!-- Terminal Toolbar -->
+        <div class="chart-toolbar">
+          <div style="display:flex; gap:12px; align-items:center;">
+            <span id="chart-active-symbol" style="color:var(--amber-primary); font-weight:800; font-size:13px;">NVDA // TRADING TERMINAL</span>
+            <div class="function-keys">
+              <button class="f-key chart-tf-btn" data-period="1d">1D</button>
+              <button class="f-key chart-tf-btn" data-period="5d">5D</button>
+              <button class="f-key chart-tf-btn active" data-period="1mo">1M</button>
+              <button class="f-key chart-tf-btn" data-period="6mo">6M</button>
+              <button class="f-key chart-tf-btn" data-period="1y">1Y</button>
+              <button class="f-key chart-tf-btn" data-period="5y">5Y</button>
+            </div>
+          </div>
+
+          <!-- Indicator Checkbox Toggles -->
+          <div class="chart-toggles">
+            <label><input type="checkbox" id="toggle-sma20" checked> <span style="color:#ffcc00;">SMA 20</span></label>
+            <label><input type="checkbox" id="toggle-sma50" checked> <span style="color:#3b82f6;">SMA 50</span></label>
+            <label><input type="checkbox" id="toggle-bb" checked> <span style="color:#00e5ff;">Bollinger (20,2)</span></label>
+            <label><input type="checkbox" id="toggle-rsi" checked> <span style="color:#ff9900;">RSI (14)</span></label>
+            <label><input type="checkbox" id="toggle-macd" checked> <span style="color:#00ff66;">MACD (12,26,9)</span></label>
+          </div>
+        </div>
+
+        <!-- Indicators Live Summary Badge -->
+        <div class="indicators-hud-bar">
+          <div><span style="color:var(--text-muted);">PRICE:</span> <span id="val-price" style="font-weight:bold; color:#fff;">--</span></div>
+          <div><span style="color:var(--text-muted);">RSI (14):</span> <span id="val-rsi" style="font-weight:bold; color:#fff;">--</span></div>
+          <div><span style="color:var(--text-muted);">MACD:</span> <span id="val-macd" style="font-weight:bold; color:#fff;">--</span></div>
+          <div><span style="color:var(--text-muted);">SMA 20:</span> <span id="val-sma20" style="color:#ffcc00; font-weight:bold;">--</span></div>
+          <div><span style="color:var(--text-muted);">SMA 50:</span> <span id="val-sma50" style="color:#3b82f6; font-weight:bold;">--</span></div>
+          <div><span style="color:var(--text-muted);">BOLLINGER UPPER:</span> <span id="val-bb-up" style="color:var(--cyan-primary); font-weight:bold;">--</span></div>
+          <div><span style="color:var(--text-muted);">BOLLINGER LOWER:</span> <span id="val-bb-low" style="color:var(--green-up); font-weight:bold;">--</span></div>
+        </div>
+
+        <!-- Main Chart Stage -->
+        <div class="chart-stage-container">
+          <div class="chart-canvas-wrapper">
+            <canvas id="main-candlestick-canvas"></canvas>
+          </div>
+          <div class="chart-sub-wrapper" id="rsi-sub-container">
+            <canvas id="rsi-canvas"></canvas>
+          </div>
+          <div class="chart-sub-wrapper" id="macd-sub-container">
+            <canvas id="macd-canvas"></canvas>
+          </div>
+        </div>
+
+        <!-- Lower Trading Floor: Quant Setup, Terminal Order Pad & CLI Console -->
+        <div class="terminal-lower-grid">
+          
+          <!-- Box 1: Quant Signal Setup -->
+          <div class="panel">
+            <div class="panel-header"><span>TECHNICAL QUANT SIGNAL DESK</span></div>
+            <div class="panel-body" style="padding:8px; font-size:11px; display:flex; flex-direction:column; gap:5px;">
+              <div style="display:flex; justify-content:space-between;">
+                <span style="color:var(--text-muted);">Overall Stance:</span>
+                <span id="term-signal-verdict" style="color:var(--green-up); font-weight:bold;">BULLISH TREND</span>
+              </div>
+              <div style="display:flex; justify-content:space-between;">
+                <span style="color:var(--text-muted);">20-Day Range:</span>
+                <span id="term-20d-range">$-- - $--</span>
+              </div>
+              <div style="display:flex; justify-content:space-between;">
+                <span style="color:var(--text-muted);">Target Breakout:</span>
+                <span id="term-target-price" style="color:var(--green-up); font-weight:bold;">$--.--</span>
+              </div>
+              <div style="display:flex; justify-content:space-between;">
+                <span style="color:var(--text-muted);">Stop Loss:</span>
+                <span id="term-stop-price" style="color:var(--red-down); font-weight:bold;">$--.--</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Box 2: Integrated Paper Order Pad -->
+          <div class="panel">
+            <div class="panel-header">
+              <span>ORDER PAD: <span id="term-order-sym">NVDA</span></span>
+              <span style="color:var(--cyan-primary); font-size:10px;">INSTANT ROUTING</span>
+            </div>
+            <div class="panel-body" style="padding:8px; display:flex; flex-direction:column; gap:6px;">
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+                <div>
+                  <label style="font-size:9px; color:var(--text-muted);">QTY</label>
+                  <input type="number" id="term-order-qty" class="form-control" value="10" min="1">
+                </div>
+                <div>
+                  <label style="font-size:9px; color:var(--text-muted);">EST. COST</label>
+                  <div id="term-order-est" style="font-size:12px; font-weight:bold; color:#fff; padding-top:6px;">$--.--</div>
+                </div>
+              </div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:2px;">
+                <button id="btn-term-buy" style="background:var(--green-up); color:#000; border:none; padding:7px; font-weight:900; font-family:var(--font-mono); border-radius:2px; cursor:pointer;">BUY MARKET</button>
+                <button id="btn-term-sell" style="background:var(--red-down); color:#fff; border:none; padding:7px; font-weight:900; font-family:var(--font-mono); border-radius:2px; cursor:pointer;">SELL MARKET</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Box 3: Embedded Terminal CLI Output -->
+          <div class="panel">
+            <div class="panel-header">
+              <span>STANDALONE TERMINAL CLI FEED</span>
+              <span style="font-size:9px; color:var(--text-muted);">python terminal_trader.py [SYM]</span>
+            </div>
+            <div class="panel-body" style="padding:6px; background:#000; font-family:var(--font-mono); font-size:10px; color:#4ade80; overflow-y:auto; max-height:105px;">
+              <pre id="term-cli-feed" style="margin:0; font-family:var(--font-mono); font-size:9.5px; line-height:1.3; color:#cbd5e1;">
+[CLI READY] Ticker stream synchronized with yfinance daemon.
+Type in shell: `python terminal_trader.py NVDA` for ASCII Candlesticks.
+Paper trade ledger linked ($100K capital active).
+              </pre>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+
+    <!-- VIEW 5: PAPER TRADING PORTFOLIO LEDGER -->
+    <div id="view-portfolio" class="view-pane" style="display:none;">
+      <div class="portfolio-layout">
+        
+        <!-- Portfolio Overview Banner -->
+        <div class="portfolio-overview-banner">
+          <div class="portfolio-stat">
+            <span class="title">TOTAL EQUITY</span>
+            <span class="val" id="port-total-equity" style="color:var(--cyan-primary);">$100,000.00</span>
+          </div>
+          <div class="portfolio-stat">
+            <span class="title">AVAILABLE CASH</span>
+            <span class="val" id="port-cash" style="color:var(--green-up);">$100,000.00</span>
+          </div>
+          <div class="portfolio-stat">
+            <span class="title">HOLDINGS VALUE</span>
+            <span class="val" id="port-holdings">$0.00</span>
+          </div>
+          <div class="portfolio-stat">
+            <span class="title">TOTAL RETURN (PnL)</span>
+            <span class="val" id="port-total-pnl">$0.00 (+0.00%)</span>
+          </div>
+          <div class="portfolio-stat">
+            <span class="title">REALIZED PnL</span>
+            <span class="val" id="port-realized-pnl">$0.00</span>
+          </div>
+        </div>
+
+        <!-- Open Positions Table -->
+        <div class="panel">
+          <div class="panel-header">
+            <span>ACTIVE HOLDINGS &amp; POSITIONS</span>
+            <button id="btn-reset-portfolio" class="f-key" style="color:var(--red-down); border-color:var(--red-down);">RESET ACCOUNT ($100K)</button>
+          </div>
+          <div class="panel-body" style="padding:0;">
+            <table class="bloomberg-table">
+              <thead>
+                <tr>
+                  <th>SYMBOL</th>
+                  <th style="text-align:right;">QUANTITY</th>
+                  <th style="text-align:right;">AVG COST</th>
+                  <th style="text-align:right;">CURRENT PRICE</th>
+                  <th style="text-align:right;">COST BASIS</th>
+                  <th style="text-align:right;">MARKET VALUE</th>
+                  <th style="text-align:right;">UNREALIZED PnL</th>
+                  <th style="text-align:center;">ACTIONS</th>
+                </tr>
+              </thead>
+              <tbody id="portfolio-positions-tbody">
+                <tr><td colspan="8" style="text-align:center; padding:15px; color:var(--text-muted);">Loading positions...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Recent Trade Blotter -->
+        <div class="panel">
+          <div class="panel-header"><span>EXECUTED TRADE BLOTTER</span></div>
+          <div class="panel-body" style="padding:0;">
+            <table class="bloomberg-table">
+              <thead>
+                <tr>
+                  <th>TIMESTAMP</th>
+                  <th>ACTION</th>
+                  <th>SYMBOL</th>
+                  <th style="text-align:right;">QUANTITY</th>
+                  <th style="text-align:right;">EXECUTION PRICE</th>
+                  <th style="text-align:right;">TOTAL VALUE</th>
+                </tr>
+              </thead>
+              <tbody id="portfolio-blotter-tbody">
+                <tr><td colspan="6" style="text-align:center; padding:10px; color:var(--text-muted);">No trades executed yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- VIEW 6: S&P 500 MULTI-INDICATOR SCANNER -->
+    <div id="view-scanner" class="view-pane" style="display:none;">
+      <div class="scanner-layout">
+        
+        <!-- Scanned Setups Table -->
+        <div class="panel">
+          <div class="panel-header">
+            <div>
+              <span>S&amp;P 500 TECHNICAL SETUP SCANNER</span>
+              <span id="scanner-timestamp" style="font-size:10px; color:var(--text-muted); margin-left:8px;">LAST SCAN: --</span>
+            </div>
+            <button id="btn-refresh-scanner" class="f-key">REFRESH SCAN</button>
+          </div>
+          <div class="panel-body" style="display:flex; flex-direction:column; gap:8px;">
+            <!-- Filter buttons -->
+            <div class="scanner-filters-strip">
+              <button class="f-key scanner-strat-btn active" data-strategy="all">ALL ACTIVE SIGNALS</button>
+              <button class="f-key scanner-strat-btn" data-strategy="rsi_oversold">RSI OVERSOLD (&lt;40)</button>
+              <button class="f-key scanner-strat-btn" data-strategy="rsi_overbought">RSI OVERBOUGHT (&gt;60)</button>
+              <button class="f-key scanner-strat-btn" data-strategy="macd_bullish">BULLISH MACD CROSS</button>
+              <button class="f-key scanner-strat-btn" data-strategy="momentum_gainers">TOP GAINERS</button>
+              <button class="f-key scanner-strat-btn" data-strategy="momentum_losers">TOP LOSERS</button>
+            </div>
+
+            <div style="flex:1; overflow-y:auto;">
+              <table class="bloomberg-table">
+                <thead>
+                  <tr>
+                    <th>SYMBOL</th>
+                    <th>COMPANY</th>
+                    <th>SECTOR</th>
+                    <th style="text-align:right;">PRICE ($)</th>
+                    <th style="text-align:right;">CHG %</th>
+                    <th style="text-align:right;">RSI</th>
+                    <th style="text-align:right;">MACD</th>
+                    <th>SIGNALS</th>
+                    <th style="text-align:center;">ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody id="scanner-table-body">
+                  <tr><td colspan="9" style="text-align:center; padding:20px; color:var(--text-muted);">Initial scan loading...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 11 GICS Sectors Summary -->
+        <div class="panel">
+          <div class="panel-header"><span>GICS SECTOR BREAKDOWN</span></div>
+          <div class="panel-body" id="scanner-sectors-list" style="display:flex; flex-direction:column; gap:6px;">
+            <!-- Loaded dynamically -->
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+
+  <!-- MODEL PROVIDER SETTINGS MODAL (GROQ & OLLAMA) -->
+  <div id="settings-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <span>⚙️ TRADER AGENT MODEL SETTINGS</span>
+        <button id="btn-close-settings" style="background:none; border:none; color:#fff; cursor:pointer; font-size:16px;">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Model Provider</label>
+          <select id="settings-provider-select" class="form-control">
+            <option value="groq">Groq Cloud (Ultra-Fast Inference)</option>
+            <option value="ollama">Ollama Local (Offline / On-Device)</option>
+            <option value="quant">Autonomous Quant Rule-Engine (No Key Needed)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Model Selection</label>
+          <select id="settings-model-select" class="form-control">
+            <option value="llama-3.3-70b-versatile">Groq: Llama 3.3 70B (Recommended)</option>
+            <option value="llama-3.1-8b-instant">Groq: Llama 3.1 8B (Ultra Fast)</option>
+            <option value="mixtral-8x7b-32768">Groq: Mixtral 8x7B (32k Context)</option>
+            <option value="llama3">Ollama: llama3 (Local)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Groq API Key (Optional)</label>
+          <input type="password" id="settings-groq-key" class="form-control" placeholder="gsk_...">
+          <span style="font-size:10px; color:var(--text-muted);">Get free API key at console.groq.com. Stored securely in your browser.</span>
+        </div>
+
+        <div class="form-group">
+          <label>Ollama Base URL (If using Ollama)</label>
+          <input type="text" id="settings-ollama-url" class="form-control" value="http://localhost:11434">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-save-settings" class="f-key active">SAVE &amp; APPLY SETTINGS</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript Modules -->
+  <script src="/static/js/chart.js"></script>
+  <script src="/static/js/dashboard.js"></script>
+  <script src="/static/js/scanner.js"></script>
+  <script src="/static/js/portfolio.js"></script>
+  <script src="/static/js/agent.js"></script>
+  <script src="/static/js/homepage.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

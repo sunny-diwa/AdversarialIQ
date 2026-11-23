@@ -1,0 +1,41 @@
+{
+  "cash": 100000.0,
+  "initial_balance": 100000.0,
+  "positions": {
+    "NVDA": {
+      "symbol": "NVDA",
+      "quantity": 25,
+      "avg_price": 138.50,
+      "cost_basis": 3462.50,
+      "timestamp": "2026-11-20 14:30:00"
+    },
+    "AAPL": {
+      "symbol": "AAPL",
+      "quantity": 15,
+      "avg_price": 224.20,
+      "cost_basis": 3363.00,
+      "timestamp": "2026-11-20 14:32:00"
+    }
+  },
+  "trades": [
+    {
+      "id": "TRD-1001",
+      "timestamp": "2026-11-20 14:30:00",
+      "type": "BUY",
+      "symbol": "NVDA",
+      "quantity": 25,
+      "price": 138.50,
+      "total": 3462.50
+    },
+    {
+      "id": "TRD-1002",
+      "timestamp": "2026-11-20 14:32:00",
+      "type": "BUY",
+      "symbol": "AAPL",
+      "quantity": 15,
+      "price": 224.20,
+      "total": 3363.00
+    }
+  ],
+  "realized_pnl": 0.0
+}
