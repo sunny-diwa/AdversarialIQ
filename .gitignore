@@ -63,3 +63,5 @@ Thumbs.db
 *.log
 
 data/historical
+data/adversarial_memory.db
+data/users.db
