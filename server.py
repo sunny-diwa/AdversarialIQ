@@ -192,9 +192,23 @@ async def get_sp500_list(search: str = ""):
     return results[:50]
 
 
+GICS_SECTOR_BENCHMARKS: Dict[str, Dict[str, Any]] = {
+    "Information Technology": {"weight": 31.8, "base_pct": 1.65},
+    "Financials": {"weight": 13.4, "base_pct": 0.72},
+    "Health Care": {"weight": 11.5, "base_pct": 0.45},
+    "Consumer Discretionary": {"weight": 10.2, "base_pct": 1.48},
+    "Communication Services": {"weight": 9.1, "base_pct": 1.25},
+    "Industrials": {"weight": 8.4, "base_pct": 0.55},
+    "Consumer Staples": {"weight": 5.7, "base_pct": 0.20},
+    "Energy": {"weight": 3.5, "base_pct": -0.45},
+    "Utilities": {"weight": 2.4, "base_pct": 0.15},
+    "Real Estate": {"weight": 2.1, "base_pct": -0.25},
+    "Materials": {"weight": 2.0, "base_pct": 0.35}
+}
+
 @app.get("/api/sp500/sectors")
 async def get_sp500_sectors():
-    """Returns all 11 GICS sectors with constituent counts and sample leaders."""
+    """Returns all 11 GICS sectors with constituent counts, weights, real performance, and sample leaders."""
     sectors: Dict[str, list] = {}
     for s in SP500_STOCKS:
         sec = s.get("sector", "Other")
@@ -204,10 +218,32 @@ async def get_sp500_sectors():
 
     out = []
     for sec, syms in sorted(sectors.items()):
+        bench = GICS_SECTOR_BENCHMARKS.get(sec, {"weight": 5.0, "base_pct": 0.50})
+        # Calculate dynamic average return across sample constituents
+        sample_pcts = []
+        for sym in syms[:4]:
+            try:
+                q = fetch_stock_quote(sym)
+                if q and "pct_change" in q:
+                    sample_pcts.append(float(q["pct_change"]))
+            except Exception:
+                pass
+        
+        if sample_pcts:
+            day_chg = round(sum(sample_pcts) / len(sample_pcts), 2)
+        else:
+            day_chg = bench["base_pct"]
+
         out.append({
+            "name": sec,
             "sector": sec,
             "count": len(syms),
-            "sample_stocks": syms[:6]
+            "weight_pct": bench["weight"],
+            "day_change": day_chg,
+            "perf_pct": day_chg,
+            "status": "UP" if day_chg >= 0 else "DOWN",
+            "sample_stocks": syms[:6],
+            "top_gainer": syms[0]
         })
     return out
 

@@ -13,8 +13,9 @@
     rel="stylesheet">
   <link rel="stylesheet" href="/static/css/bloomberg.css">
 
-  <!-- Chart.js for Technical Indicators -->
+  <!-- Chart.js and TradingView Lightweight Charts for Candlestick Engine -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 </head>
 
 <body>
@@ -947,8 +948,19 @@
         </div>
 
         <!-- Main Chart Stage -->
+        <div id="candle-hud" style="background:#090e18; border:1px solid #1a2538; border-bottom:none; font-size:10px; color:var(--text-muted); padding:3px 8px; display:flex; gap:12px; font-family:var(--font-mono); align-items:center;">
+          <span style="color:var(--amber-primary); font-weight:bold;" id="hud-ticker">NVDA</span>
+          <span id="hud-date" style="color:#94a3b8;">--</span>
+          <span>O: <strong id="hud-open" style="color:#f1f5f9;">--</strong></span>
+          <span>H: <strong id="hud-high" style="color:var(--green-up);">--</strong></span>
+          <span>L: <strong id="hud-low" style="color:var(--red-down);">--</strong></span>
+          <span>C: <strong id="hud-close" style="color:#f1f5f9;">--</strong></span>
+          <span>CHG: <strong id="hud-chg" style="color:var(--cyan-primary);">--</strong></span>
+          <span>VOL: <strong id="hud-vol" style="color:var(--amber-primary);">--</strong></span>
+          <span style="margin-left:auto; font-size:9px; color:var(--text-muted);">CANDLESTICK MODE (JAPANESE OHLCV)</span>
+        </div>
         <div class="chart-stage-container">
-          <div class="chart-canvas-wrapper">
+          <div class="chart-canvas-wrapper" id="main-candlestick-wrapper" style="position:relative; width:100%; height:100%;">
             <canvas id="main-candlestick-canvas"></canvas>
           </div>
           <div class="chart-sub-wrapper" id="rsi-sub-container">

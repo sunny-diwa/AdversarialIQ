@@ -169,21 +169,59 @@ class SP500Homepage {
       this.sectors = sectors;
 
       grid.innerHTML = sectors.map(s => {
+        const secName = s.name || s.sector || "Sector";
+        const count = s.count || 0;
+        const weight = typeof s.weight_pct === 'number' ? s.weight_pct.toFixed(1) : (s.weight || '0.0');
+        const perf = typeof s.day_change === 'number' ? s.day_change : (typeof s.perf_pct === 'number' ? s.perf_pct : 0.0);
+        const isUp = perf >= 0;
+        const sign = isUp ? "+" : "";
+        const col = isUp ? "var(--green-up)" : "var(--red-down)";
+        const sampleChips = (s.sample_stocks || []).slice(0, 4).map(sym => `
+          <button class="f-key sec-sym-pill" data-sym="${sym}" title="Inspect ${sym}" style="font-size:8.5px; padding:1px 5px; border:1px solid #1a2538; background:#0d1522; color:var(--cyan-primary); border-radius:2px;">${sym}</button>
+        `).join("");
+
         return `
-          <div class="sector-tile" data-sector="${s.name}">
-            <div class="sec-title">${s.name}</div>
-            <div class="sec-meta">
-              <span>${s.count} Equities</span>
-              <span style="color:var(--cyan-primary);">${(s.weight_pct || 0).toFixed(1)}% Weight</span>
+          <div class="sector-tile" data-sector="${secName}" style="padding:7px; border:1px solid #1c283f; background:#090e18; border-radius:3px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <div class="sec-title" title="${secName}" style="font-size:10.5px; font-weight:bold; color:#f1f5f9; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:140px;">${secName}</div>
+              <span style="font-size:9.5px; font-weight:800; color:${col}; background:rgba(0,0,0,0.5); padding:1px 5px; border-radius:2px; white-space:nowrap;">
+                ${sign}${perf.toFixed(2)}%
+              </span>
+            </div>
+            <div class="sec-meta" style="font-size:9px; color:var(--text-muted); display:flex; justify-content:space-between; margin-bottom:6px;">
+              <span>${count} Equities</span>
+              <span style="color:var(--cyan-primary); font-weight:600;">${weight}% Weight</span>
+            </div>
+            <div style="display:flex; gap:3px; align-items:center; flex-wrap:wrap;">
+              ${sampleChips}
             </div>
           </div>
         `;
       }).join("");
 
+      // Bind stock pills inside sector tiles
+      grid.querySelectorAll(".sec-sym-pill").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const sym = btn.dataset.sym;
+          if (sym && window.terminalApp) {
+            window.terminalApp.selectStock(sym, "dashboard");
+          }
+        });
+      });
+
+      // Bind sector tile click to scanner filter
       grid.querySelectorAll(".sector-tile").forEach(tile => {
         tile.addEventListener("click", () => {
           const sec = tile.dataset.sector;
           if (window.terminalScanner) {
+            const secSelect = document.getElementById("scanner-sector");
+            if (secSelect) {
+              secSelect.value = sec;
+              window.terminalScanner.runScan();
+            }
+          }
+          if (window.terminalApp) {
             window.terminalApp.switchView("scanner");
           }
         });
