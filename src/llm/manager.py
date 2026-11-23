@@ -38,21 +38,23 @@ class LLMManager:
     """
 
     GROQ_MODELS = [
-        {"id": "llama-3.3-70b-versatile", "name": "Groq: Llama 3.3 70B (Recommended)", "context": 128000},
-        {"id": "llama-3.1-8b-instant", "name": "Groq: Llama 3.1 8B (Ultra Fast)", "context": 128000},
-        {"id": "mixtral-8x7b-32768", "name": "Groq: Mixtral 8x7B (32k Context)", "context": 32768}
+        {"id": "openai/gpt-oss-120b", "name": "Groq: GPT-OSS 120B (Recommended / Deep Reasoning)", "context": 131072},
+        {"id": "openai/gpt-oss-20b", "name": "Groq: GPT-OSS 20B (Ultra Fast)", "context": 131072},
+        {"id": "qwen/qwen3.8-27b", "name": "Groq: Qwen 3.8 27B (High Precision)", "context": 131072},
+        {"id": "allam-2-7b", "name": "Groq: Allam 2 7B (High Volume / 7K RPD)", "context": 32768}
     ]
 
     GEMINI_MODELS = [
-        {"id": "gemini-2.0-flash", "name": "Google Gemini 2.0 Flash (Recommended)", "context": 1048576},
-        {"id": "gemini-1.5-flash", "name": "Google Gemini 1.5 Flash (Fast)", "context": 1048576},
-        {"id": "gemini-1.5-pro", "name": "Google Gemini 1.5 Pro (Deep Reasoning)", "context": 2097152}
+        {"id": "gemini-4-hydrogen", "name": "Google Gemini 4 Hydrogen (Free Tier / Recommended)", "context": 1048576},
+        {"id": "gemini-3.5-flash", "name": "Google Gemini 3.5 Flash", "context": 1048576},
+        {"id": "gemini-3.1-flash-lite", "name": "Google Gemini 3.1 Flash Lite", "context": 1048576},
+        {"id": "gemini-2.5-flash", "name": "Google Gemini 2.5 Flash", "context": 1048576}
     ]
 
     MISTRAL_MODELS = [
-        {"id": "mistral-small-latest", "name": "Mistral Small (Fast / Efficient)", "context": 32768},
-        {"id": "mistral-large-latest", "name": "Mistral Large (High Precision)", "context": 128000},
-        {"id": "codestral-latest", "name": "Mistral Codestral (Code & Quant)", "context": 256000}
+        {"id": "codestral-latest", "name": "Mistral: Codestral Latest (Code & Quant / Recommended)", "context": 256000},
+        {"id": "ministral-8b-latest", "name": "Mistral: Ministral 8B (Fast)", "context": 128000},
+        {"id": "ministral-3b-latest", "name": "Mistral: Ministral 3B (Lightweight)", "context": 128000}
     ]
 
     NVIDIA_MODELS = [
@@ -100,7 +102,7 @@ class LLMManager:
                 "Content-Type": "application/json"
             }
             payload = {
-                "model": model or "llama-3.1-8b-instant",
+                "model": model or "openai/gpt-oss-120b",
                 "messages": [{"role": "user", "content": "ping"}],
                 "max_tokens": 2
             }
@@ -134,7 +136,7 @@ class LLMManager:
                     "provider": "Google AI Studio",
                     "error": "Missing Gemini API Key. Enter key in settings or set GEMINI_API_KEY env."
                 }
-            mod = model or "gemini-2.0-flash"
+            mod = model or "gemini-4-hydrogen"
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{mod}:generateContent?key={key}"
             payload = {"contents": [{"parts": [{"text": "ping"}]}], "generationConfig": {"maxOutputTokens": 2}}
             try:
@@ -164,7 +166,7 @@ class LLMManager:
                 }
             headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
             payload = {
-                "model": model or "mistral-small-latest",
+                "model": model or "codestral-latest",
                 "messages": [{"role": "user", "content": "ping"}],
                 "max_tokens": 2
             }
@@ -285,7 +287,7 @@ class LLMManager:
         Order of failover: preferred -> Groq -> Gemini -> Mistral -> NVIDIA -> Ollama -> Quant Rule Engine.
         """
         prov = (preferred_provider or "groq").lower().strip()
-        mod = model or ("llama-3.3-70b-versatile" if prov == "groq" else "gemini-2.0-flash")
+        mod = model or ("openai/gpt-oss-120b" if prov == "groq" else ("gemini-4-hydrogen" if prov in ("gemini", "google") else "codestral-latest"))
 
         # 1. Try preferred provider
         res = cls._try_provider(
@@ -310,21 +312,19 @@ class LLMManager:
 
         logger.warning(f"Preferred provider {prov} failed ({res.get('error') if res else 'Unknown'}). Initiating failover...")
 
-        # 2. Ordered failover chain
-        candidates = ["groq", "gemini", "mistral", "nvidia", "ollama"]
+        # 2. Ordered failover chain across active free-tier providers
+        candidates = ["groq", "mistral", "gemini"]
         if prov in candidates:
             candidates.remove(prov)
 
         for candidate in candidates:
             cand_mod = None
             if candidate == "groq":
-                cand_mod = "llama-3.3-70b-versatile"
+                cand_mod = "openai/gpt-oss-120b"
             elif candidate == "gemini":
-                cand_mod = "gemini-2.0-flash"
+                cand_mod = "gemini-4-hydrogen"
             elif candidate == "mistral":
-                cand_mod = "mistral-small-latest"
-            elif candidate == "nvidia":
-                cand_mod = "z-ai/glm-5.3-flash"
+                cand_mod = "codestral-latest"
 
             cand_res = cls._try_provider(
                 provider=candidate,
@@ -388,7 +388,7 @@ class LLMManager:
             if provider == "groq":
                 if not groq_key:
                     return {"error": "No Groq API key"}
-                mod = model or "llama-3.3-70b-versatile"
+                mod = model or "openai/gpt-oss-120b"
                 headers = {"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"}
                 payload = {
                     "model": mod,
@@ -412,7 +412,7 @@ class LLMManager:
             elif provider in ("gemini", "google"):
                 if not gemini_key:
                     return {"error": "No Gemini API key"}
-                mod = model or "gemini-2.0-flash"
+                mod = model or "gemini-4-hydrogen"
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{mod}:generateContent?key={gemini_key}"
                 payload = {
                     "contents": [{"parts": [{"text": f"System Directive:\n{system_prompt}\n\nUser Request:\n{prompt}"}]}],
@@ -432,7 +432,7 @@ class LLMManager:
             elif provider == "mistral":
                 if not mistral_key:
                     return {"error": "No Mistral API key"}
-                mod = model or "mistral-small-latest"
+                mod = model or "codestral-latest"
                 headers = {"Authorization": f"Bearer {mistral_key}", "Content-Type": "application/json"}
                 payload = {
                     "model": mod,

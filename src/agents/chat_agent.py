@@ -9,6 +9,7 @@ import re
 from typing import Any, Dict, Optional
 
 from src.agents.tribunal import get_daily_desk_briefing, run_adversarial_trade_tribunal
+from src.backtest import StrategyGenerator
 from src.core.config import SP500_MAP
 from src.execution.portfolio import execute_order
 from src.llm.manager import LLMManager
@@ -20,7 +21,7 @@ logger = logging.getLogger("ChatAgent")
 def process_chat_message(
     message: str,
     provider: str = "groq",
-    model: str = "llama-3.3-70b-versatile",
+    model: str = "openai/gpt-oss-120b",
     groq_api_key: str = "",
     gemini_api_key: str = "",
     mistral_api_key: str = "",
@@ -86,7 +87,62 @@ def process_chat_message(
             target_sym = w
             break
 
-    # 3. Detect AdversarialIQ Debate / Tribunal intent
+    # 3. Detect Backtest / Strategy Simulation intent
+    if any(k in prompt.lower() for k in ["backtest", "back test", "test my strategy", "test strategy", "simulate strategy", "run backtest"]):
+        try:
+            bt = StrategyGenerator.synthesize_and_run(
+                strategy_prompt=prompt,
+                symbol=target_sym,
+                provider=provider,
+                model=model
+            )
+            ret_col = "🟢" if bt["total_return_pct"] >= 0 else "🔴"
+            bench_col = "🟢" if bt["benchmark_return_pct"] >= 0 else "🔴"
+            alpha_col = "🟢" if bt["alpha_pct"] >= 0 else "🔴"
+
+            bench_final = bt["initial_capital"] * (1 + bt["benchmark_return_pct"] / 100)
+
+            response_md = f"""### ⚡ AdversarialIQ 5-Year Backtest Engine: **{bt['symbol']}**
+**Horizon:** `{bt['period']}` | **Starting Capital:** `${bt['initial_capital']:,.2f}` | **Model:** `{bt.get('model_used', 'LLM')}`
+
+---
+
+#### 📊 Performance Analytics vs. Buy & Hold Benchmark:
+| Metric | Strategy | Benchmark | Alpha / Edge |
+|:---|:---|:---|:---|
+| **Total Return** | **{ret_col} {bt['total_return_pct']:+.2f}%** | {bench_col} {bt['benchmark_return_pct']:+.2f}% | {alpha_col} **{bt['alpha_pct']:+.2f}%** |
+| **Final Equity** | **${bt['final_equity']:,.2f}** | ${bench_final:,.2f} | — |
+| **Sharpe Ratio** | **{bt['sharpe_ratio']}** | — | *(Assumes 4.0% Risk-Free Rate)* |
+| **Sortino Ratio** | **{bt['sortino_ratio']}** | — | *(Downside Risk Adjusted)* |
+| **Max Drawdown** | **{bt['max_drawdown_pct']:.2f}%** | — | *(Peak-to-Trough Drawdown)* |
+| **Annualized Vol** | **{bt['annualized_volatility_pct']:.2f}%** | — | — |
+
+---
+
+#### 🎯 Trade Execution Statistics:
+- **Total Trades:** `{bt['total_trades']}` (Wins: **`{bt['winning_trades']}`** | Losses: **`{bt['losing_trades']}`**)
+- **Win Rate:** **`{bt['win_rate_pct']}%`**
+- **Profit Factor:** **`{bt['profit_factor']}`**
+- **Avg Trade Return:** **`{bt['avg_trade_pnl_pct']:+.2f}%`** | **Avg Hold Duration:** **`{bt['avg_hold_days']} days`**
+
+---
+
+#### 💻 Generated Vectorized Python Logic:
+```python
+{bt['generated_code']}
+```
+
+*Interactive equity curve data points have been generated.*"""
+
+            return {
+                "response": response_md,
+                "backtest": bt
+            }
+        except Exception as e:
+            logger.error(f"Backtest generation error: {e}")
+            return {"response": f"⚠️ **Backtest Execution Notice:** {str(e)}"}
+
+    # 4. Detect AdversarialIQ Debate / Tribunal intent
     if any(k in prompt.lower() for k in ["adversarial", "debate", "bull vs bear", "syndicate", "judge", "court", "tribunal"]):
         tribunal = run_adversarial_trade_tribunal(target_sym)
         bull = tribunal["prosecution_bull"]

@@ -25,6 +25,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from src.auth import auth_router
+from src.backtest import BacktestDataStore, BacktestEngine, StrategyGenerator
 from src.agents import (
     get_daily_desk_briefing,
     process_chat_message,
@@ -117,7 +118,7 @@ class TradeRequest(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     provider: Optional[str] = "groq"
-    model: Optional[str] = "llama-3.3-70b-versatile"
+    model: Optional[str] = "openai/gpt-oss-120b"
     groq_api_key: Optional[str] = ""
     gemini_api_key: Optional[str] = ""
     mistral_api_key: Optional[str] = ""
@@ -144,6 +145,24 @@ class AlpacaPingRequest(BaseModel):
 class RiskEvaluateRequest(BaseModel):
     symbol: str
     action: str = "BUY"
+
+
+class BacktestRunRequest(BaseModel):
+    symbol: str = "AAPL"
+    strategy_name: str = "sma_cross"
+    initial_capital: float = 10000.0
+    stop_loss_pct: Optional[float] = 0.07
+    take_profit_pct: Optional[float] = 0.20
+
+
+class BacktestNlpRequest(BaseModel):
+    symbol: str = "AAPL"
+    prompt: str
+    initial_capital: float = 10000.0
+    stop_loss_pct: Optional[float] = None
+    take_profit_pct: Optional[float] = None
+    provider: Optional[str] = "groq"
+    model: Optional[str] = None
     shares: Optional[int] = None
     conviction_score: Optional[int] = 50
     equity: Optional[float] = None
@@ -438,7 +457,7 @@ async def chat_endpoint(req: ChatRequest):
     return process_chat_message(
         message=req.message,
         provider=req.provider or "groq",
-        model=req.model or "llama-3.3-70b-versatile",
+        model=req.model or "openai/gpt-oss-120b",
         groq_api_key=req.groq_api_key or "",
         gemini_api_key=req.gemini_api_key or "",
         mistral_api_key=req.mistral_api_key or "",
@@ -448,6 +467,48 @@ async def chat_endpoint(req: ChatRequest):
         alpaca_key=req.alpaca_key,
         alpaca_secret=req.alpaca_secret
     )
+
+
+# -----------------------------------------------------------------------------
+# 5-Year High-Speed Quantitative Backtest Suite (10 Marquee S&P 500 Stocks)
+# -----------------------------------------------------------------------------
+@app.get("/api/backtest/symbols")
+async def get_backtest_symbols():
+    """Returns catalog of marquee S&P 500 stocks with 5-year cached data status."""
+    return BacktestDataStore.get_marquee_catalog()
+
+
+@app.post("/api/backtest/run")
+async def run_backtest_endpoint(req: BacktestRunRequest):
+    """Executes preset algorithmic backtest on 5-year cached data."""
+    return BacktestEngine.run_preset_strategy(
+        symbol=req.symbol,
+        strategy_name=req.strategy_name,
+        initial_capital=req.initial_capital,
+        stop_loss_pct=req.stop_loss_pct,
+        take_profit_pct=req.take_profit_pct
+    )
+
+
+@app.post("/api/backtest/nlp")
+async def run_nlp_backtest_endpoint(req: BacktestNlpRequest):
+    """Synthesizes natural language strategy into Python code and executes 5-year backtest."""
+    return StrategyGenerator.synthesize_and_run(
+        strategy_prompt=req.prompt,
+        symbol=req.symbol,
+        initial_capital=req.initial_capital,
+        stop_loss_pct=req.stop_loss_pct,
+        take_profit_pct=req.take_profit_pct,
+        provider=req.provider or "groq",
+        model=req.model
+    )
+
+
+@app.post("/api/backtest/preload")
+async def preload_backtest_data(force: bool = False):
+    """Refreshes and preloads 5-year historical data for all 10 marquee stocks."""
+    return BacktestDataStore.preload_all_marquee(force_refresh=force)
+
 
 
 # -----------------------------------------------------------------------------

@@ -247,6 +247,7 @@ class BloombergApp {
       if (e.key === "F4") { e.preventDefault(); this.switchView("terminal"); }
       if (e.key === "F5") { e.preventDefault(); this.switchView("portfolio"); }
       if (e.key === "F6") { e.preventDefault(); this.switchView("scanner"); }
+      if (e.key === "F7") { e.preventDefault(); this.switchView("backtest"); }
     });
   }
 
@@ -257,7 +258,7 @@ class BloombergApp {
       b.classList.toggle("active", b.dataset.view === viewName);
     });
 
-    const panes = ["homepage", "agent", "dashboard", "terminal", "portfolio", "scanner"];
+    const panes = ["homepage", "agent", "dashboard", "terminal", "portfolio", "scanner", "backtest"];
     panes.forEach(pId => {
       const el = document.getElementById(`view-${pId}`);
       if (el) {
