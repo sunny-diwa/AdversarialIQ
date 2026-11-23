@@ -207,6 +207,30 @@ class SP500CompanyDashboard {
         `).join("");
       }
 
+      // Start-of-Day Pre-Market Projection Banner
+      const sod = scores.start_of_day || {};
+      setMetric("eco-sod-prob", `${Math.round(sod.movement_probability_score || movScore)}%`);
+      setMetric("eco-sod-up", `${Math.round(sod.up_score || upScore)}`);
+      setMetric("eco-sod-down", `${Math.round(sod.down_score || downScore)}`);
+      setMetric("eco-sod-gap", `${(sod.open_gap_pct || 0) >= 0 ? '+' : ''}${Number(sod.open_gap_pct || 0).toFixed(2)}%`);
+      const sodVerdict = document.getElementById("eco-sod-verdict");
+      if (sodVerdict) {
+        sodVerdict.innerText = sod.dominant_bias || "BALANCED";
+        if ((sod.dominant_bias || "").includes("BULLISH")) {
+          sodVerdict.style.color = "var(--green-up)";
+          sodVerdict.style.borderColor = "rgba(0,255,102,0.25)";
+          sodVerdict.style.background = "rgba(0,255,102,0.1)";
+        } else if ((sod.dominant_bias || "").includes("BEARISH")) {
+          sodVerdict.style.color = "var(--red-down)";
+          sodVerdict.style.borderColor = "rgba(255,51,68,0.25)";
+          sodVerdict.style.background = "rgba(255,51,68,0.1)";
+        } else {
+          sodVerdict.style.color = "var(--cyan-primary)";
+          sodVerdict.style.borderColor = "rgba(0,229,255,0.25)";
+          sodVerdict.style.background = "rgba(0,229,255,0.1)";
+        }
+      }
+
       // 2. Summary & Grounding Badge
       const descEl = document.getElementById("eco-summary-desc");
       if (descEl) descEl.innerText = data.ecosystem_summary || "Ecosystem structure and supply chain relationships.";

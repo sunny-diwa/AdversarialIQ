@@ -1069,69 +1069,118 @@ def calculate_ecosystem_catalyst_scores(
 ) -> Dict[str, Any]:
     """
     Deterministic AdversarialIQ Ecosystem Volatility & Directional Catalyst Engine (A-CIS).
-    Calculates:
-    1. Movement Probability Score (0-100): Chances of price movement based on direct news sentiment,
-       cross-entity dependencies, partner stock momentum, and volatility.
-    2. Bullish Vector / Up Score (0-100): Upward momentum driven by positive sentiment, customer demand,
-       supplier strength, and technical tailwinds.
-    3. Bearish Vector / Down Score (0-100): Downward pressure driven by negative sentiment, customer pullbacks,
-       supplier bottlenecks/margin pressure, and competitor threat vectors.
-    4. Technical Scorecard: Trend, Momentum, Volatility, and Volume Pressure.
+    Calibrated across:
+    1. Direct News Intensity & Sentiment Velocity (NLP Breaking News Feed).
+    2. Company Price Momentum & Day Return / Pre-Market Gap (Impulse Confirmation).
+    3. Customer / Enterprise Buyer Procurement Sentiment (Hyperscaler Capex).
+    4. Upstream Supplier Operational Throughput & Bottleneck Risk.
+    5. Direct Competitor Threat Vectors & Relative Execution.
+    6. Quantitative Technical Scorecard (Trend, Momentum, Volatility, Volume Flow).
+    
+    Returns both live session scores and Start-of-Day (Pre-Market Catalyst) scores.
     """
     sym = symbol.strip().upper()
+    
+    # 1. Direct news sentiment
     try:
         direct_news = fetch_breaking_news(sym)
         dir_score = float(direct_news.get("overall_sentiment", {}).get("score", 0.0) or 0.0)
-        dir_intensity = min(100.0, abs(dir_score) * 100.0)
-        dir_bull = max(0.0, dir_score * 100.0)
-        dir_bear = max(0.0, -dir_score * 100.0)
     except Exception:
         dir_score = 0.0
-        dir_intensity = 35.0
-        dir_bull = 25.0
-        dir_bear = 25.0
 
-    # Supplier factor
+    dir_intensity = min(98.0, max(22.0, 22.0 + abs(dir_score) * 135.0))
+    if dir_score >= 0:
+        dir_bull = min(98.0, max(30.0, 35.0 + dir_score * 115.0))
+        dir_bear = max(5.0, min(40.0, 35.0 - dir_score * 50.0))
+    else:
+        dir_bull = max(5.0, min(40.0, 35.0 - abs(dir_score) * 50.0))
+        dir_bear = min(98.0, max(30.0, 35.0 + abs(dir_score) * 115.0))
+
+    # 2. Company price momentum & volume flow
+    price = float(quote_info.get("price") or 100.0)
+    prev_close = float(quote_info.get("prev_close") or price)
+    open_p = float(quote_info.get("open") or price)
+    company_pct = float(quote_info.get("pct_change") or 0.0)
+    vol = int(quote_info.get("volume") or 10000000)
+    avg_vol = int(quote_info.get("avg_volume_10d") or vol)
+    vol_ratio = vol / (avg_vol + 1e-6)
+    
+    # Opening gap at start of the day
+    open_gap = round(((open_p - prev_close) / (prev_close + 1e-6)) * 100.0, 2) if prev_close > 0 else 0.0
+    
+    abs_pct = abs(company_pct)
+    price_impulse = min(98.0, max(20.0, 22.0 + (abs_pct ** 0.82) * 4.8 + max(0.0, vol_ratio - 1.0) * 12.0))
+    if company_pct >= 0:
+        price_bull = min(98.0, max(30.0, 40.0 + min(company_pct, 30.0) * 1.8))
+        price_bear = max(5.0, min(35.0, 35.0 - min(company_pct, 30.0) * 1.0))
+    else:
+        price_bull = max(5.0, min(35.0, 35.0 - min(abs_pct, 30.0) * 1.0))
+        price_bear = min(98.0, max(30.0, 40.0 + min(abs_pct, 30.0) * 1.8))
+
+    # 3. Supplier factor (news sentiment + price action + bottleneck criticality)
     supp_vol_list = []
     supp_bull_list = []
     supp_bear_list = []
     for s in suppliers:
-        pct = float(s.get("pct_change", 0.0))
-        w = 2.0 if s.get("criticality") in ["EXTREME", "CRITICAL"] else (1.5 if s.get("criticality") == "HIGH" else 1.0)
-        supp_vol_list.append(min(100.0, abs(pct) * 12.0) * w)
-        if pct >= 0:
-            supp_bull_list.append(min(100.0, pct * 15.0) * w)
+        p = float(s.get("pct_change", 0.0))
+        sent = s.get("news_sentiment", "NEUTRAL")
+        crit_w = 1.8 if s.get("criticality") in ["EXTREME", "CRITICAL"] else (1.4 if s.get("criticality") == "HIGH" else 1.0)
+        s_vol = (abs(p) * 8.0 + (30.0 if sent != "NEUTRAL" else 15.0)) * crit_w
+        supp_vol_list.append(min(100.0, s_vol))
+        if sent == "BULLISH" or p > 0:
+            supp_bull_list.append(min(95.0, (40.0 + max(0.0, p) * 10.0 + (30.0 if sent == "BULLISH" else 0.0)) * crit_w / 1.5))
+            supp_bear_list.append(max(8.0, 25.0 - max(0.0, p) * 5.0))
         else:
-            supp_bear_list.append(min(100.0, abs(pct) * 18.0) * w)
+            supp_bull_list.append(max(8.0, 25.0 - abs(p) * 5.0))
+            supp_bear_list.append(min(95.0, (40.0 + abs(p) * 10.0 + (30.0 if sent == "BEARISH" else 0.0)) * crit_w / 1.5))
 
-    # Customer / Demand factor
+    # 4. Customer / Demand factor (news sentiment + price action + revenue exposure)
     cust_vol_list = []
     cust_bull_list = []
     cust_bear_list = []
     for c in customers:
-        pct = float(c.get("pct_change", 0.0))
-        w = max(1.0, float(c.get("revenue_share_pct", 10.0)) / 10.0)
-        cust_vol_list.append(min(100.0, abs(pct) * 15.0) * w)
-        if pct >= 0:
-            cust_bull_list.append(min(100.0, pct * 20.0) * w)
+        p = float(c.get("pct_change", 0.0))
+        sent = c.get("news_sentiment", "NEUTRAL")
+        rev_w = max(1.0, float(c.get("revenue_share_pct", 10.0)) / 8.0)
+        c_vol = (abs(p) * 10.0 + (35.0 if sent != "NEUTRAL" else 15.0)) * rev_w
+        cust_vol_list.append(min(100.0, c_vol))
+        if sent == "BULLISH" or p > 0:
+            cust_bull_list.append(min(98.0, (45.0 + max(0.0, p) * 12.0 + (35.0 if sent == "BULLISH" else 0.0)) * rev_w / 1.4))
+            cust_bear_list.append(max(6.0, 20.0 - max(0.0, p) * 6.0))
         else:
-            cust_bear_list.append(min(100.0, abs(pct) * 20.0) * w)
+            cust_bull_list.append(max(6.0, 20.0 - abs(p) * 6.0))
+            cust_bear_list.append(min(98.0, (45.0 + abs(p) * 12.0 + (35.0 if sent == "BEARISH" else 0.0)) * rev_w / 1.4))
 
-    # Competitor factor
+    # 5. Competitor factor (news sentiment + price action + threat level)
     comp_vol_list = []
     comp_bull_list = []
     comp_bear_list = []
     for cp in competitors:
-        pct = float(cp.get("pct_change", 0.0))
-        w = 1.5 if cp.get("threat_level") == "HIGH" else 1.0
-        comp_vol_list.append(min(100.0, abs(pct) * 10.0) * w)
-        if pct < 0:
-            comp_bull_list.append(min(100.0, abs(pct) * 15.0) * w)
+        p = float(cp.get("pct_change", 0.0))
+        sent = cp.get("news_sentiment", "NEUTRAL")
+        th_w = 1.4 if cp.get("threat_level") == "HIGH" else 1.0
+        comp_vol_list.append(min(100.0, (abs(p) * 7.0 + (25.0 if sent != "NEUTRAL" else 10.0)) * th_w))
+        if sent == "BEARISH" or p < 0:
+            comp_bull_list.append(min(90.0, 35.0 + abs(p) * 10.0 + (30.0 if sent == "BEARISH" else 0.0)))
+            comp_bear_list.append(max(10.0, 25.0 - abs(p) * 5.0))
         else:
-            comp_bear_list.append(min(100.0, pct * 15.0) * w)
+            comp_bull_list.append(max(10.0, 25.0 - p * 5.0))
+            comp_bear_list.append(min(90.0, 35.0 + p * 10.0 + (30.0 if sent == "BULLISH" else 0.0)))
 
-    # Technical touch
-    price = float(quote_info.get("price") or 100.0)
+    avg_supp_vol = sum(supp_vol_list)/len(supp_vol_list) if supp_vol_list else 30.0
+    avg_cust_vol = sum(cust_vol_list)/len(cust_vol_list) if cust_vol_list else 35.0
+    avg_comp_vol = sum(comp_vol_list)/len(comp_vol_list) if comp_vol_list else 25.0
+
+    avg_supp_bull = sum(supp_bull_list)/len(supp_bull_list) if supp_bull_list else 25.0
+    avg_supp_bear = sum(supp_bear_list)/len(supp_bear_list) if supp_bear_list else 25.0
+
+    avg_cust_bull = sum(cust_bull_list)/len(cust_bull_list) if cust_bull_list else 30.0
+    avg_cust_bear = sum(cust_bear_list)/len(cust_bear_list) if cust_bear_list else 25.0
+
+    avg_comp_bull = sum(comp_bull_list)/len(comp_bull_list) if comp_bull_list else 20.0
+    avg_comp_bear = sum(comp_bear_list)/len(comp_bear_list) if comp_bear_list else 20.0
+
+    # 6. Technical scorecard touch
     sma20 = float(tech_info.get("sma20") or price)
     sma50 = float(tech_info.get("sma50") or price)
     sma200 = float(tech_info.get("sma200") or price)
@@ -1139,45 +1188,30 @@ def calculate_ecosystem_catalyst_scores(
     atr = float(tech_info.get("atr") or (price * 0.02))
 
     trend_score = round(
-        (35.0 if price > sma20 else 5.0) +
-        (35.0 if price > sma50 else 5.0) +
-        (30.0 if price > sma200 else 5.0), 1
+        (35.0 if price >= sma20 else 5.0) +
+        (35.0 if price >= sma50 else 5.0) +
+        (30.0 if price >= sma200 else 5.0), 1
     )
     trend_score = min(99.0, max(10.0, trend_score))
 
     mom_score = round(min(99.0, max(5.0, (rsi - 20.0) * (100.0 / 60.0))), 1)
     vol_score = round(min(99.0, max(15.0, (atr / (price + 1e-6)) * 1000.0)), 1)
-
-    vol = int(quote_info.get("volume") or 10000000)
-    avg_vol = int(quote_info.get("avg_volume_10d") or vol)
-    vol_ratio = vol / (avg_vol + 1e-6)
     flow_score = round(min(99.0, max(10.0, vol_ratio * 50.0)), 1)
 
     tech_bias = "BULLISH" if (trend_score >= 60 and mom_score >= 50) else ("BEARISH" if (trend_score <= 40 and mom_score <= 45) else "NEUTRAL")
-    tech_bull = (trend_score * 0.5) + (mom_score * 0.5)
-    tech_bear = ((100.0 - trend_score) * 0.5) + ((100.0 - mom_score) * 0.5)
+    tech_bull = (trend_score * 0.55) + (mom_score * 0.45)
+    tech_bear = ((100.0 - trend_score) * 0.55) + ((100.0 - mom_score) * 0.45)
 
-    avg_supp_vol = sum(supp_vol_list)/len(supp_vol_list) if supp_vol_list else 30.0
-    avg_cust_vol = sum(cust_vol_list)/len(cust_vol_list) if cust_vol_list else 35.0
-    avg_comp_vol = sum(comp_vol_list)/len(comp_vol_list) if comp_vol_list else 25.0
-
-    avg_supp_bull = sum(supp_bull_list)/len(supp_bull_list) if supp_bull_list else 20.0
-    avg_supp_bear = sum(supp_bear_list)/len(supp_bear_list) if supp_bear_list else 20.0
-
-    avg_cust_bull = sum(cust_bull_list)/len(cust_bull_list) if cust_bull_list else 30.0
-    avg_cust_bear = sum(cust_bear_list)/len(cust_bear_list) if cust_bear_list else 20.0
-
-    avg_comp_bull = sum(comp_bull_list)/len(comp_bull_list) if comp_bull_list else 15.0
-    avg_comp_bear = sum(comp_bear_list)/len(comp_bear_list) if comp_bear_list else 15.0
-
+    # 7. Live Session Movement Probability Score (0-100, Non-Directional Impulse)
     movement_prob = round(
-        0.30 * dir_intensity +
-        0.25 * avg_cust_vol +
-        0.20 * avg_supp_vol +
-        0.10 * avg_comp_vol +
-        0.15 * vol_score, 1
+        0.28 * dir_intensity +
+        0.24 * price_impulse +
+        0.20 * avg_cust_vol +
+        0.14 * avg_supp_vol +
+        0.08 * avg_comp_vol +
+        0.06 * mom_score, 1
     )
-    movement_prob = min(98.0, max(22.0, movement_prob))
+    movement_prob = min(98.0, max(15.0, movement_prob))
 
     if movement_prob >= 75.0:
         mov_label = "EXTREME VOLATILITY IMPULSE"
@@ -1192,19 +1226,22 @@ def calculate_ecosystem_catalyst_scores(
         mov_label = "CONSOLIDATION / LOW IMPACT"
         mov_desc = "Muted ecosystem catalyst activity; stock trading in quiescent baseline range."
 
+    # 8. Live Session Directional Prediction Scores (Up vs Down)
     up_score = round(
-        0.35 * dir_bull +
-        0.25 * avg_cust_bull +
-        0.15 * avg_supp_bull +
-        0.10 * avg_comp_bull +
-        0.15 * tech_bull, 1
+        0.26 * dir_bull +
+        0.24 * price_bull +
+        0.22 * avg_cust_bull +
+        0.14 * avg_supp_bull +
+        0.04 * avg_comp_bull +
+        0.10 * tech_bull, 1
     )
     down_score = round(
-        0.35 * dir_bear +
-        0.25 * avg_cust_bear +
-        0.15 * avg_supp_bear +
-        0.10 * avg_comp_bear +
-        0.15 * tech_bear, 1
+        0.26 * dir_bear +
+        0.24 * price_bear +
+        0.22 * avg_cust_bear +
+        0.14 * avg_supp_bear +
+        0.04 * avg_comp_bear +
+        0.10 * tech_bear, 1
     )
 
     up_score = min(98.0, max(5.0, up_score))
@@ -1217,17 +1254,50 @@ def calculate_ecosystem_catalyst_scores(
     else:
         dominant_bias = "BALANCED / DUAL-SIDED VOLATILITY"
 
+    # 9. Start-of-Day (Pre-Market Catalyst Projection)
+    # Evaluates movement potential right as trading begins using news, partner sentiment, and opening gap
+    sod_gap_impulse = min(95.0, max(25.0, 30.0 + abs(open_gap) * 6.5))
+    sod_mov_prob = round(
+        0.40 * dir_intensity +
+        0.25 * avg_cust_vol +
+        0.18 * avg_supp_vol +
+        0.10 * avg_comp_vol +
+        0.07 * sod_gap_impulse, 1
+    )
+    sod_mov_prob = min(98.0, max(18.0, sod_mov_prob))
+    
+    sod_gap_bull = min(95.0, max(20.0, 40.0 + open_gap * 4.0)) if open_gap >= 0 else max(10.0, 35.0 - abs(open_gap) * 3.0)
+    sod_gap_bear = min(95.0, max(20.0, 40.0 + abs(open_gap) * 4.0)) if open_gap < 0 else max(10.0, 35.0 - open_gap * 3.0)
+    
+    sod_up = round(
+        0.35 * dir_bull +
+        0.25 * avg_cust_bull +
+        0.18 * avg_supp_bull +
+        0.07 * avg_comp_bull +
+        0.15 * sod_gap_bull, 1
+    )
+    sod_down = round(
+        0.35 * dir_bear +
+        0.25 * avg_cust_bear +
+        0.18 * avg_supp_bear +
+        0.07 * avg_comp_bear +
+        0.15 * sod_gap_bear, 1
+    )
+    sod_up = min(98.0, max(5.0, sod_up))
+    sod_down = min(98.0, max(5.0, sod_down))
+    sod_dominant = "BULLISH CATALYST" if sod_up > sod_down + 8.0 else ("BEARISH CATALYST" if sod_down > sod_up + 8.0 else "BALANCED / DUAL-SIDED VOLATILITY")
+
     key_catalysts = []
     if customers:
         c_top = customers[0]
-        key_catalysts.append(f"Enterprise customer {c_top.get('name', c_top.get('symbol'))} demand ({c_top.get('status', 'UP')}: {c_top.get('pct_change', 0.0)}%)")
+        key_catalysts.append(f"Enterprise customer {c_top.get('name', c_top.get('symbol'))} demand ({c_top.get('status', 'UP')}: {c_top.get('pct_change', 0.0)}% | {c_top.get('news_sentiment', 'BULLISH')})")
     if suppliers:
         s_top = suppliers[0]
-        key_catalysts.append(f"Upstream bottleneck {s_top.get('name', s_top.get('symbol'))} ({s_top.get('status', 'UP')}: {s_top.get('pct_change', 0.0)}%) - Criticality: {s_top.get('criticality', 'HIGH')}")
+        key_catalysts.append(f"Upstream bottleneck {s_top.get('name', s_top.get('symbol'))} ({s_top.get('status', 'UP')}: {s_top.get('pct_change', 0.0)}% | {s_top.get('news_sentiment', 'BULLISH')}) - {s_top.get('criticality', 'HIGH')}")
     if competitors:
         cp_top = competitors[0]
         key_catalysts.append(f"Direct competitor {cp_top.get('name', cp_top.get('symbol'))} threat vector ({cp_top.get('status', 'UP')}: {cp_top.get('pct_change', 0.0)}%)")
-    key_catalysts.append(f"Technical regime: Trend {trend_score}/100, Momentum {mom_score}/100 ({tech_bias})")
+    key_catalysts.append(f"Session Technicals: Trend {trend_score}/100, Momentum {mom_score}/100 ({tech_bias})")
 
     return {
         "movement_probability_score": movement_prob,
@@ -1244,6 +1314,14 @@ def calculate_ecosystem_catalyst_scores(
             "volatility_score": vol_score,
             "volume_pressure_score": flow_score,
             "composite_bias": tech_bias
+        },
+        "start_of_day": {
+            "movement_probability_score": sod_mov_prob,
+            "up_score": sod_up,
+            "down_score": sod_down,
+            "dominant_bias": sod_dominant,
+            "open_gap_pct": open_gap,
+            "rationale": "Pre-market catalyst impulse based on breaking overnight news and partner demand signals prior to cash session."
         }
     }
 
