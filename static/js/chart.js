@@ -11,6 +11,8 @@ class SP500PriceChart {
     this.macdCanvas = document.getElementById(macdCanvasId);
 
     this.mainChart = null;
+    this.tvChart = null;
+    this.candleSeries = null;
     this.rsiChart = null;
     this.macdChart = null;
 
@@ -163,125 +165,330 @@ class SP500PriceChart {
     }
   }
 
+  updateHud(c) {
+    if (!c) return;
+    const setT = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.innerText = val;
+    };
+    setT("hud-ticker", this.currentSymbol);
+    setT("hud-date", c.time || "--");
+    setT("hud-open", `$${(typeof c.open === 'number' ? c.open : 0).toFixed(2)}`);
+    setT("hud-high", `$${(typeof c.high === 'number' ? c.high : 0).toFixed(2)}`);
+    setT("hud-low", `$${(typeof c.low === 'number' ? c.low : 0).toFixed(2)}`);
+    setT("hud-close", `$${(typeof c.close === 'number' ? c.close : 0).toFixed(2)}`);
+
+    const chg = (typeof c.close === 'number' && typeof c.open === 'number') ? (c.close - c.open) : 0;
+    const pct = (typeof c.open === 'number' && c.open > 0) ? (chg / c.open * 100) : 0;
+    const sign = chg >= 0 ? "+" : "";
+    const chgEl = document.getElementById("hud-chg");
+    if (chgEl) {
+      chgEl.innerText = `${sign}${chg.toFixed(2)} (${sign}${pct.toFixed(2)}%)`;
+      chgEl.style.color = chg >= 0 ? "var(--green-up)" : "var(--red-down)";
+    }
+
+    const vol = typeof c.volume === 'number' ? c.volume : 0;
+    const volStr = vol > 1e6 ? `${(vol / 1e6).toFixed(1)}M` : `${(vol / 1e3).toFixed(0)}K`;
+    setT("hud-vol", volStr);
+  }
+
   renderMainChart(labels, candles, closePrices, openPrices, volumes) {
     if (!this.mainCanvas) return;
-    const ctx = this.mainCanvas.getContext("2d");
+    const wrapper = document.getElementById("main-candlestick-wrapper") || this.mainCanvas.parentElement;
 
-    if (this.mainChart) this.mainChart.destroy();
+    // Default HUD to latest candle
+    if (candles.length > 0) {
+      this.updateHud(candles[candles.length - 1]);
+    }
 
-    const isUp = closePrices[closePrices.length - 1] >= closePrices[0];
-    const baseColor = isUp ? "#00ff66" : "#ff3344";
-
-    const datasets = [
-      {
-        type: "line",
-        label: "Price Close",
-        data: closePrices,
-        borderColor: baseColor,
-        borderWidth: 2,
-        pointRadius: 0,
-        fill: true,
-        backgroundColor: isUp ? "rgba(0, 255, 102, 0.08)" : "rgba(255, 51, 68, 0.08)",
-        tension: 0.1,
-        yAxisID: "y"
+    // 1. If TradingView Lightweight Charts is loaded and available
+    if (window.LightweightCharts && wrapper) {
+      if (this.mainChart && typeof this.mainChart.destroy === "function") {
+        this.mainChart.destroy();
+        this.mainChart = null;
       }
-    ];
+      if (this.tvChart) {
+        this.tvChart.remove();
+        this.tvChart = null;
+      }
 
-    // Overlays
-    if (this.showSma20) {
-      datasets.push({
-        type: "line",
-        label: "SMA 20",
-        data: candles.map(c => c.sma20),
-        borderColor: "#ffcc00",
-        borderWidth: 1.5,
-        pointRadius: 0,
-        fill: false,
-        borderDash: [4, 4],
-        yAxisID: "y"
-      });
-    }
+      this.mainCanvas.style.display = "none";
+      let tvContainer = document.getElementById("tv-chart-container");
+      if (!tvContainer) {
+        tvContainer = document.createElement("div");
+        tvContainer.id = "tv-chart-container";
+        tvContainer.style.width = "100%";
+        tvContainer.style.height = "100%";
+        tvContainer.style.position = "absolute";
+        tvContainer.style.top = "0";
+        tvContainer.style.left = "0";
+        wrapper.appendChild(tvContainer);
+      }
+      tvContainer.style.display = "block";
+      tvContainer.innerHTML = "";
 
-    if (this.showSma50) {
-      datasets.push({
-        type: "line",
-        label: "SMA 50",
-        data: candles.map(c => c.sma50),
-        borderColor: "#3b82f6",
-        borderWidth: 1.5,
-        pointRadius: 0,
-        fill: false,
-        yAxisID: "y"
-      });
-    }
+      const w = wrapper.clientWidth || 800;
+      const h = wrapper.clientHeight || 340;
 
-    if (this.showBb) {
-      datasets.push({
-        type: "line",
-        label: "BB Upper",
-        data: candles.map(c => c.bb_upper),
-        borderColor: "#00e5ff",
-        borderWidth: 1,
-        pointRadius: 0,
-        fill: false,
-        borderDash: [2, 2],
-        yAxisID: "y"
-      });
-      datasets.push({
-        type: "line",
-        label: "BB Lower",
-        data: candles.map(c => c.bb_lower),
-        borderColor: "#00e5ff",
-        borderWidth: 1,
-        pointRadius: 0,
-        fill: false,
-        borderDash: [2, 2],
-        yAxisID: "y"
-      });
-    }
-
-    this.mainChart = new Chart(ctx, {
-      data: {
-        labels: labels,
-        datasets: datasets
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode: "index", intersect: false },
-        plugins: {
-          legend: {
-            display: true,
-            labels: { color: "#94a3b8", font: { family: "JetBrains Mono", size: 10 }, boxWidth: 12 }
-          },
-          tooltip: {
-            backgroundColor: "rgba(10, 14, 23, 0.95)",
-            borderColor: "#ff9900",
-            borderWidth: 1,
-            titleFont: { family: "JetBrains Mono", size: 11, weight: "bold" },
-            bodyFont: { family: "JetBrains Mono", size: 10 },
-            callbacks: {
-              label: (ctx) => `${ctx.dataset.label}: $${Number(ctx.raw || 0).toFixed(2)}`
-            }
-          }
+      const tvChart = window.LightweightCharts.createChart(tvContainer, {
+        width: w,
+        height: h,
+        layout: {
+          background: { type: 'solid', color: '#090e18' },
+          textColor: '#94a3b8',
+          fontSize: 10,
+          fontFamily: '"JetBrains Mono", monospace'
         },
-        scales: {
-          x: {
-            grid: { color: "#161f30" },
-            ticks: { color: "#94a3b8", font: { family: "JetBrains Mono", size: 9 }, maxTicksLimit: 10 }
-          },
-          y: {
-            position: "right",
-            grid: { color: "#161f30" },
-            ticks: {
-              color: "#94a3b8",
-              font: { family: "JetBrains Mono", size: 10 },
-              callback: (val) => `$${Number(val || 0).toFixed(2)}`
-            }
+        grid: {
+          vertLines: { color: '#162035' },
+          horzLines: { color: '#162035' }
+        },
+        crosshair: {
+          mode: window.LightweightCharts.CrosshairMode ? window.LightweightCharts.CrosshairMode.Normal : 0,
+        },
+        rightPriceScale: {
+          borderColor: '#1f2b3e',
+        },
+        timeScale: {
+          borderColor: '#1f2b3e',
+          timeVisible: true,
+          secondsVisible: false
+        }
+      });
+      this.tvChart = tvChart;
+
+      // Real Japanese Candlestick Series
+      const candleSeries = tvChart.addCandlestickSeries({
+        upColor: '#00ff66',
+        downColor: '#ff3344',
+        borderVisible: false,
+        wickUpColor: '#00ff66',
+        wickDownColor: '#ff3344',
+      });
+
+      const tvCandleData = [];
+      const seenDates = new Set();
+      candles.forEach((c, idx) => {
+        let dStr = (c.time || "").split(" ")[0];
+        if (!dStr) {
+          const d = new Date();
+          d.setDate(d.getDate() - (candles.length - idx));
+          dStr = d.toISOString().split("T")[0];
+        }
+        if (!seenDates.has(dStr)) {
+          seenDates.add(dStr);
+          tvCandleData.push({
+            time: dStr,
+            open: parseFloat(c.open || c.close),
+            high: parseFloat(c.high || c.close),
+            low: parseFloat(c.low || c.close),
+            close: parseFloat(c.close)
+          });
+        }
+      });
+      tvCandleData.sort((a, b) => (a.time > b.time ? 1 : -1));
+      candleSeries.setData(tvCandleData);
+
+      // Volume histogram overlay
+      const volSeries = tvChart.addHistogramSeries({
+        color: '#00e5ff',
+        priceFormat: { type: 'volume' },
+        priceScaleId: '',
+        scaleMargins: { top: 0.8, bottom: 0 },
+      });
+      const volData = tvCandleData.map((d, i) => {
+        const c = candles[i] || {};
+        return {
+          time: d.time,
+          value: c.volume || 10000000,
+          color: d.close >= d.open ? 'rgba(0, 255, 102, 0.28)' : 'rgba(255, 51, 68, 0.28)'
+        };
+      });
+      volSeries.setData(volData);
+
+      // SMA 20 Overlay
+      if (this.showSma20) {
+        const sma20 = tvChart.addLineSeries({ color: '#ffcc00', lineWidth: 1.5, title: 'SMA 20' });
+        sma20.setData(tvCandleData.map((d, i) => ({ time: d.time, value: candles[i]?.sma20 })).filter(d => typeof d.value === 'number'));
+      }
+      // SMA 50 Overlay
+      if (this.showSma50) {
+        const sma50 = tvChart.addLineSeries({ color: '#3b82f6', lineWidth: 1.5, title: 'SMA 50' });
+        sma50.setData(tvCandleData.map((d, i) => ({ time: d.time, value: candles[i]?.sma50 })).filter(d => typeof d.value === 'number'));
+      }
+      // Bollinger Bands Overlay
+      if (this.showBb) {
+        const bbUp = tvChart.addLineSeries({ color: '#00e5ff', lineWidth: 1, lineStyle: 2, title: 'BB Up' });
+        const bbLow = tvChart.addLineSeries({ color: '#00e5ff', lineWidth: 1, lineStyle: 2, title: 'BB Low' });
+        bbUp.setData(tvCandleData.map((d, i) => ({ time: d.time, value: candles[i]?.bb_upper })).filter(d => typeof d.value === 'number'));
+        bbLow.setData(tvCandleData.map((d, i) => ({ time: d.time, value: candles[i]?.bb_lower })).filter(d => typeof d.value === 'number'));
+      }
+
+      tvChart.subscribeCrosshairMove(param => {
+        if (!param.time || !param.seriesData) return;
+        const cData = param.seriesData.get(candleSeries);
+        if (cData) {
+          const matchingCandle = candles.find(c => (c.time || "").startsWith(param.time)) || cData;
+          this.updateHud({
+            time: param.time,
+            open: cData.open,
+            high: cData.high,
+            low: cData.low,
+            close: cData.close,
+            volume: matchingCandle?.volume
+          });
+        }
+      });
+
+      return;
+    }
+
+    // 2. High-DPI HTML5 Canvas Japanese Candlestick Engine Fallback (Zero-Dependency)
+    this.mainCanvas.style.display = "block";
+    const tvContainer = document.getElementById("tv-chart-container");
+    if (tvContainer) tvContainer.style.display = "none";
+
+    this.renderCanvasCandlesticks(candles);
+  }
+
+  renderCanvasCandlesticks(candles) {
+    if (!this.mainCanvas || !candles || candles.length === 0) return;
+    const canvas = this.mainCanvas;
+    const ctx = canvas.getContext("2d");
+    const parent = canvas.parentElement;
+
+    const dpr = window.devicePixelRatio || 1;
+    const w = parent.clientWidth || 800;
+    const h = parent.clientHeight || 340;
+
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    canvas.style.width = `${w}px`;
+    canvas.style.height = `${h}px`;
+    ctx.scale(dpr, dpr);
+
+    const padLeft = 10;
+    const padRight = 65;
+    const padTop = 15;
+    const padBottom = 25;
+    const plotW = w - padLeft - padRight;
+    const plotH = h - padTop - padBottom;
+
+    ctx.fillStyle = "#090e18";
+    ctx.fillRect(0, 0, w, h);
+
+    const lows = candles.map(c => typeof c.low === 'number' ? c.low : c.close);
+    const highs = candles.map(c => typeof c.high === 'number' ? c.high : c.close);
+    const minP = Math.min(...lows) * 0.995;
+    const maxP = Math.max(...highs) * 1.005;
+    const rangeP = Math.max(maxP - minP, 1.0);
+
+    const yForP = (p) => padTop + (1 - (p - minP) / rangeP) * plotH;
+
+    const maxVol = Math.max(...candles.map(c => c.volume || 1));
+    const volH = (v) => ((v || 0) / maxVol) * (plotH * 0.22);
+
+    // Grid lines & Right Price Axis
+    ctx.strokeStyle = "#162035";
+    ctx.lineWidth = 1;
+    ctx.font = '10px "JetBrains Mono", monospace';
+    ctx.fillStyle = "#94a3b8";
+    ctx.textAlign = "left";
+
+    const steps = 5;
+    for (let i = 0; i <= steps; i++) {
+      const pVal = minP + (rangeP * (i / steps));
+      const y = yForP(pVal);
+      ctx.beginPath();
+      ctx.moveTo(padLeft, y);
+      ctx.lineTo(w - padRight, y);
+      ctx.stroke();
+      ctx.fillText(`$${pVal.toFixed(2)}`, w - padRight + 6, y + 3);
+    }
+
+    const n = candles.length;
+    const stepX = plotW / n;
+    const candleW = Math.max(3, Math.min(18, stepX * 0.72));
+
+    // Render Candles and Volumes
+    candles.forEach((c, i) => {
+      const x = padLeft + (i + 0.5) * stepX;
+      const isUp = (c.close >= c.open);
+      const col = isUp ? "#00ff66" : "#ff3344";
+
+      // Volume Bar
+      ctx.fillStyle = isUp ? "rgba(0, 255, 102, 0.22)" : "rgba(255, 51, 68, 0.22)";
+      const vH = volH(c.volume);
+      ctx.fillRect(x - candleW / 2, padTop + plotH - vH, candleW, vH);
+
+      // Wick
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      ctx.moveTo(x, yForP(c.high));
+      ctx.lineTo(x, yForP(c.low));
+      ctx.stroke();
+
+      // Body
+      ctx.fillStyle = col;
+      const openY = yForP(c.open);
+      const closeY = yForP(c.close);
+      const bodyTop = Math.min(openY, closeY);
+      const bodyH = Math.max(1.5, Math.abs(openY - closeY));
+      ctx.fillRect(x - candleW / 2, bodyTop, candleW, bodyH);
+    });
+
+    // Helper for overlay line
+    const drawLine = (prop, color, dash = []) => {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash(dash);
+      ctx.beginPath();
+      let started = false;
+      candles.forEach((c, i) => {
+        const val = c[prop];
+        if (typeof val === 'number') {
+          const x = padLeft + (i + 0.5) * stepX;
+          const y = yForP(val);
+          if (!started) {
+            ctx.moveTo(x, y);
+            started = true;
+          } else {
+            ctx.lineTo(x, y);
           }
         }
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+    };
+
+    if (this.showSma20) drawLine("sma20", "#ffcc00");
+    if (this.showSma50) drawLine("sma50", "#3b82f6");
+    if (this.showBb) {
+      drawLine("bb_upper", "#00e5ff", [3, 3]);
+      drawLine("bb_lower", "#00e5ff", [3, 3]);
+    }
+    drawLine("vwap", "#b388ff");
+
+    // X-Axis Date Labels
+    ctx.fillStyle = "#64748b";
+    ctx.textAlign = "center";
+    const labelStep = Math.max(1, Math.floor(n / 6));
+    for (let i = 0; i < n; i += labelStep) {
+      const x = padLeft + (i + 0.5) * stepX;
+      const dStr = (candles[i].time || "").split(" ")[0];
+      ctx.fillText(dStr.slice(5), x, h - 8);
+    }
+
+    // Attach interactive hover crosshair & HUD tracker
+    canvas.onmousemove = (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const idx = Math.floor((mouseX - padLeft) / stepX);
+      if (idx >= 0 && idx < candles.length) {
+        this.updateHud(candles[idx]);
       }
-    });
+    };
   }
 
   renderRsiChart(labels, candles) {
