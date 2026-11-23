@@ -18,6 +18,7 @@ class SP500PriceChart {
 
     this.currentSymbol = "NVDA";
     this.currentPeriod = "1mo";
+    this.currentInterval = "1d";
 
     this.showSma20 = true;
     this.showSma50 = true;
@@ -37,13 +38,15 @@ class SP500PriceChart {
   }
 
   setupListeners() {
-    // Timeframe selector buttons
+    // Timeframe selector buttons (supports Intraday: 1m, 5m, 15m, 1h and Daily/Macro: 1D, 5D, 1M, 6M, 1Y, 5Y)
     document.querySelectorAll(".chart-tf-btn").forEach(btn => {
       btn.addEventListener("click", async (e) => {
         document.querySelectorAll(".chart-tf-btn").forEach(b => b.classList.remove("active"));
-        e.target.classList.add("active");
-        this.currentPeriod = e.target.dataset.period;
-        await this.loadChartData(this.currentSymbol, this.currentPeriod);
+        const target = e.currentTarget;
+        target.classList.add("active");
+        this.currentPeriod = target.dataset.period || "1mo";
+        this.currentInterval = target.dataset.interval || "1d";
+        await this.loadChartData(this.currentSymbol, this.currentPeriod, this.currentInterval);
       });
     });
 
@@ -110,18 +113,29 @@ class SP500PriceChart {
     if (sellBtn) sellBtn.addEventListener("click", () => execTrade("SELL"));
   }
 
-  async loadChartData(symbol, period) {
+  async loadChartData(symbol, period = "1mo", interval = null) {
     this.currentSymbol = symbol;
-    this.currentPeriod = period;
+    this.currentPeriod = period || this.currentPeriod || "1mo";
+    if (interval) {
+      this.currentInterval = interval;
+    }
 
+    const intervalLabel = (this.currentInterval || "1d").toUpperCase();
     const symHeader = document.getElementById("chart-active-symbol");
-    if (symHeader) symHeader.innerText = `${symbol} // TRADING TERMINAL`;
+    if (symHeader) symHeader.innerText = `${symbol} // TRADING TERMINAL [${intervalLabel}]`;
+
+    const modeLabel = document.getElementById("hud-mode-label");
+    if (modeLabel) {
+      const isIntra = ["1M", "5M", "15M", "30M", "1H", "60M"].includes(intervalLabel);
+      modeLabel.innerText = isIntra ? `CANDLESTICK MODE [${intervalLabel} INTRADAY]` : `CANDLESTICK MODE [${this.currentPeriod.toUpperCase()} DAILY]`;
+    }
 
     const termSym = document.getElementById("term-order-sym");
     if (termSym) termSym.innerText = symbol;
 
     try {
-      const res = await fetch(`/api/stock/${encodeURIComponent(symbol)}/history?period=${period}`);
+      const url = `/api/stock/${encodeURIComponent(symbol)}/history?period=${encodeURIComponent(this.currentPeriod)}&interval=${encodeURIComponent(this.currentInterval || "1d")}`;
+      const res = await fetch(url);
       const json = await res.json();
       this.cachedData = json;
       this.render(json);
@@ -230,6 +244,8 @@ class SP500PriceChart {
       const w = wrapper.clientWidth || 800;
       const h = wrapper.clientHeight || 340;
 
+      const isIntraday = (this.cachedData && this.cachedData.is_intraday) || (candles[0] && candles[0].time && candles[0].time.includes(":"));
+
       const tvChart = window.LightweightCharts.createChart(tvContainer, {
         width: w,
         height: h,
@@ -251,7 +267,7 @@ class SP500PriceChart {
         },
         timeScale: {
           borderColor: '#1f2b3e',
-          timeVisible: true,
+          timeVisible: isIntraday,
           secondsVisible: false
         }
       });
@@ -267,18 +283,24 @@ class SP500PriceChart {
       });
 
       const tvCandleData = [];
-      const seenDates = new Set();
+      const seenTimes = new Set();
       candles.forEach((c, idx) => {
-        let dStr = (c.time || "").split(" ")[0];
-        if (!dStr) {
-          const d = new Date();
-          d.setDate(d.getDate() - (candles.length - idx));
-          dStr = d.toISOString().split("T")[0];
+        let tvTime;
+        if (isIntraday && c.time && c.time.includes(":")) {
+          const parsed = Math.floor(new Date(c.time.replace(" ", "T")).getTime() / 1000);
+          tvTime = !isNaN(parsed) ? parsed : (Math.floor(Date.now() / 1000) - (candles.length - idx) * 60);
+        } else {
+          tvTime = (c.time || "").split(" ")[0];
+          if (!tvTime) {
+            const d = new Date();
+            d.setDate(d.getDate() - (candles.length - idx));
+            tvTime = d.toISOString().split("T")[0];
+          }
         }
-        if (!seenDates.has(dStr)) {
-          seenDates.add(dStr);
+        if (tvTime && !seenTimes.has(tvTime)) {
+          seenTimes.add(tvTime);
           tvCandleData.push({
-            time: dStr,
+            time: tvTime,
             open: parseFloat(c.open || c.close),
             high: parseFloat(c.high || c.close),
             low: parseFloat(c.low || c.close),
@@ -286,7 +308,7 @@ class SP500PriceChart {
           });
         }
       });
-      tvCandleData.sort((a, b) => (a.time > b.time ? 1 : -1));
+      tvCandleData.sort((a, b) => (a.time > b.time ? 1 : (a.time < b.time ? -1 : 0)));
       candleSeries.setData(tvCandleData);
 
       // Volume histogram overlay
@@ -328,9 +350,14 @@ class SP500PriceChart {
         if (!param.time || !param.seriesData) return;
         const cData = param.seriesData.get(candleSeries);
         if (cData) {
-          const matchingCandle = candles.find(c => (c.time || "").startsWith(param.time)) || cData;
+          let formattedTime = param.time;
+          if (typeof param.time === "number") {
+            const d = new Date(param.time * 1000);
+            formattedTime = d.toISOString().split("T")[0] + " " + d.toTimeString().slice(0, 5);
+          }
+          const matchingCandle = candles.find(c => (c.time || "").startsWith(String(param.time)) || (c.close === cData.close && c.open === cData.open)) || cData;
           this.updateHud({
-            time: param.time,
+            time: formattedTime,
             open: cData.open,
             high: cData.high,
             low: cData.low,
@@ -470,14 +497,22 @@ class SP500PriceChart {
     }
     drawLine("vwap", "#b388ff");
 
-    // X-Axis Date Labels
+    // X-Axis Date/Time Labels
     ctx.fillStyle = "#64748b";
     ctx.textAlign = "center";
     const labelStep = Math.max(1, Math.floor(n / 6));
     for (let i = 0; i < n; i += labelStep) {
       const x = padLeft + (i + 0.5) * stepX;
-      const dStr = (candles[i].time || "").split(" ")[0];
-      ctx.fillText(dStr.slice(5), x, h - 8);
+      const tStr = candles[i].time || "";
+      let displayLabel = tStr;
+      if (tStr.includes(" ")) {
+        // Intraday: display HH:MM
+        displayLabel = tStr.split(" ")[1] || tStr;
+      } else {
+        // Daily: display MM-DD
+        displayLabel = tStr.slice(5);
+      }
+      ctx.fillText(displayLabel, x, h - 8);
     }
 
     // Attach interactive hover crosshair & HUD tracker

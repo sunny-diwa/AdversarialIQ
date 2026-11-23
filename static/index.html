@@ -598,25 +598,36 @@
 
             <!-- S&P 500 Multi-Layer Intelligence Dock -->
             <div class="panel" style="margin-top:6px;">
-              <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; padding:3px 8px; border-bottom:1px solid #1f2b3e;">
+              <div class="panel-header"
+                style="display:flex; justify-content:space-between; align-items:center; padding:3px 8px; border-bottom:1px solid #1f2b3e;">
                 <div style="display:flex; gap:4px; overflow-x:auto;">
-                  <button class="f-key stock-dock-tab active" data-tab="ecosystem" style="font-size:9.5px; padding:2px 7px;">🌐 SUPPLY CHAIN &amp; ECOSYSTEM</button>
-                  <button class="f-key stock-dock-tab" data-tab="peers" style="font-size:9.5px; padding:2px 7px;">📊 SECTOR PEERS</button>
-                  <button class="f-key stock-dock-tab" data-tab="sec" style="font-size:9.5px; padding:2px 7px;">📑 SEC 10-K / MD&amp;A</button>
-                  <button class="f-key stock-dock-tab" data-tab="insider" style="font-size:9.5px; padding:2px 7px;">👥 INSIDER &amp; 13F</button>
-                  <button class="f-key stock-dock-tab" data-tab="news" style="font-size:9.5px; padding:2px 7px;">📰 BREAKING NEWS</button>
-                  <button class="f-key stock-dock-tab" data-tab="macro" style="font-size:9.5px; padding:2px 7px;">🏛️ MACRO REGIME</button>
+                  <button class="f-key stock-dock-tab active" data-tab="ecosystem"
+                    style="font-size:9.5px; padding:2px 7px;">🌐 SUPPLY CHAIN &amp; ECOSYSTEM</button>
+                  <button class="f-key stock-dock-tab" data-tab="peers" style="font-size:9.5px; padding:2px 7px;">📊
+                    SECTOR PEERS</button>
+                  <button class="f-key stock-dock-tab" data-tab="sec" style="font-size:9.5px; padding:2px 7px;">📑 SEC
+                    10-K / MD&amp;A</button>
+                  <button class="f-key stock-dock-tab" data-tab="insider" style="font-size:9.5px; padding:2px 7px;">👥
+                    INSIDER &amp; 13F</button>
+                  <button class="f-key stock-dock-tab" data-tab="news" style="font-size:9.5px; padding:2px 7px;">📰
+                    BREAKING NEWS</button>
+                  <button class="f-key stock-dock-tab" data-tab="macro" style="font-size:9.5px; padding:2px 7px;">🏛️
+                    MACRO REGIME</button>
                 </div>
-                <span id="dock-status-source" style="font-size:9px; color:var(--cyan-primary);">GOOGLE GROUNDED &amp; SEC EDGAR</span>
+                <span id="dock-status-source" style="font-size:9px; color:var(--cyan-primary);">GOOGLE GROUNDED &amp;
+                  SEC EDGAR</span>
               </div>
 
               <!-- PANE 1: SUPPLY CHAIN & ECOSYSTEM INTELLIGENCE -->
               <div id="pane-dock-ecosystem" class="dock-pane-body" style="padding:8px;">
                 <!-- Summary Banner -->
-                <div style="background:#090e18; border:1px solid #1a2538; padding:8px; border-radius:3px; margin-bottom:8px;">
+                <div
+                  style="background:#090e18; border:1px solid #1a2538; padding:8px; border-radius:3px; margin-bottom:8px;">
                   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                    <strong style="color:var(--amber-primary); font-size:10.5px;">Ecosystem Profile &amp; Supply Chain Structure</strong>
-                    <span id="eco-grounding-badge" class="quote-change-badge up" style="font-size:8.5px; padding:1px 6px;">Google Grounded + SEC 10-K</span>
+                    <strong style="color:var(--amber-primary); font-size:10.5px;">Ecosystem Profile &amp; Supply Chain
+                      Structure</strong>
+                    <span id="eco-grounding-badge" class="quote-change-badge up"
+                      style="font-size:8.5px; padding:1px 6px;">Google Grounded + SEC 10-K</span>
                   </div>
                   <p id="eco-summary-desc" style="font-size:10px; color:#cbd5e1; line-height:1.45; margin:0;">
                     Loading supply chain ecosystem, customers, and competitor intelligence...
@@ -625,52 +636,68 @@
 
                 <!-- 2x2 Grid: Suppliers, Customers, Competitors, Consumer Breakdown -->
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-                  
+
                   <!-- Card 1: Upstream Suppliers -->
                   <div style="background:#0c121e; border:1px solid #1c2738; padding:8px; border-radius:3px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; border-bottom:1px solid #1f2b3e; padding-bottom:4px;">
-                      <span style="font-weight:800; font-size:10px; color:var(--cyan-primary);">🏭 UPSTREAM SUPPLIERS &amp; BOTTLENECKS</span>
+                    <div
+                      style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; border-bottom:1px solid #1f2b3e; padding-bottom:4px;">
+                      <span style="font-weight:800; font-size:10px; color:var(--cyan-primary);">🏭 UPSTREAM SUPPLIERS
+                        &amp; BOTTLENECKS</span>
                       <span style="font-size:9px; color:var(--text-muted);">CLICK TICKER</span>
                     </div>
-                    <div id="eco-suppliers-list" style="display:flex; flex-direction:column; gap:5px; max-height:220px; overflow-y:auto;">
-                      <div style="font-size:9.5px; color:var(--text-muted); text-align:center; padding:10px;">Loading suppliers...</div>
+                    <div id="eco-suppliers-list"
+                      style="display:flex; flex-direction:column; gap:5px; max-height:220px; overflow-y:auto;">
+                      <div style="font-size:9.5px; color:var(--text-muted); text-align:center; padding:10px;">Loading
+                        suppliers...</div>
                     </div>
                   </div>
 
                   <!-- Card 2: Downstream Customers (Companies it supplies to) -->
                   <div style="background:#0c121e; border:1px solid #1c2738; padding:8px; border-radius:3px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; border-bottom:1px solid #1f2b3e; padding-bottom:4px;">
-                      <span style="font-weight:800; font-size:10px; color:var(--green-up);">🏢 DOWNSTREAM CUSTOMERS (SUPPLIED TO)</span>
+                    <div
+                      style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; border-bottom:1px solid #1f2b3e; padding-bottom:4px;">
+                      <span style="font-weight:800; font-size:10px; color:var(--green-up);">🏢 DOWNSTREAM CUSTOMERS
+                        (SUPPLIED TO)</span>
                       <span style="font-size:9px; color:var(--text-muted);">CLICK TICKER</span>
                     </div>
-                    <div id="eco-customers-list" style="display:flex; flex-direction:column; gap:5px; max-height:220px; overflow-y:auto;">
-                      <div style="font-size:9.5px; color:var(--text-muted); text-align:center; padding:10px;">Loading customers...</div>
+                    <div id="eco-customers-list"
+                      style="display:flex; flex-direction:column; gap:5px; max-height:220px; overflow-y:auto;">
+                      <div style="font-size:9.5px; color:var(--text-muted); text-align:center; padding:10px;">Loading
+                        customers...</div>
                     </div>
                   </div>
 
                   <!-- Card 3: Direct Competitors & Moats -->
                   <div style="background:#0c121e; border:1px solid #1c2738; padding:8px; border-radius:3px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; border-bottom:1px solid #1f2b3e; padding-bottom:4px;">
-                      <span style="font-weight:800; font-size:10px; color:var(--red-down);">⚔️ DIRECT COMPETITORS &amp; MOATS</span>
+                    <div
+                      style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; border-bottom:1px solid #1f2b3e; padding-bottom:4px;">
+                      <span style="font-weight:800; font-size:10px; color:var(--red-down);">⚔️ DIRECT COMPETITORS &amp;
+                        MOATS</span>
                       <span style="font-size:9px; color:var(--text-muted);">CLICK TICKER</span>
                     </div>
-                    <div id="eco-competitors-list" style="display:flex; flex-direction:column; gap:5px; max-height:220px; overflow-y:auto;">
-                      <div style="font-size:9.5px; color:var(--text-muted); text-align:center; padding:10px;">Loading competitors...</div>
+                    <div id="eco-competitors-list"
+                      style="display:flex; flex-direction:column; gap:5px; max-height:220px; overflow-y:auto;">
+                      <div style="font-size:9.5px; color:var(--text-muted); text-align:center; padding:10px;">Loading
+                        competitors...</div>
                     </div>
                   </div>
 
                   <!-- Card 4: Consumer & End-Market Breakdown -->
                   <div style="background:#0c121e; border:1px solid #1c2738; padding:8px; border-radius:3px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; border-bottom:1px solid #1f2b3e; padding-bottom:4px;">
-                      <span style="font-weight:800; font-size:10px; color:var(--amber-primary);">👥 CONSUMER &amp; END-MARKET PROFILE</span>
+                    <div
+                      style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; border-bottom:1px solid #1f2b3e; padding-bottom:4px;">
+                      <span style="font-weight:800; font-size:10px; color:var(--amber-primary);">👥 CONSUMER &amp;
+                        END-MARKET PROFILE</span>
                       <span id="eco-b2b-label" style="font-size:9px; color:var(--cyan-primary);">B2B vs B2C</span>
                     </div>
                     <div id="eco-consumer-panel" style="display:flex; flex-direction:column; gap:6px; font-size:9.5px;">
                       <!-- Visual Split Bar -->
                       <div>
                         <div style="display:flex; justify-content:space-between; margin-bottom:2px; font-size:9px;">
-                          <span id="eco-b2b-pct-txt" style="color:var(--cyan-primary); font-weight:bold;">B2B: --%</span>
-                          <span id="eco-b2c-pct-txt" style="color:var(--amber-primary); font-weight:bold;">B2C: --%</span>
+                          <span id="eco-b2b-pct-txt" style="color:var(--cyan-primary); font-weight:bold;">B2B:
+                            --%</span>
+                          <span id="eco-b2c-pct-txt" style="color:var(--amber-primary); font-weight:bold;">B2C:
+                            --%</span>
                         </div>
                         <div style="display:flex; height:6px; border-radius:2px; overflow:hidden; background:#1e293b;">
                           <div id="eco-b2b-bar" style="width:70%; background:var(--cyan-primary);"></div>
@@ -690,7 +717,8 @@
                       </div>
                       <div style="background:#111927; padding:4px 6px; border-radius:2px; border:1px solid #1a2538;">
                         <div style="color:var(--text-muted); font-size:8.5px;">Moat Driver &amp; Switching Costs:</div>
-                        <div id="eco-switching-val" style="color:#cbd5e1; font-size:9px; line-height:1.3; margin-top:1px;">Loading...</div>
+                        <div id="eco-switching-val"
+                          style="color:#cbd5e1; font-size:9px; line-height:1.3; margin-top:1px;">Loading...</div>
                       </div>
                       <div id="eco-endmarkets-chips" style="display:flex; flex-wrap:wrap; gap:3px; margin-top:2px;">
                       </div>
@@ -715,7 +743,8 @@
                   </thead>
                   <tbody id="dash-peers-table-body">
                     <tr>
-                      <td colspan="6" style="text-align:center; padding:10px; color:var(--text-muted);">Loading sector peers...</td>
+                      <td colspan="6" style="text-align:center; padding:10px; color:var(--text-muted);">Loading sector
+                        peers...</td>
                     </tr>
                   </tbody>
                 </table>
@@ -724,25 +753,31 @@
               <!-- PANE 3: SEC EDGAR FILINGS & MD&A -->
               <div id="pane-dock-sec" class="dock-pane-body" style="padding:8px; display:none;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                  <strong id="sec-company-title" style="color:var(--cyan-primary); font-size:11px;">SEC EDGAR FORM 10-K / 10-Q INDEX</strong>
+                  <strong id="sec-company-title" style="color:var(--cyan-primary); font-size:11px;">SEC EDGAR FORM 10-K
+                    / 10-Q INDEX</strong>
                   <span id="sec-cik-badge" class="quote-change-badge flat" style="font-size:9px;">CIK: Indexed</span>
                 </div>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
                   <div>
-                    <div style="font-weight:bold; color:var(--amber-primary); font-size:9.5px; margin-bottom:2px;">ITEM 7. MD&amp;A EXECUTIVE SUMMARY</div>
-                    <div id="sec-mda-content" style="background:#090e18; border:1px solid #1a2538; padding:6px; font-size:9.5px; color:#cbd5e1; line-height:1.45; max-height:120px; overflow-y:auto; border-radius:2px;">
+                    <div style="font-weight:bold; color:var(--amber-primary); font-size:9.5px; margin-bottom:2px;">ITEM
+                      7. MD&amp;A EXECUTIVE SUMMARY</div>
+                    <div id="sec-mda-content"
+                      style="background:#090e18; border:1px solid #1a2538; padding:6px; font-size:9.5px; color:#cbd5e1; line-height:1.45; max-height:120px; overflow-y:auto; border-radius:2px;">
                       Loading Item 7 operational management discussion...
                     </div>
                   </div>
                   <div>
-                    <div style="font-weight:bold; color:var(--red-down); font-size:9.5px; margin-bottom:2px;">ITEM 1A. PRINCIPAL RISK FACTORS</div>
-                    <div id="sec-risk-content" style="background:#090e18; border:1px solid #1a2538; padding:6px; font-size:9.5px; color:#cbd5e1; line-height:1.45; max-height:120px; overflow-y:auto; border-radius:2px;">
+                    <div style="font-weight:bold; color:var(--red-down); font-size:9.5px; margin-bottom:2px;">ITEM 1A.
+                      PRINCIPAL RISK FACTORS</div>
+                    <div id="sec-risk-content"
+                      style="background:#090e18; border:1px solid #1a2538; padding:6px; font-size:9.5px; color:#cbd5e1; line-height:1.45; max-height:120px; overflow-y:auto; border-radius:2px;">
                       Loading Item 1A risk factors...
                     </div>
                   </div>
                 </div>
                 <div style="margin-top:8px;">
-                  <div style="font-size:9.5px; color:var(--text-muted); margin-bottom:3px; font-weight:bold;">INDEXED SUBMISSIONS FEED:</div>
+                  <div style="font-size:9.5px; color:var(--text-muted); margin-bottom:3px; font-weight:bold;">INDEXED
+                    SUBMISSIONS FEED:</div>
                   <div id="sec-filings-list" style="display:flex; flex-wrap:wrap; gap:4px;">
                   </div>
                 </div>
@@ -753,23 +788,50 @@
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                   <div>
                     <span style="font-size:10px; color:var(--text-muted);">Executive Cluster Verdict:</span>
-                    <span id="insider-verdict-badge" class="quote-change-badge flat" style="margin-left:6px; font-size:9.5px; font-weight:bold;">BALANCED</span>
+                    <span id="insider-verdict-badge" class="quote-change-badge flat"
+                      style="margin-left:6px; font-size:9.5px; font-weight:bold;">BALANCED</span>
                   </div>
-                  <span id="insider-ratio-badge" style="font-size:9.5px; color:var(--cyan-primary);">Net Flow: Calculating...</span>
+                  <span id="insider-ratio-badge" style="font-size:9.5px; color:var(--cyan-primary);">Net Flow:
+                    Calculating...</span>
                 </div>
                 <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
                   <div>
-                    <div style="font-weight:bold; color:var(--cyan-primary); font-size:9.5px; margin-bottom:2px;">FORM 4 RECENT TRANSACTIONS</div>
+                    <div style="font-weight:bold; color:var(--cyan-primary); font-size:9.5px; margin-bottom:2px;">FORM 4
+                      RECENT TRANSACTIONS</div>
                     <table class="bloomberg-table" style="font-size:9px;">
-                      <thead><tr><th>INSIDER</th><th>TYPE</th><th style="text-align:right;">SHARES</th><th style="text-align:right;">PRICE</th></tr></thead>
-                      <tbody id="insider-tx-tbody"><tr><td colspan="4" style="text-align:center; padding:6px; color:var(--text-muted);">Loading transactions...</td></tr></tbody>
+                      <thead>
+                        <tr>
+                          <th>INSIDER</th>
+                          <th>TYPE</th>
+                          <th style="text-align:right;">SHARES</th>
+                          <th style="text-align:right;">PRICE</th>
+                        </tr>
+                      </thead>
+                      <tbody id="insider-tx-tbody">
+                        <tr>
+                          <td colspan="4" style="text-align:center; padding:6px; color:var(--text-muted);">Loading
+                            transactions...</td>
+                        </tr>
+                      </tbody>
                     </table>
                   </div>
                   <div>
-                    <div style="font-weight:bold; color:var(--amber-primary); font-size:9.5px; margin-bottom:2px;">13F INSTITUTIONAL OWNERSHIP</div>
+                    <div style="font-weight:bold; color:var(--amber-primary); font-size:9.5px; margin-bottom:2px;">13F
+                      INSTITUTIONAL OWNERSHIP</div>
                     <table class="bloomberg-table" style="font-size:9px;">
-                      <thead><tr><th>INSTITUTION</th><th style="text-align:right;">STAKE %</th><th style="text-align:right;">VALUE</th></tr></thead>
-                      <tbody id="insider-13f-tbody"><tr><td colspan="3" style="text-align:center; padding:6px; color:var(--text-muted);">Loading 13F holdings...</td></tr></tbody>
+                      <thead>
+                        <tr>
+                          <th>INSTITUTION</th>
+                          <th style="text-align:right;">STAKE %</th>
+                          <th style="text-align:right;">VALUE</th>
+                        </tr>
+                      </thead>
+                      <tbody id="insider-13f-tbody">
+                        <tr>
+                          <td colspan="3" style="text-align:center; padding:6px; color:var(--text-muted);">Loading 13F
+                            holdings...</td>
+                        </tr>
+                      </tbody>
                     </table>
                   </div>
                 </div>
@@ -780,13 +842,17 @@
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
                   <div>
                     <span style="font-size:10px; color:var(--text-muted);">Sentiment Polarity:</span>
-                    <span id="news-sentiment-badge" class="quote-change-badge up" style="margin-left:6px; font-size:9.5px; font-weight:bold;">BULLISH</span>
-                    <span id="news-counts-breakdown" style="font-size:9.5px; color:var(--text-muted); margin-left:6px;">(3 Bullish, 0 Bearish)</span>
+                    <span id="news-sentiment-badge" class="quote-change-badge up"
+                      style="margin-left:6px; font-size:9.5px; font-weight:bold;">BULLISH</span>
+                    <span id="news-counts-breakdown"
+                      style="font-size:9.5px; color:var(--text-muted); margin-left:6px;">(3 Bullish, 0 Bearish)</span>
                   </div>
                   <div id="news-catalysts-container" style="display:flex; gap:3px;"></div>
                 </div>
-                <div id="news-articles-feed" style="display:flex; flex-direction:column; gap:4px; max-height:240px; overflow-y:auto;">
-                  <div style="text-align:center; padding:10px; color:var(--text-muted); font-size:10px;">Loading news feed...</div>
+                <div id="news-articles-feed"
+                  style="display:flex; flex-direction:column; gap:4px; max-height:240px; overflow-y:auto;">
+                  <div style="text-align:center; padding:10px; color:var(--text-muted); font-size:10px;">Loading news
+                    feed...</div>
                 </div>
               </div>
 
@@ -794,19 +860,35 @@
               <div id="pane-dock-macro" class="dock-pane-body" style="padding:8px; display:none;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                   <div>
-                    <strong style="color:var(--amber-primary); font-size:10.5px;">FRED Federal Reserve Macroeconomic Regime:</strong>
-                    <span id="macro-regime-title" style="color:var(--green-up); font-weight:bold; margin-left:6px; font-size:10.5px;">EXPANSIONARY REGIME</span>
+                    <strong style="color:var(--amber-primary); font-size:10.5px;">FRED Federal Reserve Macroeconomic
+                      Regime:</strong>
+                    <span id="macro-regime-title"
+                      style="color:var(--green-up); font-weight:bold; margin-left:6px; font-size:10.5px;">EXPANSIONARY
+                      REGIME</span>
                   </div>
                   <span style="font-size:9px; color:var(--text-muted);">FRED API WIRE</span>
                 </div>
                 <div class="metrics-grid-4" style="margin-bottom:8px;">
-                  <div class="metric-cell"><div class="label">10-Year Yield (DGS10)</div><div class="val" id="macro-dock-10y">--%</div></div>
-                  <div class="metric-cell"><div class="label">2-Year Yield (DGS2)</div><div class="val" id="macro-dock-2y">--%</div></div>
-                  <div class="metric-cell"><div class="label">Yield Spread (10Y-2Y)</div><div class="val" id="macro-dock-spread">-- bps</div></div>
-                  <div class="metric-cell"><div class="label">CBOE VIX Index</div><div class="val" id="macro-dock-vix">--</div></div>
+                  <div class="metric-cell">
+                    <div class="label">10-Year Yield (DGS10)</div>
+                    <div class="val" id="macro-dock-10y">--%</div>
+                  </div>
+                  <div class="metric-cell">
+                    <div class="label">2-Year Yield (DGS2)</div>
+                    <div class="val" id="macro-dock-2y">--%</div>
+                  </div>
+                  <div class="metric-cell">
+                    <div class="label">Yield Spread (10Y-2Y)</div>
+                    <div class="val" id="macro-dock-spread">-- bps</div>
+                  </div>
+                  <div class="metric-cell">
+                    <div class="label">CBOE VIX Index</div>
+                    <div class="val" id="macro-dock-vix">--</div>
+                  </div>
                 </div>
                 <div style="background:#090e18; border:1px solid #1a2538; padding:8px; border-radius:2px;">
-                  <div style="font-size:9px; color:var(--cyan-primary); font-weight:bold; margin-bottom:2px;">REGIME IMPLICATION FOR PORTFOLIO:</div>
+                  <div style="font-size:9px; color:var(--cyan-primary); font-weight:bold; margin-bottom:2px;">REGIME
+                    IMPLICATION FOR PORTFOLIO:</div>
                   <p id="macro-dock-synopsis" style="font-size:10px; color:#cbd5e1; line-height:1.45; margin:0;">
                     Yield curve steepening confirms supportive liquidity regime for large-cap momentum.
                   </p>
@@ -907,13 +989,20 @@
           <div style="display:flex; gap:12px; align-items:center;">
             <span id="chart-active-symbol" style="color:var(--amber-primary); font-weight:800; font-size:13px;">NVDA //
               TRADING TERMINAL</span>
-            <div class="function-keys">
-              <button class="f-key chart-tf-btn" data-period="1d">1D</button>
-              <button class="f-key chart-tf-btn" data-period="5d">5D</button>
-              <button class="f-key chart-tf-btn active" data-period="1mo">1M</button>
-              <button class="f-key chart-tf-btn" data-period="6mo">6M</button>
-              <button class="f-key chart-tf-btn" data-period="1y">1Y</button>
-              <button class="f-key chart-tf-btn" data-period="5y">5Y</button>
+            <div class="function-keys" style="display:flex; align-items:center; gap:3px;">
+              <span style="font-size:9px; color:var(--text-muted); font-weight:700; margin-right:1px; letter-spacing:0.5px;">INTRADAY:</span>
+              <button class="f-key chart-tf-btn" data-interval="1m" data-period="1d" title="1-Minute Japanese Candlesticks">1m</button>
+              <button class="f-key chart-tf-btn" data-interval="5m" data-period="1d" title="5-Minute Japanese Candlesticks">5m</button>
+              <button class="f-key chart-tf-btn" data-interval="15m" data-period="5d" title="15-Minute Japanese Candlesticks">15m</button>
+              <button class="f-key chart-tf-btn" data-interval="1h" data-period="1mo" title="1-Hour Japanese Candlesticks">1h</button>
+              <span style="border-left:1px solid #243048; height:15px; margin:0 4px;"></span>
+              <span style="font-size:9px; color:var(--text-muted); font-weight:700; margin-right:1px; letter-spacing:0.5px;">MACRO:</span>
+              <button class="f-key chart-tf-btn" data-interval="1d" data-period="1d" title="1-Day Session">1D</button>
+              <button class="f-key chart-tf-btn" data-interval="1d" data-period="5d" title="5-Day Trend">5D</button>
+              <button class="f-key chart-tf-btn active" data-interval="1d" data-period="1mo" title="1-Month History">1M</button>
+              <button class="f-key chart-tf-btn" data-interval="1d" data-period="6mo" title="6-Month History">6M</button>
+              <button class="f-key chart-tf-btn" data-interval="1d" data-period="1y" title="1-Year History">1Y</button>
+              <button class="f-key chart-tf-btn" data-interval="1wk" data-period="5y" title="5-Year History">5Y</button>
             </div>
           </div>
 
@@ -957,7 +1046,7 @@
           <span>C: <strong id="hud-close" style="color:#f1f5f9;">--</strong></span>
           <span>CHG: <strong id="hud-chg" style="color:var(--cyan-primary);">--</strong></span>
           <span>VOL: <strong id="hud-vol" style="color:var(--amber-primary);">--</strong></span>
-          <span style="margin-left:auto; font-size:9px; color:var(--text-muted);">CANDLESTICK MODE (JAPANESE OHLCV)</span>
+          <span style="margin-left:auto; font-size:9px; color:var(--text-muted);" id="hud-mode-label">CANDLESTICK MODE (JAPANESE OHLCV)</span>
         </div>
         <div class="chart-stage-container">
           <div class="chart-canvas-wrapper" id="main-candlestick-wrapper" style="position:relative; width:100%; height:100%;">

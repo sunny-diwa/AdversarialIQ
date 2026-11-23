@@ -270,10 +270,11 @@ async def get_stock_quote(symbol: str):
 @app.get("/api/stock/{symbol}/history")
 async def get_stock_history(
     symbol: str,
-    period: str = Query("1mo", regex="^(1d|5d|1mo|6mo|1y|5y)$")
+    period: str = Query("1mo", regex="^(1m|5m|15m|30m|1h|60m|1d|5d|1mo|6mo|1y|5y|max)$"),
+    interval: Optional[str] = Query(None, regex="^(1m|2m|5m|15m|30m|60m|1h|1d|1wk|1mo)$")
 ):
-    """Returns candlestick OHLCV data with pre-calculated technical indicators (SMA, EMA, BB, RSI, MACD, ATR)."""
-    return fetch_stock_history(symbol, period)
+    """Returns candlestick OHLCV data with pre-calculated technical indicators (SMA, EMA, BB, RSI, MACD, ATR, VWAP, Stoch, Williams %R)."""
+    return fetch_stock_history(symbol, period=period, interval=interval)
 
 
 @app.get("/api/stock/{symbol}/company")
