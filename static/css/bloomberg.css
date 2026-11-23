@@ -1219,3 +1219,153 @@ body {
   height: 140px;
   min-height: 140px;
 }
+
+/* ==========================================================================
+   PRODUCTION UI ENHANCEMENTS (ANTHROPIC FRONTEND + VERCEL GUIDELINES + UI/UX PRO MAX)
+   ========================================================================== */
+
+/* 1. Tabular Numbers across all financial tables, prices, and stats */
+.bloomberg-table td,
+.metric-cell .val,
+.hero-price,
+.quote-price,
+.quote-change-badge,
+.ticker-item,
+.clock-item .time,
+.hud-val,
+.stat-val,
+#dash-quote-price {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "zero" 1;
+}
+
+/* 2. Text balance on headings */
+.panel-header,
+.modal-header,
+.stock-hero-banner h1,
+.stock-hero-banner h2 {
+  text-wrap: balance;
+}
+
+/* 3. Universal Accessible Focus States (Vercel Web Interface Guidelines) */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+.nav-tab:focus-visible,
+.ticker-chip:focus-visible,
+.quick-pill:focus-visible,
+.f-key:focus-visible,
+.nav-quick-btn:focus-visible {
+  outline: 2px solid var(--cyan-primary) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.4) !important;
+}
+
+/* 4. Cursor pointer on all interactive elements */
+button,
+.nav-tab,
+.ticker-chip,
+.quick-pill,
+.f-key,
+.nav-quick-btn,
+.dropdown-item,
+.sector-heat-card,
+.mover-row {
+  cursor: pointer;
+  user-select: none;
+}
+
+/* 5. Smooth compositor-only transitions (150ms-200ms) */
+.nav-tab,
+.ticker-chip,
+.quick-pill,
+.f-key,
+.panel,
+.dropdown-item,
+.btn-settings {
+  transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 160ms cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 160ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.f-key:hover,
+.ticker-chip:hover,
+.quick-pill:hover {
+  transform: translateY(-1px);
+}
+
+.f-key:active,
+.ticker-chip:active,
+.quick-pill:active {
+  transform: translateY(0);
+}
+
+/* 6. Refined OLED Dark Mode Badges (UI/UX Pro Max) */
+.badge-bullish,
+.quote-change-badge.up {
+  background: rgba(16, 185, 129, 0.14) !important;
+  color: #34d399 !important;
+  border: 1px solid rgba(16, 185, 129, 0.35) !important;
+  text-shadow: 0 0 8px rgba(16, 185, 129, 0.25);
+}
+
+.badge-bearish,
+.quote-change-badge.down {
+  background: rgba(239, 68, 68, 0.14) !important;
+  color: #f87171 !important;
+  border: 1px solid rgba(239, 68, 68, 0.35) !important;
+  text-shadow: 0 0 8px rgba(239, 68, 68, 0.25);
+}
+
+.badge-neutral {
+  background: rgba(245, 158, 11, 0.14) !important;
+  color: #fbbf24 !important;
+  border: 1px solid rgba(245, 158, 11, 0.35) !important;
+}
+
+.badge-wire {
+  background: rgba(56, 189, 248, 0.14) !important;
+  color: #38bdf8 !important;
+  border: 1px solid rgba(56, 189, 248, 0.35) !important;
+}
+
+/* 7. Modal Backdrop Blur & Elevation */
+.modal-overlay {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  background-color: rgba(3, 7, 18, 0.78);
+}
+
+.modal-content {
+  border: 1px solid #2a3952 !important;
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.75), 0 0 20px rgba(56, 189, 248, 0.12) !important;
+}
+
+/* 8. Table Row Hover & Striping */
+.bloomberg-table tbody tr:hover {
+  background-color: rgba(26, 38, 61, 0.65) !important;
+}
+
+/* 9. Respect prefers-reduced-motion (Accessibility Rule) */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .pulse-dot {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+}
+
+/* 10. Responsive Bounds & Flex Child Truncation */
+.panel-header > span,
+.bloomberg-table th,
+.bloomberg-table td {
+  min-width: 0;
+}
+

@@ -42,9 +42,9 @@
   <!-- GLOBAL PERSISTENT SEARCH & HOT TICKERS BAR -->
   <div class="global-search-bar">
     <div class="search-box-wrapper">
-      <span class="search-icon">🔍</span>
-      <input type="text" id="header-stock-search" class="global-search-input" placeholder="SEARCH 503 S&P 500 STOCKS BY TICKER OR NAME (e.g. AAPL, NVDA, TSLA, MSFT)..." autocomplete="off">
-      <div id="header-stock-dropdown" class="stock-dropdown-results"></div>
+      <span class="search-icon" aria-hidden="true">🔍</span>
+      <input type="text" id="header-stock-search" class="global-search-input" placeholder="SEARCH 503 S&P 500 STOCKS BY TICKER OR NAME (e.g. AAPL, NVDA, TSLA, MSFT)..." autocomplete="off" spellcheck="false" aria-label="Search 503 S&P 500 stocks by ticker or company name">
+      <div id="header-stock-dropdown" class="stock-dropdown-results" role="listbox"></div>
     </div>
 
     <div class="hot-tickers-strip">
@@ -70,24 +70,24 @@
   </div>
 
   <!-- MAIN NAVIGATION TABS (F1 - F6) -->
-  <nav class="navigation-bar">
-    <div class="nav-tabs-group">
-      <button class="nav-tab active" data-view="homepage">
+  <nav class="navigation-bar" aria-label="Main Terminal Navigation">
+    <div class="nav-tabs-group" role="tablist">
+      <button class="nav-tab active" data-view="homepage" role="tab" aria-selected="true">
         <span class="fkey">&lt;F1&gt;</span> 🏠 HOMEPAGE
       </button>
-      <button class="nav-tab" data-view="agent">
+      <button class="nav-tab" data-view="agent" role="tab" aria-selected="false">
         <span class="fkey">&lt;F2&gt;</span> 🤖 CHATBOT TRADER
       </button>
-      <button class="nav-tab" data-view="dashboard">
+      <button class="nav-tab" data-view="dashboard" role="tab" aria-selected="false">
         <span class="fkey">&lt;F3&gt;</span> 🏢 STOCK PAGE
       </button>
-      <button class="nav-tab" data-view="terminal">
+      <button class="nav-tab" data-view="terminal" role="tab" aria-selected="false">
         <span class="fkey">&lt;F4&gt;</span> 📈 STOCK TERMINAL
       </button>
-      <button class="nav-tab" data-view="portfolio">
+      <button class="nav-tab" data-view="portfolio" role="tab" aria-selected="false">
         <span class="fkey">&lt;F5&gt;</span> 💼 PAPER PORTFOLIO
       </button>
-      <button class="nav-tab" data-view="scanner">
+      <button class="nav-tab" data-view="scanner" role="tab" aria-selected="false">
         <span class="fkey">&lt;F6&gt;</span> 🔍 S&amp;P 500 SCANNER
       </button>
     </div>
@@ -1127,7 +1127,7 @@ Paper trade ledger linked ($10,000 capital active).
     <div class="modal-content" style="max-width:540px; max-height:88vh; overflow-y:auto;">
       <div class="modal-header">
         <span>⚙️ ADVERSARIALIQ ENGINE &amp; BROKER SETTINGS</span>
-        <button id="btn-close-settings" style="background:none; border:none; color:#fff; cursor:pointer; font-size:16px;">&times;</button>
+        <button id="btn-close-settings" aria-label="Close settings modal" style="background:none; border:none; color:#fff; cursor:pointer; font-size:16px;">&times;</button>
       </div>
       <div class="modal-body">
         
@@ -1241,7 +1241,7 @@ Paper trade ledger linked ($10,000 capital active).
     <div class="modal-content" style="max-width:820px; max-height:88vh; overflow-y:auto;">
       <div class="modal-header">
         <span>📡 REAL-TIME LLM OBSERVABILITY &amp; TRACE LOGS</span>
-        <button id="btn-close-traces" style="background:none; border:none; color:#fff; cursor:pointer; font-size:16px;">&times;</button>
+        <button id="btn-close-traces" aria-label="Close traces modal" style="background:none; border:none; color:#fff; cursor:pointer; font-size:16px;">&times;</button>
       </div>
       <div class="modal-body">
         
