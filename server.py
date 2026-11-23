@@ -241,6 +241,7 @@ async def get_stock_history(
 
 
 @app.get("/api/stock/{symbol}/company")
+@app.get("/api/stock/{symbol}/details")
 async def get_company_details(symbol: str):
     """Comprehensive company profile, valuation metrics, and sector peer comparison."""
     try:
