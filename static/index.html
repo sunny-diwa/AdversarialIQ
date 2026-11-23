@@ -293,8 +293,11 @@
           <div class="quick-prompts-bar">
             <button class="quick-pill" data-prompt="Run syndicate debate (Bull vs Bear vs CRO) for {symbol}">🥊 Syndicate Debate</button>
             <button class="quick-pill" data-prompt="Generate S&P 500 daily desk morning briefing note">📋 Morning Desk Brief</button>
-            <button class="quick-pill" data-prompt="Calculate 2% risk position size and stop-loss for {symbol} on $10K capital">🛡️ 2% Risk Position Sizing</button>
-            <button class="quick-pill" data-prompt="Analyze technical setup and indicators for {symbol}">📊 Technical Setup</button>
+            <button class="quick-pill" data-prompt="Summarize latest SEC 10-K, 10-Q MD&A and risk factors for {symbol}">📑 SEC 10-K Filings</button>
+            <button class="quick-pill" data-prompt="Analyze Form 4 insider trading clusters and 13F ownership for {symbol}">🕵️ Insider Form 4 & 13F</button>
+            <button class="quick-pill" data-prompt="Fetch real-time breaking news catalysts and sentiment for {symbol}">📰 Breaking News</button>
+            <button class="quick-pill" data-prompt="Provide macroeconomic regime and Treasury yield curve context">🌍 Macro Regime</button>
+            <button class="quick-pill" data-prompt="Calculate 2% risk position size and stop-loss for {symbol} on $10K capital">🛡️ 2% Risk Sizing</button>
             <button class="quick-pill" data-prompt="Buy 10 shares of {symbol}">⚡ Buy 10 Shares</button>
             <button class="quick-pill" data-prompt="Show my paper trading portfolio risk metrics and PnL">💼 Portfolio Risk Desk</button>
           </div>
@@ -502,25 +505,169 @@
               </div>
             </div>
 
-            <!-- S&P 500 Sector Peer Matrix -->
-            <div class="panel">
-              <div class="panel-header"><span>S&amp;P 500 SAME-SECTOR PEER COMPARISON (CLICK TO SELECT)</span></div>
+            <!-- Institutional Multi-Layer Dock: Tabs for Sector Peers, SEC Filings, Insider Trades, News & Macro -->
+            <div class="panel" style="margin-top:6px;">
+              <div class="panel-header" style="padding:4px 8px; display:flex; justify-content:space-between; align-items:center;">
+                <div class="function-keys" style="margin:0;">
+                  <button type="button" class="f-key stock-dock-tab active" data-tab="peers">📊 SECTOR PEERS</button>
+                  <button type="button" class="f-key stock-dock-tab" data-tab="sec">📑 SEC EDGAR (10-K/10-Q)</button>
+                  <button type="button" class="f-key stock-dock-tab" data-tab="insider">🕵️ INSIDER FORM 4 &amp; 13F</button>
+                  <button type="button" class="f-key stock-dock-tab" data-tab="news">📰 BREAKING NEWS &amp; CATALYSTS</button>
+                  <button type="button" class="f-key stock-dock-tab" data-tab="macro">🌍 MACRO &amp; YIELD CURVE</button>
+                </div>
+                <span id="stock-dock-status" style="font-size:9.5px; color:var(--text-muted);">LAYER 1-5 ACTIVE</span>
+              </div>
               <div class="panel-body" style="padding:0;">
-                <table class="bloomberg-table">
-                  <thead>
-                    <tr>
-                      <th>TICKER</th>
-                      <th>COMPANY</th>
-                      <th style="text-align:right;">PRICE ($)</th>
-                      <th style="text-align:right;">DAY CHG %</th>
-                      <th style="text-align:right;">MARKET CAP</th>
-                      <th style="text-align:center;">ACTION</th>
-                    </tr>
-                  </thead>
-                  <tbody id="dash-peers-table-body">
-                    <tr><td colspan="6" style="text-align:center; padding:10px; color:var(--text-muted);">Loading sector peers...</td></tr>
-                  </tbody>
-                </table>
+                
+                <!-- Tab Pane 1: Sector Peers -->
+                <div id="pane-dock-peers" class="dock-tab-pane">
+                  <table class="bloomberg-table">
+                    <thead>
+                      <tr>
+                        <th>TICKER</th>
+                        <th>COMPANY</th>
+                        <th style="text-align:right;">PRICE ($)</th>
+                        <th style="text-align:right;">DAY CHG %</th>
+                        <th style="text-align:right;">MARKET CAP</th>
+                        <th style="text-align:center;">ACTION</th>
+                      </tr>
+                    </thead>
+                    <tbody id="dash-peers-table-body">
+                      <tr><td colspan="6" style="text-align:center; padding:10px; color:var(--text-muted);">Loading sector peers...</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <!-- Tab Pane 2: SEC EDGAR 10-K / 10-Q Filings -->
+                <div id="pane-dock-sec" class="dock-tab-pane" style="display:none; padding:10px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <div>
+                      <strong id="sec-company-title" style="color:var(--amber-primary);">SEC EDGAR CORPORATE DISCLOSURES</strong>
+                      <span id="sec-cik-badge" style="font-size:10px; color:var(--text-muted); margin-left:8px;">CIK: --</span>
+                    </div>
+                    <span id="sec-source-badge" style="font-size:9.5px; color:var(--green-up);">edgartools Fair Access Online</span>
+                  </div>
+                  <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
+                    <div style="background:#090e18; border:1px solid #1a2538; padding:8px; border-radius:2px;">
+                      <div style="color:var(--cyan-primary); font-weight:bold; font-size:11px; margin-bottom:4px;">Item 7: Management Discussion &amp; Analysis (MD&amp;A)</div>
+                      <p id="sec-mda-content" style="font-size:10.5px; color:#cbd5e1; line-height:1.45; max-height:95px; overflow-y:auto; margin:0;">
+                        Loading MD&amp;A disclosures...
+                      </p>
+                    </div>
+                    <div style="background:#090e18; border:1px solid #1a2538; padding:8px; border-radius:2px;">
+                      <div style="color:var(--red-down); font-weight:bold; font-size:11px; margin-bottom:4px;">Item 1A: Key Risk Factors</div>
+                      <p id="sec-risk-content" style="font-size:10.5px; color:#cbd5e1; line-height:1.45; max-height:95px; overflow-y:auto; margin:0;">
+                        Loading risk factors...
+                      </p>
+                    </div>
+                  </div>
+                  <div style="font-size:10px; color:var(--text-muted); margin-bottom:4px;">RECENT SEC SUBMISSIONS (10-K, 10-Q, 8-K):</div>
+                  <div id="sec-filings-list" style="display:flex; gap:6px; flex-wrap:wrap;">
+                    <!-- Filings badges -->
+                  </div>
+                </div>
+
+                <!-- Tab Pane 3: Insider Form 4 & 13F Ownership -->
+                <div id="pane-dock-insider" class="dock-tab-pane" style="display:none; padding:10px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <div>
+                      <span style="color:var(--text-muted); font-size:11px;">EXECUTIVE SENTIMENT CLUSTER:</span>
+                      <strong id="insider-verdict-badge" style="color:var(--green-up); margin-left:6px; font-size:12px;">BALANCED / INACTIVE</strong>
+                    </div>
+                    <div id="insider-counts-badge" style="font-size:10px; color:var(--text-muted);">0 Buys vs 0 Sells (Last 90 Days)</div>
+                  </div>
+                  <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                    <div>
+                      <div style="font-size:10px; color:var(--amber-primary); font-weight:bold; margin-bottom:4px;">FORM 4 EXECUTIVE TRANSACTIONS</div>
+                      <div style="max-height:130px; overflow-y:auto;">
+                        <table class="bloomberg-table" style="font-size:10px;">
+                          <thead>
+                            <tr>
+                              <th>INSIDER</th>
+                              <th>TITLE</th>
+                              <th>TYPE</th>
+                              <th style="text-align:right;">SHARES</th>
+                              <th style="text-align:right;">VAL ($)</th>
+                            </tr>
+                          </thead>
+                          <tbody id="insider-trades-tbody">
+                            <tr><td colspan="5" style="text-align:center; padding:8px; color:var(--text-muted);">Loading Form 4 transactions...</td></tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    <div>
+                      <div style="font-size:10px; color:var(--cyan-primary); font-weight:bold; margin-bottom:4px;">TOP 13F INSTITUTIONAL SHAREHOLDERS</div>
+                      <div style="max-height:130px; overflow-y:auto;">
+                        <table class="bloomberg-table" style="font-size:10px;">
+                          <thead>
+                            <tr>
+                              <th>INSTITUTION</th>
+                              <th style="text-align:right;">STAKE %</th>
+                              <th style="text-align:right;">VALUE ($B)</th>
+                            </tr>
+                          </thead>
+                          <tbody id="insider-13f-tbody">
+                            <tr><td colspan="3" style="text-align:center; padding:8px; color:var(--text-muted);">Loading 13F institutional ownership...</td></tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Tab Pane 4: Breaking News & Catalyst Sentiment -->
+                <div id="pane-dock-news" class="dock-tab-pane" style="display:none; padding:10px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <span style="font-size:11px; color:var(--text-muted);">OVERALL SENTIMENT:</span>
+                      <strong id="news-sentiment-badge" class="quote-change-badge up">BULLISH (+0.42)</strong>
+                      <span id="news-counts-breakdown" style="font-size:10px; color:var(--text-muted);">(8 Bullish, 2 Bearish, 5 Neutral)</span>
+                    </div>
+                    <div id="news-catalysts-container" style="display:flex; gap:4px;">
+                      <!-- Catalyst badges -->
+                    </div>
+                  </div>
+                  <div id="news-articles-feed" style="max-height:150px; overflow-y:auto; display:flex; flex-direction:column; gap:6px;">
+                    <div style="text-align:center; padding:15px; color:var(--text-muted);">Loading breaking news...</div>
+                  </div>
+                </div>
+
+                <!-- Tab Pane 5: Macro & Yield Curve Regime -->
+                <div id="pane-dock-macro" class="dock-tab-pane" style="display:none; padding:10px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <div>
+                      <span style="color:var(--text-muted); font-size:11px;">MACROECONOMIC REGIME:</span>
+                      <strong id="macro-regime-title" style="color:var(--cyan-primary); font-size:12px; margin-left:6px;">RISK-ON GROWTH EXPANSION</strong>
+                    </div>
+                    <span id="macro-source-badge" style="font-size:9.5px; color:var(--amber-primary);">FRED &amp; CBOE Treasury</span>
+                  </div>
+                  <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:6px; margin-bottom:8px;">
+                    <div class="metric-cell">
+                      <div class="label">10-Year Treasury</div>
+                      <div class="val" id="macro-dock-10y" style="color:#ffcc00; font-size:13px;">--%</div>
+                    </div>
+                    <div class="metric-cell">
+                      <div class="label">Short-Term / 2Y Rate</div>
+                      <div class="val" id="macro-dock-2y" style="color:#cbd5e1; font-size:13px;">--%</div>
+                    </div>
+                    <div class="metric-cell">
+                      <div class="label">10Y-2Y Spread</div>
+                      <div class="val" id="macro-dock-spread" style="font-size:13px;">-- bps</div>
+                    </div>
+                    <div class="metric-cell">
+                      <div class="label">CBOE VIX Volatility</div>
+                      <div class="val" id="macro-dock-vix" style="font-size:13px;">--</div>
+                    </div>
+                  </div>
+                  <div style="background:#090e18; border:1px solid #1a2538; padding:8px; border-radius:2px;">
+                    <div style="font-size:10px; color:var(--text-muted); margin-bottom:2px;">INSTITUTIONAL REGIME SYNOPSIS:</div>
+                    <p id="macro-dock-synopsis" style="font-size:10.5px; color:#cbd5e1; line-height:1.45; margin:0;">
+                      Loading macroeconomic regime synopsis...
+                    </p>
+                  </div>
+                </div>
+
               </div>
             </div>
 
@@ -915,12 +1062,19 @@ Paper trade ledger linked ($10,000 capital active).
       </div>
       <div class="modal-body">
         <div class="form-group">
-          <label>Model Provider</label>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <label style="margin:0;">Model Provider</label>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span id="provider-ping-status" style="font-size:10px; padding:2px 8px; border-radius:3px; font-weight:bold; background:#1e293b; color:#94a3b8;">⚫ UNTESTED</span>
+              <button type="button" id="btn-test-provider" class="f-key" style="font-size:9.5px; padding:2px 6px;">⚡ TEST PING</button>
+            </div>
+          </div>
           <select id="settings-provider-select" class="form-control">
             <option value="groq">Groq Cloud (Ultra-Fast Inference)</option>
             <option value="ollama">Ollama Local (Offline / On-Device)</option>
             <option value="quant">Autonomous Quant Rule-Engine (No Key Needed)</option>
           </select>
+          <div id="provider-ping-msg" style="font-size:10px; color:#cbd5e1; margin-top:4px; padding:4px 6px; background:#090e18; border:1px solid #1a2538; border-radius:2px; display:none;"></div>
         </div>
 
         <div class="form-group">
@@ -942,6 +1096,20 @@ Paper trade ledger linked ($10,000 capital active).
         <div class="form-group">
           <label>Ollama Base URL (If using Ollama)</label>
           <input type="text" id="settings-ollama-url" class="form-control" value="http://localhost:11434">
+        </div>
+
+        <div style="border-top:1px solid #1a2538; margin:10px 0 6px 0; padding-top:6px;">
+          <span style="font-size:10px; color:var(--text-muted); font-weight:bold;">EXTERNAL DATA LAYER API KEYS (OPTIONAL OVERRIDES):</span>
+        </div>
+
+        <div class="form-group">
+          <label>Finnhub API Key (Optional)</label>
+          <input type="password" id="settings-finnhub-key" class="form-control" placeholder="Free key from finnhub.io (Yahoo RSS fallback active)">
+        </div>
+
+        <div class="form-group">
+          <label>FRED API Key (Optional)</label>
+          <input type="password" id="settings-fred-key" class="form-control" placeholder="Free key from stlouisfed.org (CBOE Treasury fallback active)">
         </div>
       </div>
       <div class="modal-footer">

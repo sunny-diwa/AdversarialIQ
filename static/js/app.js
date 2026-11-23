@@ -313,11 +313,80 @@ class BloombergApp {
     const openBtn = document.getElementById("btn-open-settings");
     const closeBtn = document.getElementById("btn-close-settings");
     const saveBtn = document.getElementById("btn-save-settings");
+    const testBtn = document.getElementById("btn-test-provider");
 
     const providerSelect = document.getElementById("settings-provider-select");
     const groqKeyInput = document.getElementById("settings-groq-key");
     const modelSelect = document.getElementById("settings-model-select");
     const ollamaUrlInput = document.getElementById("settings-ollama-url");
+    const finnhubKeyInput = document.getElementById("settings-finnhub-key");
+    const fredKeyInput = document.getElementById("settings-fred-key");
+    const pingStatus = document.getElementById("provider-ping-status");
+    const pingMsg = document.getElementById("provider-ping-msg");
+
+    const testProviderPing = async () => {
+      if (!providerSelect || !pingStatus) return;
+      const prov = providerSelect.value;
+      const key = groqKeyInput ? groqKeyInput.value.trim() : "";
+      const mod = modelSelect ? modelSelect.value : "";
+      const url = ollamaUrlInput ? ollamaUrlInput.value.trim() : "";
+
+      pingStatus.innerText = "⏳ TESTING...";
+      pingStatus.style.background = "#854d0e";
+      pingStatus.style.color = "#fef08a";
+      if (pingMsg) {
+        pingMsg.style.display = "block";
+        pingMsg.innerText = `Connecting to ${prov.toUpperCase()}...`;
+      }
+
+      try {
+        const res = await fetch("/api/agent/provider/ping", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            provider: prov,
+            model: mod,
+            api_key: key,
+            base_url: url
+          })
+        });
+
+        const data = await res.json();
+        if (data.status === "LIVE") {
+          pingStatus.innerText = `🟢 LIVE (${data.latency_ms}ms)`;
+          pingStatus.style.background = "#14532d";
+          pingStatus.style.color = "#86efac";
+          if (pingMsg) {
+            pingMsg.innerText = `✅ ${data.message || 'Connected successfully'}`;
+          }
+        } else {
+          pingStatus.innerText = `🔴 DOWN`;
+          pingStatus.style.background = "#7f1d1d";
+          pingStatus.style.color = "#fca5a5";
+          if (pingMsg) {
+            pingMsg.innerText = `⚠️ ${data.error || 'Connection failed'}`;
+          }
+        }
+      } catch (err) {
+        pingStatus.innerText = "🔴 ERROR";
+        pingStatus.style.background = "#7f1d1d";
+        pingStatus.style.color = "#fca5a5";
+        if (pingMsg) {
+          pingMsg.innerText = `Network error: ${err.message}`;
+        }
+      }
+    };
+
+    if (testBtn) {
+      testBtn.addEventListener("click", testProviderPing);
+    }
+
+    if (providerSelect) {
+      // On demand test whenever user switches provider (NO continuous polling)
+      providerSelect.addEventListener("change", () => {
+        testProviderPing();
+      });
+    }
 
     if (openBtn) {
       openBtn.addEventListener("click", async () => {
@@ -325,6 +394,8 @@ class BloombergApp {
         if (providerSelect) providerSelect.value = localStorage.getItem("trader_provider") || "groq";
         if (groqKeyInput) groqKeyInput.value = localStorage.getItem("trader_groq_key") || "";
         if (ollamaUrlInput) ollamaUrlInput.value = localStorage.getItem("trader_ollama_url") || "http://localhost:11434";
+        if (finnhubKeyInput) finnhubKeyInput.value = localStorage.getItem("finnhub_api_key") || "";
+        if (fredKeyInput) fredKeyInput.value = localStorage.getItem("fred_api_key") || "";
 
         // Query available models from server
         try {
@@ -350,6 +421,8 @@ class BloombergApp {
         }
 
         modal.classList.add("open");
+        // Test current provider once on modal open
+        testProviderPing();
       });
     }
 
@@ -361,6 +434,8 @@ class BloombergApp {
         if (groqKeyInput) localStorage.setItem("trader_groq_key", groqKeyInput.value.trim());
         if (modelSelect) localStorage.setItem("trader_model", modelSelect.value);
         if (ollamaUrlInput) localStorage.setItem("trader_ollama_url", ollamaUrlInput.value.trim());
+        if (finnhubKeyInput) localStorage.setItem("finnhub_api_key", finnhubKeyInput.value.trim());
+        if (fredKeyInput) localStorage.setItem("fred_api_key", fredKeyInput.value.trim());
 
         if (this.agent) {
           this.agent.provider = providerSelect.value;
@@ -371,7 +446,6 @@ class BloombergApp {
         }
 
         modal.classList.remove("open");
-        alert("Trader Agent settings saved successfully!");
       });
     }
   }
