@@ -9,22 +9,32 @@ class SP500PriceChart {
     this.mainCanvas = document.getElementById(mainCanvasId);
     this.rsiCanvas = document.getElementById(rsiCanvasId);
     this.macdCanvas = document.getElementById(macdCanvasId);
+    this.stochCanvas = document.getElementById("stoch-canvas");
+    this.williamsCanvas = document.getElementById("williams-canvas");
 
     this.mainChart = null;
     this.tvChart = null;
     this.candleSeries = null;
     this.rsiChart = null;
     this.macdChart = null;
+    this.stochChart = null;
+    this.williamsChart = null;
 
     this.currentSymbol = "NVDA";
     this.currentPeriod = "1mo";
     this.currentInterval = "1d";
 
+    this.showVol = true;
+    this.showVwap = true;
     this.showSma20 = true;
     this.showSma50 = true;
+    this.showEma20 = false;
+    this.showSma200 = false;
     this.showBb = true;
     this.showRsi = true;
     this.showMacd = true;
+    this.showStoch = false;
+    this.showWilliams = false;
 
     this.cachedData = null;
     this.currentPrice = 0;
@@ -61,11 +71,17 @@ class SP500PriceChart {
       }
     };
 
+    bindToggle("toggle-vol", "showVol");
+    bindToggle("toggle-vwap", "showVwap");
     bindToggle("toggle-sma20", "showSma20");
     bindToggle("toggle-sma50", "showSma50");
+    bindToggle("toggle-ema20", "showEma20");
+    bindToggle("toggle-sma200", "showSma200");
     bindToggle("toggle-bb", "showBb");
     bindToggle("toggle-rsi", "showRsi");
     bindToggle("toggle-macd", "showMacd");
+    bindToggle("toggle-stoch", "showStoch");
+    bindToggle("toggle-williams", "showWilliams");
   }
 
   setupTerminalOrderPad() {
@@ -176,6 +192,24 @@ class SP500PriceChart {
       this.renderMacdChart(labels, candles);
     } else {
       if (macdWrapper) macdWrapper.style.display = "none";
+    }
+
+    // 4. Render Stochastic Sub-chart
+    const stochWrapper = document.getElementById("stoch-sub-container");
+    if (this.showStoch) {
+      if (stochWrapper) stochWrapper.style.display = "block";
+      this.renderStochChart(labels, candles);
+    } else {
+      if (stochWrapper) stochWrapper.style.display = "none";
+    }
+
+    // 5. Render Williams %R Sub-chart
+    const williamsWrapper = document.getElementById("williams-sub-container");
+    if (this.showWilliams) {
+      if (williamsWrapper) williamsWrapper.style.display = "block";
+      this.renderWilliamsChart(labels, candles);
+    } else {
+      if (williamsWrapper) williamsWrapper.style.display = "none";
     }
   }
 
@@ -312,22 +346,29 @@ class SP500PriceChart {
       candleSeries.setData(tvCandleData);
 
       // Volume histogram overlay
-      const volSeries = tvChart.addHistogramSeries({
-        color: '#00e5ff',
-        priceFormat: { type: 'volume' },
-        priceScaleId: '',
-        scaleMargins: { top: 0.8, bottom: 0 },
-      });
-      const volData = tvCandleData.map((d, i) => {
-        const c = candles[i] || {};
-        return {
-          time: d.time,
-          value: c.volume || 10000000,
-          color: d.close >= d.open ? 'rgba(0, 255, 102, 0.28)' : 'rgba(255, 51, 68, 0.28)'
-        };
-      });
-      volSeries.setData(volData);
+      if (this.showVol) {
+        const volSeries = tvChart.addHistogramSeries({
+          color: '#00e5ff',
+          priceFormat: { type: 'volume' },
+          priceScaleId: '',
+          scaleMargins: { top: 0.8, bottom: 0 },
+        });
+        const volData = tvCandleData.map((d, i) => {
+          const c = candles[i] || {};
+          return {
+            time: d.time,
+            value: c.volume || 10000000,
+            color: d.close >= d.open ? 'rgba(0, 255, 102, 0.28)' : 'rgba(255, 51, 68, 0.28)'
+          };
+        });
+        volSeries.setData(volData);
+      }
 
+      // VWAP Overlay
+      if (this.showVwap) {
+        const vwap = tvChart.addLineSeries({ color: '#f59e0b', lineWidth: 1.5, title: 'VWAP' });
+        vwap.setData(tvCandleData.map((d, i) => ({ time: d.time, value: candles[i]?.vwap })).filter(d => typeof d.value === 'number'));
+      }
       // SMA 20 Overlay
       if (this.showSma20) {
         const sma20 = tvChart.addLineSeries({ color: '#ffcc00', lineWidth: 1.5, title: 'SMA 20' });
@@ -337,6 +378,16 @@ class SP500PriceChart {
       if (this.showSma50) {
         const sma50 = tvChart.addLineSeries({ color: '#3b82f6', lineWidth: 1.5, title: 'SMA 50' });
         sma50.setData(tvCandleData.map((d, i) => ({ time: d.time, value: candles[i]?.sma50 })).filter(d => typeof d.value === 'number'));
+      }
+      // EMA 20 Overlay
+      if (this.showEma20) {
+        const ema20 = tvChart.addLineSeries({ color: '#ec4899', lineWidth: 1.5, title: 'EMA 20' });
+        ema20.setData(tvCandleData.map((d, i) => ({ time: d.time, value: candles[i]?.ema20 })).filter(d => typeof d.value === 'number'));
+      }
+      // SMA 200 Overlay
+      if (this.showSma200) {
+        const sma200 = tvChart.addLineSeries({ color: '#8b5cf6', lineWidth: 1.5, title: 'SMA 200' });
+        sma200.setData(tvCandleData.map((d, i) => ({ time: d.time, value: candles[i]?.sma200 })).filter(d => typeof d.value === 'number'));
       }
       // Bollinger Bands Overlay
       if (this.showBb) {
@@ -444,9 +495,11 @@ class SP500PriceChart {
       const col = isUp ? "#00ff66" : "#ff3344";
 
       // Volume Bar
-      ctx.fillStyle = isUp ? "rgba(0, 255, 102, 0.22)" : "rgba(255, 51, 68, 0.22)";
-      const vH = volH(c.volume);
-      ctx.fillRect(x - candleW / 2, padTop + plotH - vH, candleW, vH);
+      if (this.showVol) {
+        ctx.fillStyle = isUp ? "rgba(0, 255, 102, 0.22)" : "rgba(255, 51, 68, 0.22)";
+        const vH = volH(c.volume);
+        ctx.fillRect(x - candleW / 2, padTop + plotH - vH, candleW, vH);
+      }
 
       // Wick
       ctx.strokeStyle = col;
@@ -489,13 +542,15 @@ class SP500PriceChart {
       ctx.setLineDash([]);
     };
 
+    if (this.showVwap) drawLine("vwap", "#f59e0b");
     if (this.showSma20) drawLine("sma20", "#ffcc00");
     if (this.showSma50) drawLine("sma50", "#3b82f6");
+    if (this.showEma20) drawLine("ema20", "#ec4899");
+    if (this.showSma200) drawLine("sma200", "#8b5cf6");
     if (this.showBb) {
       drawLine("bb_upper", "#00e5ff", [3, 3]);
       drawLine("bb_lower", "#00e5ff", [3, 3]);
     }
-    drawLine("vwap", "#b388ff");
 
     // X-Axis Date/Time Labels
     ctx.fillStyle = "#64748b";
@@ -640,6 +695,137 @@ class SP500PriceChart {
     });
   }
 
+  renderStochChart(labels, candles) {
+    if (!this.stochCanvas) {
+      this.stochCanvas = document.getElementById("stoch-canvas");
+      if (!this.stochCanvas) return;
+    }
+    const ctx = this.stochCanvas.getContext("2d");
+    if (this.stochChart) this.stochChart.destroy();
+
+    const kValues = candles.map(c => c.stoch_k);
+    const dValues = candles.map(c => c.stoch_d);
+
+    this.stochChart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: "%K (14)",
+            data: kValues,
+            borderColor: "#10b981",
+            borderWidth: 1.5,
+            pointRadius: 0,
+            fill: false,
+            tension: 0.1
+          },
+          {
+            label: "%D (3)",
+            data: dValues,
+            borderColor: "#f59e0b",
+            borderWidth: 1.2,
+            borderDash: [3, 3],
+            pointRadius: 0,
+            fill: false,
+            tension: 0.1
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: true,
+            labels: { color: "#94a3b8", font: { family: "JetBrains Mono", size: 9 }, boxWidth: 10 }
+          },
+          tooltip: {
+            backgroundColor: "rgba(10, 14, 23, 0.95)",
+            borderColor: "#10b981",
+            borderWidth: 1,
+            titleFont: { family: "JetBrains Mono", size: 10 },
+            bodyFont: { family: "JetBrains Mono", size: 10 }
+          }
+        },
+        scales: {
+          x: { display: false },
+          y: {
+            position: "right",
+            min: 0,
+            max: 100,
+            grid: { color: "#161f30" },
+            ticks: {
+              color: "#94a3b8",
+              font: { family: "JetBrains Mono", size: 9 },
+              stepSize: 20
+            }
+          }
+        }
+      }
+    });
+  }
+
+  renderWilliamsChart(labels, candles) {
+    if (!this.williamsCanvas) {
+      this.williamsCanvas = document.getElementById("williams-canvas");
+      if (!this.williamsCanvas) return;
+    }
+    const ctx = this.williamsCanvas.getContext("2d");
+    if (this.williamsChart) this.williamsChart.destroy();
+
+    const rValues = candles.map(c => c.williams_r);
+
+    this.williamsChart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: "Williams %R (14)",
+            data: rValues,
+            borderColor: "#e11d48",
+            borderWidth: 1.5,
+            pointRadius: 0,
+            fill: false,
+            tension: 0.1
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: true,
+            labels: { color: "#94a3b8", font: { family: "JetBrains Mono", size: 9 }, boxWidth: 10 }
+          },
+          tooltip: {
+            backgroundColor: "rgba(10, 14, 23, 0.95)",
+            borderColor: "#e11d48",
+            borderWidth: 1,
+            titleFont: { family: "JetBrains Mono", size: 10 },
+            bodyFont: { family: "JetBrains Mono", size: 10 }
+          }
+        },
+        scales: {
+          x: { display: false },
+          y: {
+            position: "right",
+            min: -100,
+            max: 0,
+            grid: { color: "#161f30" },
+            ticks: {
+              color: "#94a3b8",
+              font: { family: "JetBrains Mono", size: 9 },
+              stepSize: 20
+            }
+          }
+        }
+      }
+    });
+  }
+
   updateIndicatorsPanel(summary, candles) {
     const setT = (id, val) => {
       const el = document.getElementById(id);
@@ -649,12 +835,17 @@ class SP500PriceChart {
     const latest = candles.length > 0 ? candles[candles.length - 1] : {};
 
     setT("val-price", latest.close ? `$${latest.close.toFixed(2)}` : "--");
-    setT("val-rsi", summary.rsi !== undefined ? `${summary.rsi} (${summary.rsi_state || 'NEUTRAL'})` : "--");
-    setT("val-macd", summary.macd !== undefined ? `${summary.macd} (${summary.macd_trend || 'NEUTRAL'})` : "--");
-    setT("val-sma20", summary.sma20 ? `$${summary.sma20}` : "--");
-    setT("val-sma50", summary.sma50 ? `$${summary.sma50}` : "--");
-    setT("val-bb-up", latest.bb_upper ? `$${latest.bb_upper.toFixed(2)}` : "--");
-    setT("val-bb-low", latest.bb_lower ? `$${latest.bb_lower.toFixed(2)}` : "--");
+    setT("val-vwap", summary.vwap ? `$${Number(summary.vwap).toFixed(2)}` : (latest.vwap ? `$${Number(latest.vwap).toFixed(2)}` : "--"));
+    setT("val-sma20", summary.sma20 ? `$${Number(summary.sma20).toFixed(2)}` : (latest.sma20 ? `$${Number(latest.sma20).toFixed(2)}` : "--"));
+    setT("val-sma50", summary.sma50 ? `$${Number(summary.sma50).toFixed(2)}` : (latest.sma50 ? `$${Number(latest.sma50).toFixed(2)}` : "--"));
+    setT("val-ema20", summary.ema20 ? `$${Number(summary.ema20).toFixed(2)}` : (latest.ema20 ? `$${Number(latest.ema20).toFixed(2)}` : "--"));
+    setT("val-sma200", summary.sma200 ? `$${Number(summary.sma200).toFixed(2)}` : (latest.sma200 ? `$${Number(latest.sma200).toFixed(2)}` : "--"));
+    setT("val-bb-up", latest.bb_upper ? `$${Number(latest.bb_upper).toFixed(2)}` : "--");
+    setT("val-bb-low", latest.bb_lower ? `$${Number(latest.bb_lower).toFixed(2)}` : "--");
+    setT("val-rsi", summary.rsi !== undefined && summary.rsi !== null ? `${summary.rsi} (${summary.rsi_state || 'NEUTRAL'})` : "--");
+    setT("val-macd", summary.macd !== undefined && summary.macd !== null ? `${summary.macd} (${summary.macd_trend || 'NEUTRAL'})` : "--");
+    setT("val-stoch", latest.stoch_k !== undefined && latest.stoch_k !== null ? `${Number(latest.stoch_k).toFixed(1)} / ${Number(latest.stoch_d || 0).toFixed(1)}` : "--");
+    setT("val-williams", latest.williams_r !== undefined && latest.williams_r !== null ? `${Number(latest.williams_r).toFixed(1)}` : "--");
   }
 
   updateTerminalDesk(json) {

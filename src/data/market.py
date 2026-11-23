@@ -782,6 +782,7 @@ def fetch_stock_history(symbol: str, period: str = "1mo", interval: Optional[str
             "sma20": latest.get("sma20"),
             "sma50": latest.get("sma50"),
             "sma200": latest.get("sma200"),
+            "ema20": latest.get("ema20"),
             "above_sma50": (latest.get("close") or 0) > (latest.get("sma50") or 0),
             "above_sma200": (latest.get("close") or 0) > (latest.get("sma200") or 0)
         }
