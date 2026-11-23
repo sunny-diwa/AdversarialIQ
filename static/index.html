@@ -51,7 +51,9 @@
   <div class="global-search-bar">
     <div class="search-box-wrapper">
       <span class="search-icon" aria-hidden="true">🔍</span>
-      <input type="text" id="header-stock-search" class="global-search-input" placeholder="SEARCH 503 S&P 500 STOCKS BY TICKER OR NAME (e.g. AAPL, NVDA, TSLA, MSFT)..." autocomplete="off" spellcheck="false" aria-label="Search 503 S&P 500 stocks by ticker or company name">
+      <input type="text" id="header-stock-search" class="global-search-input"
+        placeholder="SEARCH 503 S&P 500 STOCKS BY TICKER OR NAME (e.g. AAPL, NVDA, TSLA, MSFT)..." autocomplete="off"
+        spellcheck="false" aria-label="Search 503 S&P 500 stocks by ticker or company name">
       <div id="header-stock-dropdown" class="stock-dropdown-results" role="listbox"></div>
     </div>
 
@@ -1260,15 +1262,18 @@ Paper trade ledger linked ($100K capital active).
 
     <!-- VIEW 7: 5-YEAR QUANTITATIVE BACKTEST STUDIO -->
     <div id="view-backtest" class="view-pane" style="display:none; flex-direction:column; gap:12px;">
-      
+
       <!-- Top Control Bar -->
-      <div class="panel" style="padding:10px 14px; background:rgba(15, 23, 42, 0.7); border:1px solid var(--border-color); border-radius:4px;">
+      <div class="panel"
+        style="padding:10px 14px; background:rgba(15, 23, 42, 0.7); border:1px solid var(--border-color); border-radius:4px;">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-          
+
           <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
             <div>
-              <span style="font-size:10px; color:var(--text-muted); display:block;">TARGET STOCK (10 MARQUEE 5Y DATA)</span>
-              <select id="bt-symbol-select" class="terminal-select" style="min-width:240px; font-weight:bold; color:var(--cyan-primary);">
+              <span style="font-size:10px; color:var(--text-muted); display:block;">TARGET STOCK (10 MARQUEE 5Y
+                DATA)</span>
+              <select id="bt-symbol-select" class="terminal-select"
+                style="min-width:240px; font-weight:bold; color:var(--cyan-primary);">
                 <option value="NVDA">NVDA — NVIDIA Corporation (Semiconductors) [✓ 5Y CACHED]</option>
               </select>
             </div>
@@ -1283,22 +1288,26 @@ Paper trade ledger linked ($100K capital active).
 
             <div>
               <span style="font-size:10px; color:var(--text-muted); display:block;">CAPITAL ($)</span>
-              <input type="number" id="bt-capital-input" class="terminal-input" value="10000" style="width:90px;" step="1000">
+              <input type="number" id="bt-capital-input" class="terminal-input" value="10000" style="width:90px;"
+                step="1000">
             </div>
 
             <div>
               <span style="font-size:10px; color:var(--text-muted); display:block;">STOP-LOSS %</span>
-              <input type="number" id="bt-stoploss-input" class="terminal-input" placeholder="e.g. 7" style="width:70px;" step="1">
+              <input type="number" id="bt-stoploss-input" class="terminal-input" placeholder="e.g. 7"
+                style="width:70px;" step="1">
             </div>
 
             <div>
               <span style="font-size:10px; color:var(--text-muted); display:block;">TAKE-PROFIT %</span>
-              <input type="number" id="bt-takeprofit-input" class="terminal-input" placeholder="e.g. 20" style="width:70px;" step="1">
+              <input type="number" id="bt-takeprofit-input" class="terminal-input" placeholder="e.g. 20"
+                style="width:70px;" step="1">
             </div>
           </div>
 
           <div style="display:flex; align-items:center; gap:10px;">
-            <button id="btn-run-backtest" class="f-key active" style="padding:8px 18px; font-size:11px; font-weight:800; background:var(--cyan-primary); color:#000;">
+            <button id="btn-run-backtest" class="f-key active"
+              style="padding:8px 18px; font-size:11px; font-weight:800; background:var(--cyan-primary); color:#000;">
               ⚡ RUN 5-YEAR BACKTEST
             </button>
           </div>
@@ -1311,22 +1320,34 @@ Paper trade ledger linked ($100K capital active).
       </div>
 
       <!-- Strategy Specification Box -->
-      <div id="bt-nlp-container" class="panel" style="padding:10px 14px; background:rgba(9, 14, 24, 0.7); border:1px solid var(--border-color); border-radius:4px;">
+      <div id="bt-nlp-container" class="panel"
+        style="padding:10px 14px; background:rgba(9, 14, 24, 0.7); border:1px solid var(--border-color); border-radius:4px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-          <span style="font-size:10.5px; font-weight:bold; color:var(--cyan-primary);">💬 TELL YOUR STRATEGY TO THE AI (NATURAL LANGUAGE):</span>
+          <span style="font-size:10.5px; font-weight:bold; color:var(--cyan-primary);">💬 TELL YOUR STRATEGY TO THE AI
+            (NATURAL LANGUAGE):</span>
           <div style="display:flex; gap:6px; flex-wrap:wrap;">
             <span style="font-size:9.5px; color:var(--text-muted);">PRESETS:</span>
-            <button type="button" class="ticker-chip strategy-chip" data-prompt="Buy when RSI < 35, sell when RSI > 65 or 6% stop loss">RSI Reversal</button>
-            <button type="button" class="ticker-chip strategy-chip" data-prompt="Buy when SMA 20 crosses above SMA 50, sell when SMA 20 crosses below SMA 50">SMA Golden Cross</button>
-            <button type="button" class="ticker-chip strategy-chip" data-prompt="Buy when Close <= BB_LOWER, sell when Close >= BB_UPPER">Bollinger Mean Reversion</button>
-            <button type="button" class="ticker-chip strategy-chip" data-prompt="Buy when MACD crosses above MACD_SIGNAL, sell when MACD crosses below MACD_SIGNAL">MACD Trend</button>
+            <button type="button" class="ticker-chip strategy-chip"
+              data-prompt="Buy when RSI < 35, sell when RSI > 65 or 6% stop loss">RSI Reversal</button>
+            <button type="button" class="ticker-chip strategy-chip"
+              data-prompt="Buy when SMA 20 crosses above SMA 50, sell when SMA 20 crosses below SMA 50">SMA Golden
+              Cross</button>
+            <button type="button" class="ticker-chip strategy-chip"
+              data-prompt="Buy when Close <= BB_LOWER, sell when Close >= BB_UPPER">Bollinger Mean Reversion</button>
+            <button type="button" class="ticker-chip strategy-chip"
+              data-prompt="Buy when MACD crosses above MACD_SIGNAL, sell when MACD crosses below MACD_SIGNAL">MACD
+              Trend</button>
           </div>
         </div>
-        <textarea id="bt-strategy-prompt" class="terminal-input" rows="2" style="width:100%; resize:vertical; font-family:'JetBrains Mono', monospace; font-size:11px;" placeholder="e.g. Buy when RSI drops below 35 and Close is above 50-day SMA. Sell when RSI rises above 65 or 6% stop loss."></textarea>
+        <textarea id="bt-strategy-prompt" class="terminal-input" rows="2"
+          style="width:100%; resize:vertical; font-family:'JetBrains Mono', monospace; font-size:11px;"
+          placeholder="e.g. Buy when RSI drops below 35 and Close is above 50-day SMA. Sell when RSI rises above 65 or 6% stop loss."></textarea>
       </div>
 
-      <div id="bt-preset-container" class="panel" style="display:none; padding:10px 14px; background:rgba(9, 14, 24, 0.7); border:1px solid var(--border-color); border-radius:4px;">
-        <span style="font-size:10.5px; font-weight:bold; color:var(--amber-primary);">ALGORITHMIC PRESET STRATEGY:</span>
+      <div id="bt-preset-container" class="panel"
+        style="display:none; padding:10px 14px; background:rgba(9, 14, 24, 0.7); border:1px solid var(--border-color); border-radius:4px;">
+        <span style="font-size:10.5px; font-weight:bold; color:var(--amber-primary);">ALGORITHMIC PRESET
+          STRATEGY:</span>
         <select id="bt-preset-select" class="terminal-select" style="margin-left:10px; width:260px;">
           <option value="sma_cross">SMA 20/50 Golden Cross</option>
           <option value="rsi_reversal">RSI (14) Oversold Reversal (&lt;35 / &gt;65)</option>
@@ -1348,7 +1369,8 @@ Paper trade ledger linked ($100K capital active).
         </div>
         <div class="metric-cell" style="padding:8px;">
           <div class="label">Alpha (vs B&amp;H)</div>
-          <div class="val" id="bt-kpi-alpha" style="font-size:15px; font-weight:800; color:var(--cyan-primary);">--</div>
+          <div class="val" id="bt-kpi-alpha" style="font-size:15px; font-weight:800; color:var(--cyan-primary);">--
+          </div>
         </div>
         <div class="metric-cell" style="padding:8px;">
           <div class="label">Sharpe Ratio</div>
@@ -1368,7 +1390,8 @@ Paper trade ledger linked ($100K capital active).
         </div>
         <div class="metric-cell" style="padding:8px;">
           <div class="label">Total Trades</div>
-          <div class="val" id="bt-kpi-trades" style="font-size:15px; font-weight:800; color:var(--cyan-primary);">--</div>
+          <div class="val" id="bt-kpi-trades" style="font-size:15px; font-weight:800; color:var(--cyan-primary);">--
+          </div>
         </div>
       </div>
 
@@ -1376,7 +1399,8 @@ Paper trade ledger linked ($100K capital active).
       <div class="panel" style="height:320px; display:flex; flex-direction:column;">
         <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
           <span>📈 5-YEAR STRATEGY EQUITY CURVE VS. BUY &amp; HOLD BENCHMARK</span>
-          <span style="font-size:10px; color:var(--text-muted);">1,255 DAILY BARS // SLIPPAGE: 5 BPS // INITIAL: $10,000</span>
+          <span style="font-size:10px; color:var(--text-muted);">1,255 DAILY BARS // SLIPPAGE: 5 BPS // INITIAL:
+            $10,000</span>
         </div>
         <div class="panel-body" style="flex:1; position:relative; min-height:260px;">
           <canvas id="bt-equity-chart"></canvas>
@@ -1387,7 +1411,8 @@ Paper trade ledger linked ($100K capital active).
       <div class="panel" style="display:flex; flex-direction:column;">
         <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
           <div style="display:flex; gap:6px;">
-            <button type="button" class="f-key bt-subtab-btn active" data-subtab="code">💻 GENERATED PYTHON STRATEGY CODE</button>
+            <button type="button" class="f-key bt-subtab-btn active" data-subtab="code">💻 GENERATED PYTHON STRATEGY
+              CODE</button>
             <button type="button" class="f-key bt-subtab-btn" data-subtab="trades">📋 TRADE EXECUTION LOG</button>
           </div>
         </div>
@@ -1395,7 +1420,8 @@ Paper trade ledger linked ($100K capital active).
         <div class="panel-body">
           <!-- Code Subtab -->
           <div id="bt-subtab-code" style="display:block;">
-            <pre id="bt-generated-code" style="margin:0; padding:12px; background:#040711; border:1px solid #1e293b; border-radius:4px; color:#38bdf8; font-family:'JetBrains Mono', monospace; font-size:11px; line-height:1.45; overflow-x:auto; max-height:220px;">// Strategy code will be rendered here...</pre>
+            <pre id="bt-generated-code"
+              style="margin:0; padding:12px; background:#040711; border:1px solid #1e293b; border-radius:4px; color:#38bdf8; font-family:'JetBrains Mono', monospace; font-size:11px; line-height:1.45; overflow-x:auto; max-height:220px;">// Strategy code will be rendered here...</pre>
           </div>
 
           <!-- Trade Log Subtab -->
@@ -1413,7 +1439,10 @@ Paper trade ledger linked ($100K capital active).
                 </tr>
               </thead>
               <tbody id="bt-trades-tbody">
-                <tr><td colspan="7" style="text-align:center; padding:12px; color:var(--text-muted);">Run a backtest to inspect trades.</td></tr>
+                <tr>
+                  <td colspan="7" style="text-align:center; padding:12px; color:var(--text-muted);">Run a backtest to
+                    inspect trades.</td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -1429,7 +1458,8 @@ Paper trade ledger linked ($100K capital active).
     <div class="modal-content" style="max-width:540px; max-height:88vh; overflow-y:auto;">
       <div class="modal-header">
         <span>⚙️ ADVERSARIALIQ ENGINE &amp; BROKER SETTINGS</span>
-        <button id="btn-close-settings" aria-label="Close settings modal" style="background:none; border:none; color:#fff; cursor:pointer; font-size:16px;">&times;</button>
+        <button id="btn-close-settings" aria-label="Close settings modal"
+          style="background:none; border:none; color:#fff; cursor:pointer; font-size:16px;">&times;</button>
       </div>
       <div class="modal-body">
 
@@ -1555,7 +1585,8 @@ Paper trade ledger linked ($100K capital active).
     <div class="modal-content" style="max-width:820px; max-height:88vh; overflow-y:auto;">
       <div class="modal-header">
         <span>📡 REAL-TIME LLM OBSERVABILITY &amp; TRACE LOGS</span>
-        <button id="btn-close-traces" aria-label="Close traces modal" style="background:none; border:none; color:#fff; cursor:pointer; font-size:16px;">&times;</button>
+        <button id="btn-close-traces" aria-label="Close traces modal"
+          style="background:none; border:none; color:#fff; cursor:pointer; font-size:16px;">&times;</button>
       </div>
       <div class="modal-body">
 
