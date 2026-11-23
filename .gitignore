@@ -55,5 +55,9 @@ Thumbs.db
 *.swp
 *.swo
 
+# Database files
+*.db
+*.sqlite3
+
 # Logs
 *.log

@@ -34,6 +34,7 @@
         <div class="pulse-dot"></div>
         <span id="agent-provider-tag">GROQ / QUANT ENGINE</span>
       </div>
+      <button id="btn-open-traces" class="btn-settings" style="border-color:#38bdf8; color:#38bdf8;">📡 TRACES / OBSERVABILITY</button>
       <button id="btn-open-settings" class="btn-settings">⚙️ AI SETTINGS</button>
     </div>
   </header>
@@ -294,14 +295,15 @@
           <!-- Quick Prompts Bar -->
           <div class="quick-prompts-bar">
             <button class="quick-pill" data-prompt="Run AdversarialIQ Trade Tribunal (Bull vs Bear vs Judge) for {symbol}">⚖️ AdversarialIQ Tribunal</button>
+            <button class="quick-pill" data-prompt="Check Non-LLM Risk Gate position sizing and bracket orders for {symbol}">🛡️ Risk Gate &amp; Sizing</button>
+            <button class="quick-pill" data-prompt="Check 48-Hour Earnings Blackout Window for {symbol}">📅 Earnings Blackout</button>
             <button class="quick-pill" data-prompt="Prosecute the strongest Bull case for {symbol} with catalysts">🐂 Agent Bull Case</button>
             <button class="quick-pill" data-prompt="Aggressively stress-test downside risks and Bear thesis for {symbol}">🐻 Agent Bear Case</button>
             <button class="quick-pill" data-prompt="Generate AdversarialIQ daily desk morning briefing note">📋 Morning Desk Brief</button>
-            <button class="quick-pill" data-prompt="Summarize latest SEC 10-K, 10-Q MD&A and risk factors for {symbol}">📑 SEC 10-K Filings</button>
-            <button class="quick-pill" data-prompt="Analyze Form 4 insider trading clusters and 13F ownership for {symbol}">🕵️ Insider Form 4 & 13F</button>
+            <button class="quick-pill" data-prompt="Summarize latest SEC 10-K, 10-Q MD&amp;A and risk factors for {symbol}">📑 SEC 10-K Filings</button>
+            <button class="quick-pill" data-prompt="Analyze Form 4 insider trading clusters and 13F ownership for {symbol}">🕵️ Insider Form 4 &amp; 13F</button>
             <button class="quick-pill" data-prompt="Fetch real-time breaking news catalysts and sentiment for {symbol}">📰 Breaking News</button>
             <button class="quick-pill" data-prompt="Provide macroeconomic regime and Treasury yield curve context">🌍 Macro Regime</button>
-            <button class="quick-pill" data-prompt="Calculate 2% risk position size and stop-loss for {symbol} on $10K capital">🛡️ 2% Risk Sizing</button>
             <button class="quick-pill" data-prompt="Buy 10 shares of {symbol}">⚡ Route Buy Order</button>
           </div>
 
@@ -1004,6 +1006,59 @@ Paper trade ledger linked ($10,000 capital active).
           </div>
         </div>
 
+        <!-- SQLite Trade & Thesis Journal -->
+        <div class="panel" style="margin-top:10px;">
+          <div class="panel-header">
+            <span>📜 PERSISTENT THESIS JOURNAL (SQLITE DB)</span>
+            <span style="font-size:10px; color:var(--text-muted);">ADVERSARIAL TRIAL ARCHIVE &amp; REALIZED P&amp;L</span>
+          </div>
+          <div class="panel-body" style="padding:0; overflow-y:auto; max-height:220px;">
+            <table class="bloomberg-table">
+              <thead>
+                <tr>
+                  <th>TIMESTAMP</th>
+                  <th>SYMBOL</th>
+                  <th>ACTION</th>
+                  <th style="text-align:right;">ENTRY</th>
+                  <th style="text-align:right;">EXIT</th>
+                  <th style="text-align:right;">PnL ($)</th>
+                  <th style="text-align:center;">CONVICTION</th>
+                  <th>STATUS</th>
+                  <th>JUDICIAL RULING</th>
+                </tr>
+              </thead>
+              <tbody id="portfolio-theses-tbody">
+                <tr><td colspan="9" style="text-align:center; padding:10px; color:var(--text-muted);">No recorded theses in SQLite database.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Self-Improving Post-Mortem Reflections -->
+        <div class="panel" style="margin-top:10px;">
+          <div class="panel-header">
+            <span>🧠 AGENT POST-MORTEM REFLECTIONS (SELF-IMPROVING MEMORY)</span>
+            <span style="font-size:10px; color:var(--green-up);">INJECTED INTO FUTURE DEBATES</span>
+          </div>
+          <div class="panel-body" style="padding:0; overflow-y:auto; max-height:200px;">
+            <table class="bloomberg-table">
+              <thead>
+                <tr>
+                  <th>DATE</th>
+                  <th>SYMBOL</th>
+                  <th>SECTOR</th>
+                  <th>OUTCOME</th>
+                  <th>EXTRACTED POST-MORTEM LESSON</th>
+                  <th>KEY FACTORS</th>
+                </tr>
+              </thead>
+              <tbody id="portfolio-reflections-tbody">
+                <tr><td colspan="6" style="text-align:center; padding:10px; color:var(--text-muted);">No post-mortem reflections recorded yet.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -1177,6 +1232,64 @@ Paper trade ledger linked ($10,000 capital active).
       </div>
       <div class="modal-footer">
         <button id="btn-save-settings" class="f-key active">SAVE &amp; APPLY SETTINGS</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LLM OBSERVABILITY & TRACE MODAL -->
+  <div id="traces-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width:820px; max-height:88vh; overflow-y:auto;">
+      <div class="modal-header">
+        <span>📡 REAL-TIME LLM OBSERVABILITY &amp; TRACE LOGS</span>
+        <button id="btn-close-traces" style="background:none; border:none; color:#fff; cursor:pointer; font-size:16px;">&times;</button>
+      </div>
+      <div class="modal-body">
+        
+        <!-- Observability Metrics Cards -->
+        <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; margin-bottom:12px;">
+          <div class="metric-cell" style="padding:8px;">
+            <div class="label">Total Invocations</div>
+            <div class="val" id="trace-metric-total" style="font-size:16px; color:#fff;">--</div>
+          </div>
+          <div class="metric-cell" style="padding:8px;">
+            <div class="label">Avg Latency</div>
+            <div class="val" id="trace-metric-latency" style="font-size:16px; color:var(--cyan-primary);">-- ms</div>
+          </div>
+          <div class="metric-cell" style="padding:8px;">
+            <div class="label">Est. Tokens</div>
+            <div class="val" id="trace-metric-tokens" style="font-size:16px; color:var(--amber-primary);">--</div>
+          </div>
+          <div class="metric-cell" style="padding:8px;">
+            <div class="label">Success Rate</div>
+            <div class="val" id="trace-metric-success" style="font-size:16px; color:var(--green-up);">--%</div>
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <span style="font-size:11px; font-weight:bold; color:var(--text-muted);">RECENT INFERENCE CALLS &amp; FAILOVER HISTORY:</span>
+          <button id="btn-refresh-traces" class="f-key" style="font-size:9.5px; padding:2px 8px;">REFRESH WIRE</button>
+        </div>
+
+        <div style="overflow-x:auto;">
+          <table class="bloomberg-table">
+            <thead>
+              <tr>
+                <th>TIMESTAMP</th>
+                <th>PROVIDER</th>
+                <th>MODEL</th>
+                <th>SYMBOL</th>
+                <th style="text-align:right;">LATENCY</th>
+                <th style="text-align:right;">TOKENS</th>
+                <th style="text-align:center;">STATUS</th>
+                <th>PROMPT PREVIEW</th>
+              </tr>
+            </thead>
+            <tbody id="traces-table-tbody">
+              <tr><td colspan="8" style="text-align:center; padding:15px; color:var(--text-muted);">No trace records yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
       </div>
     </div>
   </div>

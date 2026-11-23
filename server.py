@@ -6,8 +6,11 @@ Production FastAPI Application orchestrating:
 3. SEC Form 4 Insider Trades & 13F Ownership
 4. Breaking News & Catalyst Sentiment (Finnhub & RSS)
 5. Macroeconomic Regime & Treasury Yield Curve (FRED & CBOE)
-6. Institutional Paper Trading Portfolio ($10,000 Starting Base)
-7. Multi-Persona TradingAgents Syndicate & On-Demand LLM Engine
+6. Institutional Paper Trading Portfolio ($10,000 Starting Base / Alpaca Paper Desk)
+7. Deterministic Non-LLM Risk Guardrail (ATR Sizing, 5% Ticker Cap, 20% Sector Cap, Mandatory Brackets)
+8. 48-Hour Earnings Blackout Window Filter
+9. Persistent SQLite Thesis Journal & Post-Mortem Reflection Store
+10. Multi-Provider LLM Engine with Observability Traces
 """
 
 import logging
@@ -21,13 +24,13 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from src.agent_syndicate import (
+from src.agents import (
     get_daily_desk_briefing,
-    run_adversarial_trade_tribunal,
     process_chat_message,
+    run_adversarial_trade_tribunal,
+    PostMortemAgent,
 )
-from src.alpaca_client import AlpacaPaperClient
-from src.config import (
+from src.core import (
     HOST,
     IS_DEV,
     PORT,
@@ -35,23 +38,33 @@ from src.config import (
     SP500_STOCKS,
     STATIC_DIR,
 )
-from src.llm import LLMManager
-from src.macro import fetch_macro_regime
-from src.market_data import (
+from src.data import (
     fetch_benchmarks,
+    fetch_breaking_news,
     fetch_company_details,
+    fetch_earnings_calendar,
+    fetch_insider_and_13f_activity,
+    fetch_macro_regime,
+    fetch_sec_filings,
     fetch_stock_history,
     fetch_stock_quote,
+    fetch_stock_technicals,
 )
-from src.news import fetch_breaking_news
-from src.portfolio import (
+from src.execution import (
+    AlpacaPaperClient,
     execute_order,
     get_portfolio_state,
     load_portfolio,
     reset_portfolio,
 )
+from src.llm import LLMManager, LLMTracer
+from src.memory import (
+    get_journal_stats,
+    get_recent_theses,
+    retrieve_reflections,
+)
+from src.risk import RiskGuardrail
 from src.scanner import get_market_movers, run_sp500_scanner
-from src.sec_edgar import fetch_insider_and_13f_activity, fetch_sec_filings
 
 # Suppress warnings
 warnings.filterwarnings("ignore")
@@ -62,7 +75,7 @@ logger = logging.getLogger("SP500Trader.Server")
 app = FastAPI(
     title="AdversarialIQ - S&P 500 AI Trading Terminal",
     description="Institutional AI Syndicate & Bloomberg-Grade Trading Terminal",
-    version="4.0.0"
+    version="4.5.0"
 )
 
 app.add_middleware(
@@ -115,6 +128,14 @@ class AlpacaPingRequest(BaseModel):
     api_key: Optional[str] = None
     secret_key: Optional[str] = None
     base_url: Optional[str] = None
+
+
+class RiskEvaluateRequest(BaseModel):
+    symbol: str
+    action: str = "BUY"
+    shares: Optional[int] = None
+    conviction_score: Optional[int] = 50
+    equity: Optional[float] = None
 
 
 # -----------------------------------------------------------------------------
@@ -177,7 +198,7 @@ async def get_stock_history(
     symbol: str,
     period: str = Query("1mo", regex="^(1d|5d|1mo|6mo|1y|5y)$")
 ):
-    """Returns candlestick OHLCV data with pre-calculated technical indicators."""
+    """Returns candlestick OHLCV data with pre-calculated technical indicators (SMA, EMA, BB, RSI, MACD, ATR)."""
     return fetch_stock_history(symbol, period)
 
 
@@ -191,8 +212,14 @@ async def get_company_details(symbol: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/stock/{symbol}/technicals")
+async def get_stock_technicals_endpoint(symbol: str):
+    """Calculated technicals including 14-day ATR, RSI, MACD, and SMAs."""
+    return fetch_stock_technicals(symbol)
+
+
 # -----------------------------------------------------------------------------
-# Multi-Layer Data Integrations (SEC, Insider 13F, News, Macro)
+# Multi-Layer Data Integrations (SEC, Insider 13F, News, Macro, Calendar)
 # -----------------------------------------------------------------------------
 @app.get("/api/stock/{symbol}/sec")
 async def get_sec_filings(symbol: str):
@@ -234,6 +261,44 @@ async def get_macro_regime():
         return {"error": str(e), "regime": "NEUTRAL"}
 
 
+@app.get("/api/calendar/{symbol}/earnings")
+async def get_earnings_calendar_endpoint(symbol: str):
+    """Checks 48-Hour Earnings Blackout Window for risk management veto."""
+    try:
+        return fetch_earnings_calendar(symbol)
+    except Exception as e:
+        logger.error(f"Error fetching earnings calendar for {symbol}: {e}")
+        return {"error": str(e), "symbol": symbol, "blackout_status": "CLEAR"}
+
+
+# -----------------------------------------------------------------------------
+# Deterministic Non-LLM Risk Guardrail Endpoint
+# -----------------------------------------------------------------------------
+@app.post("/api/risk/evaluate")
+async def evaluate_risk(req: RiskEvaluateRequest):
+    """
+    Evaluates order through deterministic mathematical risk gate:
+    - 14-day ATR-based position sizing
+    - Max 5% single-ticker exposure cap
+    - Max 20% sector exposure cap
+    - Max 5 open positions limit
+    - 48h Earnings Blackout filter
+    - Automated Take-Profit & Stop-Loss bracket order legs
+    """
+    p = load_portfolio()
+    equity = req.equity or (p.get("cash", 10000.0) + sum(pos.get("cost_basis", 0) for pos in p.get("positions", {}).values()))
+    
+    return RiskGuardrail.evaluate_order(
+        symbol=req.symbol,
+        action=req.action,
+        equity=equity,
+        current_positions=p.get("positions", {}),
+        requested_shares=req.shares,
+        conviction_score=req.conviction_score,
+        manual_override=True
+    )
+
+
 # -----------------------------------------------------------------------------
 # S&P 500 Scanner & Market Pulse
 # -----------------------------------------------------------------------------
@@ -260,7 +325,7 @@ async def get_portfolio(alpaca_key: Optional[str] = None, alpaca_secret: Optiona
 
 @app.post("/api/portfolio/trade")
 async def post_trade(req: TradeRequest):
-    """Executes a virtual paper trade (BUY or SELL) with order typing and risk tracking."""
+    """Executes a virtual paper trade with strict Non-LLM Risk Gate validation and bracket orders."""
     try:
         res = execute_order(
             action=req.action,
@@ -334,10 +399,7 @@ async def get_models():
 
 @app.post("/api/agent/provider/ping")
 async def ping_provider_endpoint(req: PingRequest):
-    """
-    On-Demand Health Tester: sends a lightweight 1-token request ONLY when user switches or tests a provider.
-    Strictly avoids background polling loops to preserve rate limits.
-    """
+    """On-Demand Health Tester: sends a lightweight 1-token request ONLY when user switches or tests a provider."""
     return LLMManager.ping_provider(
         provider=req.provider,
         model=req.model,
@@ -348,7 +410,7 @@ async def ping_provider_endpoint(req: PingRequest):
 
 @app.get("/api/agent/debater")
 async def get_debate(symbol: str = "AAPL"):
-    """AdversarialIQ Tribunal: Agent Bull vs. Agent Bear vs. Chief Risk Judge."""
+    """AdversarialIQ Tribunal: Bull Advocate vs. Bear Adversary vs. Chief Judge via State Machine."""
     return run_adversarial_trade_tribunal(symbol)
 
 
@@ -375,6 +437,42 @@ async def chat_endpoint(req: ChatRequest):
         alpaca_key=req.alpaca_key,
         alpaca_secret=req.alpaca_secret
     )
+
+
+# -----------------------------------------------------------------------------
+# Memory Journal & Post-Mortem Reflections (SQLite)
+# -----------------------------------------------------------------------------
+@app.get("/api/memory/journal")
+async def get_theses_journal(limit: int = 25, symbol: Optional[str] = None):
+    """Returns persistent trade theses logged by the Adversarial Tribunal in SQLite."""
+    return get_recent_theses(limit=limit, symbol=symbol)
+
+
+@app.get("/api/memory/reflections")
+async def get_agent_reflections(symbol: Optional[str] = None, sector: Optional[str] = None, limit: int = 10):
+    """Returns self-improving post-mortem reflections extracted from closed trades."""
+    return retrieve_reflections(symbol=symbol, sector=sector, limit=limit)
+
+
+@app.get("/api/memory/stats")
+async def get_memory_stats():
+    """Returns summary thesis statistics (total theses, wins, losses, win rate %)."""
+    return get_journal_stats()
+
+
+# -----------------------------------------------------------------------------
+# LLM Observability & Trace Logging
+# -----------------------------------------------------------------------------
+@app.get("/api/observability/traces")
+async def get_llm_traces(limit: int = 50, provider: Optional[str] = None):
+    """Returns recent structured LLM execution traces (latency, tokens, status)."""
+    return LLMTracer.get_traces(limit=limit, provider=provider)
+
+
+@app.get("/api/observability/metrics")
+async def get_llm_metrics():
+    """Returns aggregate LLM observability metrics (total calls, avg latency, success rate %)."""
+    return LLMTracer.get_metrics()
 
 
 # -----------------------------------------------------------------------------

@@ -79,8 +79,10 @@ class SP500PaperPortfolio {
       this.currentData = data;
       this.renderOverview(data);
       this.renderPositions(data.positions || []);
-      this.renderTradeBlotter(data.recent_trades || []);
+      this.renderTradeBlotter(data.trades || data.recent_trades || []);
       this.renderEquityChart(data.equity_history || []);
+      await this.loadThesesJournal();
+      await this.loadReflections();
     } catch (e) {
       console.error("Failed to load portfolio:", e);
     }
@@ -254,6 +256,76 @@ class SP500PaperPortfolio {
         </tr>
       `;
     }).join("");
+  }
+
+  async loadThesesJournal() {
+    const tbody = document.getElementById("portfolio-theses-tbody");
+    if (!tbody) return;
+
+    try {
+      const res = await fetch("/api/memory/journal?limit=20");
+      const theses = await res.json();
+      if (!theses || theses.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:12px; color:var(--text-muted);">No recorded theses in SQLite database. Run Adversarial Tribunal on any stock to log a thesis.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = theses.map(t => {
+        const isBuy = t.action === "BUY";
+        const actCol = isBuy ? "color:var(--green-up);" : "color:var(--amber-primary);";
+        const pnl = t.realized_pnl;
+        const pnlStr = pnl !== null && pnl !== undefined ? (pnl >= 0 ? `+$${pnl.toFixed(2)}` : `-$${Math.abs(pnl).toFixed(2)}`) : "--";
+        const pnlCol = pnl !== null && pnl !== undefined ? (pnl >= 0 ? "color:var(--green-up);" : "color:var(--red-down);") : "color:var(--text-muted);";
+        const convBadge = t.conviction_score >= 65 ? "background:#14532d; color:#86efac;" : (t.conviction_score <= 40 ? "background:#7f1d1d; color:#fca5a5;" : "background:#1e293b; color:#cbd5e1;");
+        const statusCol = t.status === "OPEN" ? "color:var(--green-up);" : (t.status === "CLOSED" ? "color:#94a3b8;" : "color:var(--red-down);");
+
+        return `
+          <tr>
+            <td style="color:var(--text-muted); font-size:10px;">${t.opened_at || '--'}</td>
+            <td><strong style="color:var(--cyan-primary);">${t.symbol}</strong></td>
+            <td><strong style="${actCol}">${t.action}</strong></td>
+            <td style="text-align:right;">$${(t.entry_price || 0).toFixed(2)}</td>
+            <td style="text-align:right;">${t.exit_price ? '$' + t.exit_price.toFixed(2) : '--'}</td>
+            <td style="text-align:right; font-weight:bold; ${pnlCol}">${pnlStr}</td>
+            <td style="text-align:center;"><span style="font-size:9.5px; padding:1px 6px; border-radius:3px; font-weight:bold; ${convBadge}">${t.conviction_score}/100</span></td>
+            <td><strong style="${statusCol}">${t.status}</strong></td>
+            <td style="font-size:10px; color:#cbd5e1; max-width:240px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${t.judge_ruling || '--'}</td>
+          </tr>
+        `;
+      }).join("");
+    } catch (e) {
+      console.error("Error loading theses journal:", e);
+    }
+  }
+
+  async loadReflections() {
+    const tbody = document.getElementById("portfolio-reflections-tbody");
+    if (!tbody) return;
+
+    try {
+      const res = await fetch("/api/memory/reflections?limit=10");
+      const reflections = await res.json();
+      if (!reflections || reflections.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:12px; color:var(--text-muted);">No post-mortem reflections recorded yet. Reflections are generated when paper trades are closed.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = reflections.map(r => {
+        const outCol = r.outcome === "WIN" ? "color:var(--green-up);" : (r.outcome === "LOSS" ? "color:var(--red-down);" : "color:var(--amber-primary);");
+        return `
+          <tr>
+            <td style="color:var(--text-muted); font-size:10px;">${r.created_at || '--'}</td>
+            <td><strong style="color:var(--cyan-primary);">${r.symbol}</strong></td>
+            <td style="color:#94a3b8; font-size:10.5px;">${r.sector || 'Other'}</td>
+            <td><strong style="${outCol}">${r.outcome}</strong></td>
+            <td style="color:#f1f5f9; font-size:10.5px;">${r.lesson}</td>
+            <td style="font-size:9.5px; color:var(--text-muted);">${r.key_factors || '--'}</td>
+          </tr>
+        `;
+      }).join("");
+    } catch (e) {
+      console.error("Error loading agent reflections:", e);
+    }
   }
 
   renderEquityChart(history) {

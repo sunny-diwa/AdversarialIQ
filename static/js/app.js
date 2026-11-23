@@ -23,6 +23,7 @@ class BloombergApp {
     this.initClocks();
     this.initNavigation();
     this.initSettingsModal();
+    this.initObservabilityModal();
     this.initHotTickers();
     this.initHeaderQuickButtons();
 
@@ -528,6 +529,84 @@ class BloombergApp {
         }
 
         modal.classList.remove("open");
+      });
+    }
+  }
+
+  initObservabilityModal() {
+    const btnOpen = document.getElementById("btn-open-traces");
+    const btnClose = document.getElementById("btn-close-traces");
+    const btnRefresh = document.getElementById("btn-refresh-traces");
+    const modal = document.getElementById("traces-modal");
+
+    const loadObservabilityData = async () => {
+      try {
+        const [tracesRes, metricsRes] = await Promise.all([
+          fetch("/api/observability/traces?limit=30"),
+          fetch("/api/observability/metrics")
+        ]);
+
+        const traces = await tracesRes.json();
+        const metrics = await metricsRes.json();
+
+        // Update metrics
+        const totalEl = document.getElementById("trace-metric-total");
+        const latEl = document.getElementById("trace-metric-latency");
+        const tokEl = document.getElementById("trace-metric-tokens");
+        const succEl = document.getElementById("trace-metric-success");
+
+        if (totalEl) totalEl.innerText = metrics.total_calls || 0;
+        if (latEl) latEl.innerText = `${metrics.avg_latency_ms || 0} ms`;
+        if (tokEl) tokEl.innerText = Number(metrics.total_tokens_est || 0).toLocaleString();
+        if (succEl) succEl.innerText = `${metrics.success_rate_pct || 100}%`;
+
+        // Render table
+        const tbody = document.getElementById("traces-table-tbody");
+        if (!tbody) return;
+
+        if (!traces || traces.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:15px; color:var(--text-muted);">No LLM trace records yet. Ask questions in the Agent tab to generate traces.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = traces.map(t => {
+          const statusCol = t.status === "SUCCESS" ? "color:var(--green-up);" : (t.status === "FAILOVER" ? "color:var(--amber-primary);" : "color:var(--red-down);");
+          return `
+            <tr>
+              <td style="color:var(--text-muted); font-size:10px;">${t.timestamp.split(" ")[1] || t.timestamp}</td>
+              <td><strong style="color:var(--cyan-primary); font-size:10.5px;">${t.provider}</strong></td>
+              <td style="color:#94a3b8; font-size:10px;">${t.model}</td>
+              <td><strong style="color:#fff;">${t.symbol || 'MARKET'}</strong></td>
+              <td style="text-align:right; font-size:10.5px; font-weight:bold; color:var(--cyan-primary);">${t.latency_ms} ms</td>
+              <td style="text-align:right; font-size:10.5px; color:var(--amber-primary);">${t.total_tokens_est}</td>
+              <td style="text-align:center;"><strong style="${statusCol} font-size:10px;">${t.status}</strong></td>
+              <td style="font-size:10px; color:#cbd5e1; max-width:260px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${t.prompt_preview}</td>
+            </tr>
+          `;
+        }).join("");
+      } catch (e) {
+        console.error("Error loading traces:", e);
+      }
+    };
+
+    if (btnOpen && modal) {
+      btnOpen.addEventListener("click", () => {
+        modal.classList.add("open");
+        loadObservabilityData();
+      });
+    }
+
+    if (btnClose && modal) {
+      btnClose.addEventListener("click", () => modal.classList.remove("open"));
+    }
+
+    if (btnRefresh) {
+      btnRefresh.addEventListener("click", () => loadObservabilityData());
+    }
+
+    if (modal) {
+      modal.addEventListener("click", (e) => {
+        if (e.target === modal) modal.classList.remove("open");
       });
     }
   }
