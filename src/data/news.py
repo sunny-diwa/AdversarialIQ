@@ -131,6 +131,7 @@ def fetch_breaking_news(symbol: str) -> Dict[str, Any]:
                     articles.append({
                         "id": str(item.get("id", "")),
                         "title": title,
+                        "headline": title,
                         "summary": summary[:250] + ("..." if len(summary) > 250 else ""),
                         "source": item.get("source", "Finnhub"),
                         "url": item.get("url", f"https://finance.yahoo.com/quote/{sym}/news"),
@@ -158,6 +159,7 @@ def fetch_breaking_news(symbol: str) -> Dict[str, Any]:
                 articles.append({
                     "id": str(item.get("uuid", "")),
                     "title": title,
+                    "headline": title,
                     "summary": summary[:250] + ("..." if len(summary) > 250 else ""),
                     "source": item.get("publisher", "Yahoo Finance"),
                     "url": item.get("link", f"https://finance.yahoo.com/quote/{sym}/news"),
@@ -206,6 +208,7 @@ def fetch_breaking_news(symbol: str) -> Dict[str, Any]:
             articles.append({
                 "id": f"wire_{sym}_{idx}",
                 "title": title,
+                "headline": title,
                 "summary": summary,
                 "source": "Bloomberg / Reuters Financial Wire",
                 "url": f"https://finance.yahoo.com/quote/{sym}/news",
@@ -216,6 +219,10 @@ def fetch_breaking_news(symbol: str) -> Dict[str, Any]:
             })
 
     # Compute aggregate sentiment & catalyst frequency
+    bullish_count = sum(1 for a in articles if a.get("sentiment") == "BULLISH")
+    bearish_count = sum(1 for a in articles if a.get("sentiment") == "BEARISH")
+    neutral_count = sum(1 for a in articles if a.get("sentiment") == "NEUTRAL")
+
     if articles:
         avg_score = sum(a["sentiment_score"] for a in articles) / len(articles)
         all_catalysts = [c for a in articles for c in a["catalysts"] if c != "GENERAL_NEWS"]
@@ -239,7 +246,10 @@ def fetch_breaking_news(symbol: str) -> Dict[str, Any]:
         "articles": articles[:10],
         "overall_sentiment": {
             "score": round(avg_score, 2),
-            "label": overall_label
+            "label": overall_label,
+            "bullish_count": bullish_count,
+            "bearish_count": bearish_count,
+            "neutral_count": neutral_count
         },
         "top_catalysts": top_catalysts or ["MACRO_RATES"],
         "article_count": len(articles)

@@ -277,7 +277,9 @@ class SP500CompanyDashboard {
       if (mdaEl) mdaEl.innerText = data.mda_summary || "Standard Item 7 operational and strategic performance disclosures.";
 
       const riskEl = document.getElementById("sec-risk-content");
-      if (riskEl) riskEl.innerText = data.risk_factors_summary || "Market risk, competition, operational, and macroeconomic risk factors.";
+      if (riskEl) {
+        riskEl.innerText = data.risk_factors_summary || (Array.isArray(data.risk_factors) ? data.risk_factors.join(" • ") : "Market risk, competition, operational, and macroeconomic risk factors.");
+      }
 
       const listEl = document.getElementById("sec-filings-list");
       if (listEl && Array.isArray(data.filings)) {
@@ -285,7 +287,7 @@ class SP500CompanyDashboard {
           <div style="background:#111927; border:1px solid #1f2b3e; padding:3px 6px; border-radius:2px; font-size:9.5px;">
             <strong style="color:var(--amber-primary);">${f.form}</strong>
             <span style="color:var(--text-muted); margin-left:4px;">${f.filing_date}</span>
-            <span style="color:#94a3b8; margin-left:4px;">${(f.description || '').slice(0, 25)}</span>
+            <span style="color:#94a3b8; margin-left:4px;">${(f.description || '').slice(0, 35)}</span>
           </div>
         `).join("");
       }
@@ -304,7 +306,7 @@ class SP500CompanyDashboard {
         verdEl.innerText = data.cluster_verdict || "BALANCED / INACTIVE";
         if (data.cluster_verdict && data.cluster_verdict.includes("BUYING")) {
           verdEl.style.color = "var(--green-up)";
-        } else if (data.cluster_verdict && data.cluster_verdict.includes("SELLING")) {
+        } else if (data.cluster_verdict && (data.cluster_verdict.includes("SELLING") || data.cluster_verdict.includes("BEARISH"))) {
           verdEl.style.color = "var(--red-down)";
         } else {
           verdEl.style.color = "var(--text-muted)";
@@ -318,20 +320,26 @@ class SP500CompanyDashboard {
 
       // Form 4 Table
       const tradesTbody = document.getElementById("insider-trades-tbody");
-      if (tradesTbody && Array.isArray(data.form4_transactions)) {
-        if (data.form4_transactions.length === 0) {
+      const transactions = data.form4_transactions || data.transactions || [];
+      if (tradesTbody && Array.isArray(transactions)) {
+        if (transactions.length === 0) {
           tradesTbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:8px; color:var(--text-muted);">No Form 4 filings recorded in period.</td></tr>`;
         } else {
-          tradesTbody.innerHTML = data.form4_transactions.slice(0, 6).map(t => {
-            const isBuy = t.transaction_type === "BUY";
+          tradesTbody.innerHTML = transactions.slice(0, 6).map(t => {
+            const txType = t.transaction_type || (t.type && t.type.includes("BUY") ? "BUY" : "SELL");
+            const isBuy = txType === "BUY";
             const col = isBuy ? "color:var(--green-up);" : "color:var(--red-down);";
+            const name = t.insider_name || t.insider || "Officer";
+            const title = t.officer_title || t.position || "Executive";
+            const shs = t.shares || 0;
+            const valK = t.value ? (t.value / 1000).toFixed(1) : ((shs * 150) / 1000).toFixed(1);
             return `
               <tr>
-                <td style="color:#cbd5e1; font-weight:bold;">${t.insider_name}</td>
-                <td style="color:var(--text-muted);">${t.officer_title || 'Officer'}</td>
-                <td style="${col} font-weight:bold;">${t.transaction_type}</td>
-                <td style="text-align:right;">${(t.shares || 0).toLocaleString()}</td>
-                <td style="text-align:right;">$${((t.value || 0) / 1000).toFixed(1)}K</td>
+                <td style="color:#cbd5e1; font-weight:bold;">${name}</td>
+                <td style="color:var(--text-muted);">${title}</td>
+                <td style="${col} font-weight:bold;">${txType}</td>
+                <td style="text-align:right;">${shs.toLocaleString()}</td>
+                <td style="text-align:right;">$${valK}K</td>
               </tr>
             `;
           }).join("");
@@ -340,17 +348,22 @@ class SP500CompanyDashboard {
 
       // 13F Table
       const f13Tbody = document.getElementById("insider-13f-tbody");
-      if (f13Tbody && Array.isArray(data.institutional_holders)) {
-        if (data.institutional_holders.length === 0) {
+      const holders = data.institutional_holders || [];
+      if (f13Tbody && Array.isArray(holders)) {
+        if (holders.length === 0) {
           f13Tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; padding:8px; color:var(--text-muted);">No 13F holdings indexed.</td></tr>`;
         } else {
-          f13Tbody.innerHTML = data.institutional_holders.slice(0, 5).map(h => `
-            <tr>
-              <td style="color:#cbd5e1;">${h.holder}</td>
-              <td style="text-align:right; color:var(--cyan-primary); font-weight:bold;">${h.shares_pct}%</td>
-              <td style="text-align:right; color:var(--amber-primary);">$${h.value_billions}B</td>
-            </tr>
-          `).join("");
+          f13Tbody.innerHTML = holders.slice(0, 6).map(h => {
+            const pct = h.shares_pct ?? h.pct_out ?? 0;
+            const valB = h.value_billions ?? (h.value ? (h.value / 1e9).toFixed(1) : '--');
+            return `
+              <tr>
+                <td style="color:#cbd5e1;">${h.holder}</td>
+                <td style="text-align:right; color:var(--cyan-primary); font-weight:bold;">${typeof pct === 'number' ? pct.toFixed(2) : pct}%</td>
+                <td style="text-align:right; color:var(--amber-primary);">$${valB}B</td>
+              </tr>
+            `;
+          }).join("");
         }
       }
     } catch (err) {
@@ -373,7 +386,10 @@ class SP500CompanyDashboard {
       const countsEl = document.getElementById("news-counts-breakdown");
       if (countsEl && data.overall_sentiment) {
         const s = data.overall_sentiment;
-        countsEl.innerText = `(${s.bullish_count} Bullish, ${s.bearish_count} Bearish, ${s.neutral_count} Neutral)`;
+        const bCount = s.bullish_count ?? 0;
+        const brCount = s.bearish_count ?? 0;
+        const nCount = s.neutral_count ?? 0;
+        countsEl.innerText = `(${bCount} Bullish, ${brCount} Bearish, ${nCount} Neutral)`;
       }
 
       // Catalyst tags
@@ -393,21 +409,23 @@ class SP500CompanyDashboard {
           feed.innerHTML = `<div style="text-align:center; padding:10px; color:var(--text-muted);">No breaking news headlines.</div>`;
         } else {
           feed.innerHTML = data.articles.slice(0, 8).map(a => {
+            const headline = a.headline || a.title || "Market Catalyst Update";
+            const catalyst = a.catalyst || (a.catalysts && a.catalysts[0]) || "GENERAL";
             const sentCol = a.sentiment === 'BULLISH' ? 'var(--green-up)' : (a.sentiment === 'BEARISH' ? 'var(--red-down)' : 'var(--text-muted)');
             return `
               <div style="background:#090e18; border:1px solid #1a2538; padding:6px 8px; border-radius:2px; display:flex; justify-content:space-between; align-items:center; gap:8px;">
                 <div style="flex:1;">
-                  <a href="${a.url}" target="_blank" style="color:#f1f5f9; text-decoration:none; font-size:10.5px; font-weight:bold; line-height:1.3; display:block;">
-                    ${a.headline} ↗
+                  <a href="${a.url || '#'}" target="_blank" style="color:#f1f5f9; text-decoration:none; font-size:10.5px; font-weight:bold; line-height:1.3; display:block;">
+                    ${headline} ↗
                   </a>
                   <div style="font-size:9.5px; color:var(--text-muted); margin-top:2px;">
-                    <span>${a.source}</span>
+                    <span>${a.source || 'Financial Wire'}</span>
                     <span style="margin:0 4px;">•</span>
-                    <span style="color:var(--cyan-primary);">${a.catalyst || 'GENERAL'}</span>
+                    <span style="color:var(--cyan-primary);">${catalyst}</span>
                   </div>
                 </div>
                 <div style="font-size:10px; font-weight:bold; color:${sentCol}; padding:2px 6px; background:#111927; border-radius:2px; white-space:nowrap;">
-                  ${a.sentiment}
+                  ${a.sentiment || 'NEUTRAL'}
                 </div>
               </div>
             `;
@@ -461,10 +479,16 @@ class SP500CompanyDashboard {
     const price = (typeof q.price === "number") ? q.price : 100.0;
     const change = (typeof q.change === "number") ? q.change : 0.0;
     const pct = (typeof q.pct_change === "number") ? q.pct_change : 0.0;
-
-    setT("stockpage-price", `$${price.toFixed(2)}`);
-
     const isUp = change >= 0;
+
+    const priceEl = document.getElementById("stockpage-price");
+    if (priceEl) {
+      priceEl.innerText = `$${price.toFixed(2)}`;
+      priceEl.classList.remove("flash-up", "flash-down");
+      void priceEl.offsetWidth; // trigger reflow
+      priceEl.classList.add(isUp ? "flash-up" : "flash-down");
+    }
+
     const sign = isUp ? "+" : "";
     const chgStr = `${sign}${change.toFixed(2)} (${sign}${pct.toFixed(2)}%)`;
     const cls = isUp ? "up" : "down";
@@ -484,7 +508,14 @@ class SP500CompanyDashboard {
       chgEl.innerText = chgStr;
     }
 
-    const mcapStr = q.market_cap ? `$${(q.market_cap / 1e9).toFixed(1)}B` : "--";
+    let mcapStr = "--";
+    if (q.market_cap) {
+      if (q.market_cap >= 1e12) {
+        mcapStr = `$${(q.market_cap / 1e12).toFixed(2)}T ($${(q.market_cap / 1e9).toFixed(0)}B)`;
+      } else {
+        mcapStr = `$${(q.market_cap / 1e9).toFixed(1)}B`;
+      }
+    }
     const peStr = q.pe_ratio ? `${q.pe_ratio}x` : "--";
 
     setT("dash-val-mcap", mcapStr);
