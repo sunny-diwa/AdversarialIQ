@@ -276,7 +276,7 @@ class SP500PriceChart {
             ticks: {
               color: "#94a3b8",
               font: { family: "JetBrains Mono", size: 10 },
-              callback: (val) => `$${val.toFixed(2)}`
+              callback: (val) => `$${Number(val || 0).toFixed(2)}`
             }
           }
         }

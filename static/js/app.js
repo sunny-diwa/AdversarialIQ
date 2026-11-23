@@ -104,7 +104,7 @@ class BloombergApp {
         dropdown.querySelectorAll(".dropdown-item").forEach(item => {
           item.addEventListener("click", () => {
             const sym = item.dataset.sym;
-            this.selectStock(sym);
+            this.selectStock(sym, "dashboard");
             dropdown.style.display = "none";
             input.value = "";
           });
@@ -120,7 +120,7 @@ class BloombergApp {
       if (e.key === "Enter") {
         const val = input.value.trim().toUpperCase();
         if (val) {
-          this.selectStock(val);
+          this.selectStock(val, "dashboard");
           dropdown.style.display = "none";
           input.value = "";
         }
@@ -138,7 +138,7 @@ class BloombergApp {
     document.querySelectorAll(".ticker-chip").forEach(chip => {
       chip.addEventListener("click", () => {
         const sym = chip.dataset.sym;
-        if (sym) this.selectStock(sym);
+        if (sym) this.selectStock(sym, "dashboard");
       });
     });
   }
@@ -157,51 +157,87 @@ class BloombergApp {
         this.switchView("agent");
         const input = document.getElementById("chat-user-input");
         if (input) {
-          input.value = `Analyze technical setup for ${this.activeSymbol}`;
+          input.value = `Analyze technical setup and valuation for ${this.activeSymbol}`;
           input.focus();
         }
       });
     }
   }
 
-  async selectStock(symbol) {
+  async selectStock(symbol, switchViewName = null) {
+    if (!symbol) return;
     const sym = symbol.toUpperCase().trim();
     this.activeSymbol = sym;
 
-    // Update active badge display in header
-    const activeTickerEl = document.getElementById("global-active-ticker");
-    if (activeTickerEl) activeTickerEl.innerText = sym;
+    // 1. Immediately update all DOM elements showing the active stock across all views synchronously
+    const setElemText = (id, text) => {
+      const el = document.getElementById(id);
+      if (el) el.innerText = text;
+    };
 
-    const navSym = document.getElementById("nav-btn-sym");
-    if (navSym) navSym.innerText = sym;
-
-    const navChatSym = document.getElementById("nav-chat-sym");
-    if (navChatSym) navChatSym.innerText = sym;
+    setElemText("global-active-ticker", sym);
+    setElemText("stockpage-symbol", sym);
+    setElemText("chart-active-symbol", `${sym} // TRADING TERMINAL`);
+    setElemText("term-order-sym", sym);
+    setElemText("nav-btn-sym", sym);
+    setElemText("nav-chat-sym", sym);
+    setElemText("dash-quote-sym", `${sym} // LOADING QUOTE...`);
 
     const orderInput = document.getElementById("order-symbol-input");
     if (orderInput) orderInput.value = sym;
 
-    // Fetch quick quote to update top active bar
+    // Optional immediate view switch
+    if (switchViewName) {
+      this.switchView(switchViewName);
+    }
+
+    // 2. Fetch quick quote to update top active bar safely
     try {
       const qRes = await fetch(`/api/stock/${encodeURIComponent(sym)}/quote`);
-      const q = await qRes.json();
-      const pEl = document.getElementById("global-active-price");
-      const cEl = document.getElementById("global-active-chg");
-      if (pEl) pEl.innerText = `$${q.price.toFixed(2)}`;
-      if (cEl) {
-        const isUp = q.change >= 0;
-        const sign = isUp ? "+" : "";
-        cEl.innerText = `${sign}${q.change.toFixed(2)} (${sign}${q.pct_change.toFixed(2)}%)`;
-        cEl.className = `quote-change-badge ${isUp ? 'up' : 'down'}`;
+      if (qRes.ok) {
+        const q = await qRes.json();
+        const price = (typeof q?.price === "number") ? q.price : 100.0;
+        const change = (typeof q?.change === "number") ? q.change : 0.0;
+        const pct = (typeof q?.pct_change === "number") ? q.pct_change : 0.0;
+
+        const pEl = document.getElementById("global-active-price");
+        const cEl = document.getElementById("global-active-chg");
+        if (pEl) pEl.innerText = `$${price.toFixed(2)}`;
+        if (cEl) {
+          const isUp = change >= 0;
+          const sign = isUp ? "+" : "";
+          cEl.innerText = `${sign}${change.toFixed(2)} (${sign}${pct.toFixed(2)}%)`;
+          cEl.className = `quote-change-badge ${isUp ? 'up' : 'down'}`;
+        }
       }
     } catch (e) {
       console.warn("Failed to fetch quote for header active badge:", e);
     }
 
-    // Refresh sub-views
-    if (this.agent) this.agent.setSymbol(sym);
-    if (this.dashboard) await this.dashboard.loadCompany(sym);
-    if (this.chart) await this.chart.loadChartData(sym, this.chart.currentPeriod);
+    // 3. Refresh sub-views with try/catch isolation so failure in one never blocks others
+    if (this.agent && typeof this.agent.setSymbol === "function") {
+      try {
+        this.agent.setSymbol(sym);
+      } catch (err) {
+        console.warn("Agent setSymbol error:", err);
+      }
+    }
+
+    if (this.dashboard && typeof this.dashboard.loadCompany === "function") {
+      try {
+        await this.dashboard.loadCompany(sym);
+      } catch (err) {
+        console.warn("Dashboard loadCompany error:", err);
+      }
+    }
+
+    if (this.chart && typeof this.chart.loadChartData === "function") {
+      try {
+        await this.chart.loadChartData(sym, this.chart.currentPeriod);
+      } catch (err) {
+        console.warn("Chart loadChartData error:", err);
+      }
+    }
   }
 
   initClocks() {
