@@ -521,16 +521,17 @@ class SP500CompanyDashboard {
   renderFinancials(comp) {
     if (!comp) return;
     const val = comp.valuation || {};
-    const prof = comp.profitability || {};
-    const bal = comp.financial_health || {};
+    const prof = comp.profitability || comp.financials || {};
+    const bal = comp.financial_health || comp.financials || {};
 
     const setT = (id, val) => {
       const el = document.getElementById(id);
-      if (el) el.innerText = val !== undefined ? val : "--";
+      if (el) el.innerText = val !== undefined && val !== null ? val : "--";
     };
 
     // Valuation Multiples
-    setT("val-ev", val.enterprise_value_b ? `$${val.enterprise_value_b}B` : "--");
+    const evVal = val.enterprise_value_b ?? (val.enterprise_value ? (val.enterprise_value / 1e9).toFixed(1) : undefined);
+    setT("val-ev", evVal !== undefined ? `$${evVal}B` : "--");
     setT("val-fpe", val.forward_pe ? `${val.forward_pe}x` : "--");
     setT("val-peg", val.peg_ratio ? `${val.peg_ratio}` : "--");
     setT("val-pb", val.price_to_book ? `${val.price_to_book}x` : "--");
@@ -538,16 +539,23 @@ class SP500CompanyDashboard {
     setT("val-evebitda", val.ev_to_ebitda ? `${val.ev_to_ebitda}x` : "--");
 
     // Margins & Profitability
-    setT("prof-gross", prof.gross_margin ? `${prof.gross_margin}%` : "--");
-    setT("prof-oper", prof.operating_margin ? `${prof.operating_margin}%` : "--");
-    setT("prof-net", prof.profit_margin ? `${prof.profit_margin}%` : "--");
-    setT("prof-roe", prof.roe ? `${prof.roe}%` : "--");
+    const gm = prof.gross_margin ?? prof.gross_margins;
+    const om = prof.operating_margin ?? prof.operating_margins;
+    const pm = prof.profit_margin ?? prof.profit_margins;
+    setT("prof-gross", gm !== undefined ? `${gm}%` : "--");
+    setT("prof-oper", om !== undefined ? `${om}%` : "--");
+    setT("prof-net", pm !== undefined ? `${pm}%` : "--");
+    setT("prof-roe", prof.roe !== undefined ? `${prof.roe}%` : "--");
 
     // Balance Sheet & Liquidity
-    setT("bal-cash", bal.total_cash_b ? `$${bal.total_cash_b}B` : "--");
-    setT("bal-debt", bal.total_debt_b ? `$${bal.total_debt_b}B` : "--");
-    setT("bal-de", bal.debt_to_equity ? `${bal.debt_to_equity}` : "--");
-    setT("bal-fcf", bal.free_cash_flow_b ? `$${bal.free_cash_flow_b}B` : "--");
+    const cashVal = bal.total_cash_b ?? (bal.total_cash ? (bal.total_cash / 1e9).toFixed(1) : undefined);
+    const debtVal = bal.total_debt_b ?? (bal.total_debt ? (bal.total_debt / 1e9).toFixed(1) : undefined);
+    const fcfVal = bal.free_cash_flow_b ?? (bal.free_cashflow ? (bal.free_cashflow / 1e9).toFixed(1) : undefined);
+
+    setT("bal-cash", cashVal !== undefined ? `$${cashVal}B` : "--");
+    setT("bal-debt", debtVal !== undefined ? `$${debtVal}B` : "--");
+    setT("bal-de", bal.debt_to_equity !== undefined ? `${bal.debt_to_equity}` : "--");
+    setT("bal-fcf", fcfVal !== undefined ? `$${fcfVal}B` : "--");
   }
 
   renderPeers(peers) {
@@ -560,21 +568,25 @@ class SP500CompanyDashboard {
     }
 
     container.innerHTML = peers.map(p => {
-      const isUp = (p.change || 0) >= 0;
+      const pObj = (typeof p === "string") ? { symbol: p, name: p, price: 100.0, pct_change: 0.0, market_cap: 50.0 } : p;
+      const sym = pObj.symbol || "EQUITY";
+      const name = pObj.name || sym;
+      const isUp = (pObj.pct_change || pObj.change || 0) >= 0;
       const sign = isUp ? "+" : "";
       const col = isUp ? "color:var(--green-up);" : "color:var(--red-down);";
-      const price = typeof p.price === 'number' ? p.price : 100.0;
-      const pct = typeof p.pct_change === 'number' ? p.pct_change : 0.0;
+      const price = typeof pObj.price === 'number' ? pObj.price : 100.0;
+      const pct = typeof pObj.pct_change === 'number' ? pObj.pct_change : 0.0;
+      const mcap = pObj.market_cap ? (typeof pObj.market_cap === 'number' && pObj.market_cap > 1e6 ? (pObj.market_cap / 1e9).toFixed(1) : pObj.market_cap) : '--';
 
       return `
-        <tr class="clickable-row" data-sym="${p.symbol}" title="Select ${p.symbol}">
-          <td><strong style="color:var(--cyan-primary);">${p.symbol}</strong></td>
-          <td style="color:#cbd5e1;">${p.name || p.symbol}</td>
+        <tr class="clickable-row" data-sym="${sym}" title="Select ${sym}">
+          <td><strong style="color:var(--cyan-primary);">${sym}</strong></td>
+          <td style="color:#cbd5e1;">${name}</td>
           <td style="text-align:right; font-weight:700;">$${price.toFixed(2)}</td>
           <td style="text-align:right; ${col}">${sign}${pct.toFixed(2)}%</td>
-          <td style="text-align:right; color:var(--amber-primary);">$${p.market_cap || '--'}B</td>
+          <td style="text-align:right; color:var(--amber-primary);">$${mcap}B</td>
           <td style="text-align:center;">
-            <button class="f-key peer-select-btn" data-sym="${p.symbol}" style="font-size:9.5px; padding:1px 6px;">SELECT</button>
+            <button class="f-key peer-select-btn" data-sym="${sym}" style="font-size:9.5px; padding:1px 6px;">SELECT</button>
           </td>
         </tr>
       `;
