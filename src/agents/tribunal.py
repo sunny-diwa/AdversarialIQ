@@ -7,6 +7,7 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, Optional
 
+from src.agents.langchain_agent import LangChainTribunal
 from src.agents.state_machine import AdversarialStateMachine
 from src.core.config import SP500_MAP
 from src.data.macro import fetch_macro_regime
@@ -15,17 +16,29 @@ from src.execution.portfolio import load_portfolio
 logger = logging.getLogger("Tribunal")
 
 
-def run_adversarial_trade_tribunal(symbol: str = "NVDA", account_capital: Optional[float] = None) -> Dict[str, Any]:
+def run_adversarial_trade_tribunal(
+    symbol: str = "NVDA",
+    account_capital: Optional[float] = None,
+    provider: str = "groq",
+    model: Optional[str] = None
+) -> Dict[str, Any]:
     """
-    Executes the full AdversarialIQ Tribunal pipeline:
-    1. Agent Bull (Advocate)
-    2. Agent Bear (Adversary)
-    3. Agent Judge (Chief Arbiter)
+    Executes the full AdversarialIQ Tribunal pipeline powered by LangChain:
+    1. Agent Bull (Advocate via LangChain ChatPromptTemplate)
+    2. Agent Bear (Adversary via LangChain ChatPromptTemplate)
+    3. Agent Judge (Chief Arbiter via LangChain Arbitration)
     4. Deterministic Non-LLM Risk Guardrail
     5. Persistence to SQLite Thesis Journal
+    6. Langfuse Cloud Tracing Telemetry
     """
-    fsm = AdversarialStateMachine(symbol=symbol, account_capital=account_capital)
-    return fsm.run_full_pipeline(auto_execute=False)
+    try:
+        runner = LangChainTribunal(symbol=symbol, account_capital=account_capital, provider=provider, model=model)
+        return runner.run(auto_execute=False)
+    except Exception as e:
+        logger.warning(f"LangChain tribunal runner fallback: {e}, falling back to state machine")
+        fsm = AdversarialStateMachine(symbol=symbol, account_capital=account_capital)
+        return fsm.run_full_pipeline(auto_execute=False)
+
 
 
 def get_daily_desk_briefing(scanner_results: Optional[list] = None) -> Dict[str, Any]:

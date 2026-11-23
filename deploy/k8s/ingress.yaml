@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: adversarialiq-ingress
+  namespace: adversarialiq
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/proxy-body-size: "64m"
+spec:
+  tls:
+    - hosts:
+        - adversarialiq.yourdomain.com
+      secretName: adversarialiq-tls-cert
+  rules:
+    - host: adversarialiq.yourdomain.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: adversarialiq-service
+                port:
+                  number: 80

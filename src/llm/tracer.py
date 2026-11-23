@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from src.core.config import DB_FILE
+from src.observability.langfuse_client import LangfuseTracker
 
 logger = logging.getLogger("LLMTracer")
 
@@ -97,6 +98,19 @@ class LLMTracer:
 
         # Append to fast ring buffer
         _TRACE_BUFFER.appendleft(record)
+
+        # Mirror trace to Langfuse Cloud if keys configured
+        try:
+            LangfuseTracker.trace_generation(
+                name="LLM-Inference",
+                model=f"{provider}/{model}",
+                prompt=prompt,
+                completion=response,
+                latency_ms=int(latency_ms),
+                metadata={"symbol": symbol or "MARKET", "status": status.upper(), "trace_id": trace_id}
+            )
+        except Exception:
+            pass
 
         # Persist to SQLite
         try:

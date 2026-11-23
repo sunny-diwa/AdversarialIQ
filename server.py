@@ -24,6 +24,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from src.auth import auth_router
 from src.agents import (
     get_daily_desk_briefing,
     process_chat_message,
@@ -63,6 +64,7 @@ from src.memory import (
     get_recent_theses,
     retrieve_reflections,
 )
+from src.observability import get_langfuse_status
 from src.risk import RiskGuardrail
 from src.scanner import get_market_movers, run_sp500_scanner
 
@@ -74,7 +76,7 @@ logger = logging.getLogger("SP500Trader.Server")
 
 app = FastAPI(
     title="AdversarialIQ - S&P 500 AI Trading Terminal",
-    description="Institutional AI Syndicate & Bloomberg-Grade Trading Terminal",
+    description="AdversarialIQ Institutional AI Syndicate & Autonomous Trading Terminal",
     version="4.5.0"
 )
 
@@ -85,6 +87,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(auth_router)
+
+
+@app.get("/api/health")
+def health_check():
+    """Kubernetes, Docker, and Cloud Run health check endpoint."""
+    return {"status": "ok", "service": "AdversarialIQ", "version": "4.5.0"}
+
 
 
 # -----------------------------------------------------------------------------
@@ -409,9 +420,9 @@ async def ping_provider_endpoint(req: PingRequest):
 
 
 @app.get("/api/agent/debater")
-async def get_debate(symbol: str = "AAPL"):
-    """AdversarialIQ Tribunal: Bull Advocate vs. Bear Adversary vs. Chief Judge via State Machine."""
-    return run_adversarial_trade_tribunal(symbol)
+async def get_debate(symbol: str = "AAPL", provider: str = "groq", model: Optional[str] = None):
+    """AdversarialIQ Tribunal: Bull Advocate vs. Bear Adversary vs. Chief Judge via LangChain."""
+    return run_adversarial_trade_tribunal(symbol=symbol, provider=provider, model=model)
 
 
 @app.get("/api/agent/briefing")
@@ -473,6 +484,13 @@ async def get_llm_traces(limit: int = 50, provider: Optional[str] = None):
 async def get_llm_metrics():
     """Returns aggregate LLM observability metrics (total calls, avg latency, success rate %)."""
     return LLMTracer.get_metrics()
+
+
+@app.get("/api/observability/langfuse")
+async def get_langfuse_telemetry():
+    """Returns Langfuse Cloud connectivity status, host, and trace configuration."""
+    return get_langfuse_status()
+
 
 
 # -----------------------------------------------------------------------------
