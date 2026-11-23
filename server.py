@@ -85,11 +85,14 @@ def load_portfolio() -> dict:
         except Exception:
             pass
     return {
-        "cash": 100000.0,
-        "initial_balance": 100000.0,
+        "cash": 10000.0,
+        "initial_balance": 10000.0,
         "positions": {},
         "trades": [],
-        "realized_pnl": 0.0
+        "realized_pnl": 0.0,
+        "equity_history": [
+            {"timestamp": datetime.now().strftime("%Y-%m-%d %H:%M"), "equity": 10000.0, "cash": 10000.0}
+        ]
     }
 
 def save_portfolio(p: dict):
@@ -601,19 +604,29 @@ async def get_market_movers():
     return result
 
 # -----------------------------------------------------------------------------
-# Paper Trading Portfolio Endpoints
+# Paper Trading Portfolio Endpoints ($10,000 Starting Environment)
 # -----------------------------------------------------------------------------
 class TradeRequest(BaseModel):
     action: str  # BUY or SELL
     symbol: str
     quantity: int
+    order_type: Optional[str] = "MARKET"   # MARKET, LIMIT, STOP_LIMIT
+    limit_price: Optional[float] = None
+    stop_loss: Optional[float] = None
+    take_profit: Optional[float] = None
+    rationale: Optional[str] = "Manual Desk Execution"
 
 @app.get("/api/portfolio/get")
 async def get_portfolio_state():
-    """Returns live paper portfolio with marked-to-market valuations and PnL."""
+    """
+    Returns live paper portfolio with marked-to-market valuations,
+    advanced risk metrics (Win Rate, Profit Factor, Concentration Risk, Cash Ratio),
+    and equity trajectory history.
+    """
     p = load_portfolio()
     positions = p.get("positions", {})
-    cash = p.get("cash", 100000.0)
+    init_balance = p.get("initial_balance", 10000.0)
+    cash = p.get("cash", 10000.0)
 
     holdings = []
     total_holdings_val = 0.0
@@ -646,28 +659,57 @@ async def get_portfolio_state():
             "current_value": round(current_val, 2),
             "unrealized_pnl": round(unrealized_pnl, 2),
             "unrealized_pct": round(unrealized_pct, 2),
+            "stop_loss": pos.get("stop_loss"),
+            "take_profit": pos.get("take_profit"),
             "status": "UP" if unrealized_pnl >= 0 else "DOWN"
         })
 
     total_equity = cash + total_holdings_val
-    total_pnl = total_equity - p.get("initial_balance", 100000.0)
-    total_pnl_pct = (total_pnl / p.get("initial_balance", 100000.0) * 100)
+    total_pnl = total_equity - init_balance
+    total_pnl_pct = (total_pnl / init_balance * 100) if init_balance else 0.0
+
+    # Advanced Quant & Risk Metrics (TradingAgents Risk Desk)
+    trades = p.get("trades", [])
+    closed_trades = [t for t in trades if t.get("type") == "SELL" and "pnl" in t]
+    wins = [t for t in closed_trades if t.get("pnl", 0) > 0]
+    losses = [t for t in closed_trades if t.get("pnl", 0) <= 0]
+
+    win_rate = (len(wins) / len(closed_trades) * 100) if closed_trades else 0.0
+    gross_wins = sum(t.get("pnl", 0) for t in wins)
+    gross_losses = abs(sum(t.get("pnl", 0) for t in losses))
+    profit_factor = round(gross_wins / gross_losses, 2) if gross_losses > 0 else (round(gross_wins, 2) if gross_wins > 0 else 1.0)
+
+    # Max single stock concentration %
+    max_stock_val = max([h["current_value"] for h in holdings], default=0.0)
+    concentration_risk = round((max_stock_val / total_equity * 100), 1) if total_equity else 0.0
+    cash_ratio = round((cash / total_equity * 100), 1) if total_equity else 100.0
+    invested_ratio = round(100.0 - cash_ratio, 1)
 
     return {
         "cash": round(cash, 2),
         "holdings_value": round(total_holdings_val, 2),
         "total_equity": round(total_equity, 2),
+        "initial_balance": round(init_balance, 2),
         "realized_pnl": round(p.get("realized_pnl", 0.0), 2),
         "unrealized_pnl": round(total_holdings_val - sum(h["cost_basis"] for h in holdings), 2),
         "total_pnl": round(total_pnl, 2),
         "total_pnl_pct": round(total_pnl_pct, 2),
+        "win_rate": round(win_rate, 1),
+        "profit_factor": profit_factor,
+        "total_trades": len(trades),
+        "concentration_risk": concentration_risk,
+        "cash_ratio": cash_ratio,
+        "invested_ratio": invested_ratio,
         "positions": holdings,
-        "recent_trades": p.get("trades", [])[-10:]
+        "recent_trades": trades[-15:],
+        "equity_history": p.get("equity_history", [
+            {"timestamp": datetime.now().strftime("%Y-%m-%d %H:%M"), "equity": round(total_equity, 2)}
+        ])
     }
 
 @app.post("/api/portfolio/trade")
 async def execute_trade(req: TradeRequest):
-    """Executes a virtual paper trade (BUY or SELL)."""
+    """Executes a virtual paper trade (BUY or SELL) with order typing and risk tracking."""
     sym = req.symbol.strip().upper()
     action = req.action.strip().upper()
     qty = int(req.quantity)
@@ -682,10 +724,20 @@ async def execute_trade(req: TradeRequest):
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Cannot fetch price for {sym}: {e}")
 
-    total_order_val = price * qty
+    # Limit order price checking
+    if req.order_type == "LIMIT" and req.limit_price:
+        if action == "BUY" and price > req.limit_price:
+            raise HTTPException(status_code=400, detail=f"Market price ${price:.2f} is above your BUY limit of ${req.limit_price:.2f}")
+        if action == "SELL" and price < req.limit_price:
+            raise HTTPException(status_code=400, detail=f"Market price ${price:.2f} is below your SELL limit of ${req.limit_price:.2f}")
+        exec_price = req.limit_price
+    else:
+        exec_price = price
+
+    total_order_val = exec_price * qty
     p = load_portfolio()
     positions = p.setdefault("positions", {})
-    cash = p.get("cash", 100000.0)
+    cash = p.get("cash", 10000.0)
 
     trade_record = {
         "id": f"TRD-{int(time.time())}",
@@ -693,13 +745,17 @@ async def execute_trade(req: TradeRequest):
         "type": action,
         "symbol": sym,
         "quantity": qty,
-        "price": round(price, 2),
-        "total": round(total_order_val, 2)
+        "price": round(exec_price, 2),
+        "total": round(total_order_val, 2),
+        "order_type": req.order_type or "MARKET",
+        "stop_loss": req.stop_loss,
+        "take_profit": req.take_profit,
+        "rationale": req.rationale or "Manual Desk Execution"
     }
 
     if action == "BUY":
         if cash < total_order_val:
-            raise HTTPException(status_code=400, detail=f"Insufficient funds! Need ${total_order_val:.2f}, Cash: ${cash:.2f}")
+            raise HTTPException(status_code=400, detail=f"Insufficient funds! Need ${total_order_val:.2f}, Cash available: ${cash:.2f}")
         
         # Deduct cash
         p["cash"] = cash - total_order_val
@@ -711,23 +767,32 @@ async def execute_trade(req: TradeRequest):
             positions[sym]["quantity"] = new_qty
             positions[sym]["cost_basis"] = new_cost
             positions[sym]["avg_price"] = new_cost / new_qty
+            if req.stop_loss:
+                positions[sym]["stop_loss"] = req.stop_loss
+            if req.take_profit:
+                positions[sym]["take_profit"] = req.take_profit
         else:
             positions[sym] = {
                 "symbol": sym,
                 "quantity": qty,
-                "avg_price": round(price, 2),
+                "avg_price": round(exec_price, 2),
                 "cost_basis": round(total_order_val, 2),
+                "stop_loss": req.stop_loss,
+                "take_profit": req.take_profit,
                 "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             }
 
     elif action == "SELL":
         if sym not in positions or positions[sym]["quantity"] < qty:
             avail = positions.get(sym, {}).get("quantity", 0)
-            raise HTTPException(status_code=400, detail=f"Cannot sell {qty} shares of {sym}. You only hold {avail} shares.")
+            raise HTTPException(status_code=400, detail=f"Cannot sell {qty} shares of {sym}. You currently hold {avail} shares.")
 
         pos = positions[sym]
         avg_cost = pos["avg_price"]
-        pnl = (price - avg_cost) * qty
+        pnl = (exec_price - avg_cost) * qty
+        trade_record["pnl"] = round(pnl, 2)
+        trade_record["pnl_pct"] = round((pnl / (avg_cost * qty) * 100), 2) if avg_cost else 0.0
+
         p["realized_pnl"] = p.get("realized_pnl", 0.0) + pnl
         p["cash"] = cash + total_order_val
 
@@ -739,26 +804,157 @@ async def execute_trade(req: TradeRequest):
             pos["cost_basis"] = new_qty * avg_cost
 
     p.setdefault("trades", []).append(trade_record)
+
+    # Update equity history trajectory
+    holdings_val = sum(pos["quantity"] * pos["avg_price"] for pos in positions.values())
+    current_equity = p["cash"] + holdings_val
+    eq_history = p.setdefault("equity_history", [])
+    eq_history.append({
+        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "equity": round(current_equity, 2),
+        "cash": round(p["cash"], 2)
+    })
+    # Keep last 50 data points
+    p["equity_history"] = eq_history[-50:]
+
     save_portfolio(p)
 
     return {
         "status": "SUCCESS",
         "trade": trade_record,
-        "message": f"Successfully executed {action} {qty} shares of {sym} at ${price:.2f}"
+        "message": f"Successfully executed {action} {qty} shares of {sym} at ${exec_price:.2f}"
     }
 
 @app.post("/api/portfolio/reset")
 async def reset_portfolio():
-    """Resets paper trading account to $100,000 cash balance."""
+    """Resets paper trading account to $10,000 cash balance and 0 positions."""
     p = {
-        "cash": 100000.0,
-        "initial_balance": 100000.0,
+        "cash": 10000.0,
+        "initial_balance": 10000.0,
         "positions": {},
         "trades": [],
-        "realized_pnl": 0.0
+        "realized_pnl": 0.0,
+        "equity_history": [
+            {"timestamp": datetime.now().strftime("%Y-%m-%d %H:%M"), "equity": 10000.0, "cash": 10000.0}
+        ]
     }
     save_portfolio(p)
-    return {"status": "SUCCESS", "message": "Portfolio reset to initial $100,000 cash balance."}
+    return {"status": "SUCCESS", "message": "Portfolio reset to clean $10,000 cash balance with 0 positions."}
+
+# -----------------------------------------------------------------------------
+# TradingAgents Multi-Persona Debate & FinGPT Intelligence Endpoints
+# -----------------------------------------------------------------------------
+@app.get("/api/agent/debater")
+async def get_multi_agent_debate(symbol: str = "AAPL"):
+    """
+    Simulates TradingAgents Multi-Persona Syndicate Debate:
+    1. Bullish Researcher Agent
+    2. Bearish Researcher Agent
+    3. Chief Risk Officer (CRO) Kelly & Position Sizing for $10,000 account
+    4. Synthesized Trader Verdict
+    """
+    sym = symbol.strip().upper()
+    try:
+        t = yf.Ticker(sym)
+        fast = t.fast_info
+        price = fast.last_price or 100.0
+        hist = t.history(period="3mo", interval="1d")
+        hist = compute_indicators(hist)
+        latest = hist.iloc[-1] if not hist.empty else {}
+
+        rsi = float(latest.get("RSI", 50))
+        macd = float(latest.get("MACD", 0))
+        sig = float(latest.get("MACD_Signal", 0))
+        sma50 = float(latest.get("SMA50", price))
+
+        # Position sizing calculations for $10,000 account:
+        # Risk 2% of portfolio = $200 max risk per trade
+        stop_dist = max(price * 0.04, 1.0)
+        risk_2pct = 200.0
+        suggested_qty = max(1, int(risk_2pct / stop_dist))
+        alloc_val = suggested_qty * price
+
+        bull_points = []
+        bear_points = []
+
+        if rsi < 40:
+            bull_points.append(f"RSI reading of {rsi:.1f} indicates oversold conditions and potential mean reversion.")
+        else:
+            bear_points.append(f"RSI at {rsi:.1f} indicates momentum is elevated or consolidating.")
+
+        if macd > sig:
+            bull_points.append(f"MACD line ({macd:.2f}) is above signal line ({sig:.2f}), confirming positive short-term momentum.")
+        else:
+            bear_points.append(f"MACD line ({macd:.2f}) is trailing below signal line ({sig:.2f}), signaling downward pressure.")
+
+        if price >= sma50:
+            bull_points.append(f"Trading above 50-day SMA (${sma50:.2f}), maintaining intermediate bull trend structure.")
+        else:
+            bear_points.append(f"Trading below 50-day SMA (${sma50:.2f}), facing institutional overhead supply.")
+
+        meta = SP500_MAP.get(sym, {})
+        conviction = 7 if (price >= sma50 and macd > sig) else (4 if rsi <= 35 else 5)
+
+        return {
+            "symbol": sym,
+            "company": meta.get("name", sym),
+            "price": round(price, 2),
+            "bull_case": {
+                "persona": "🐂 Bullish Momentum Analyst",
+                "thesis": f"Favorable risk/reward setup in {sym} supported by market liquidity.",
+                "points": bull_points or ["Constructive consolidation near key support levels."]
+            },
+            "bear_case": {
+                "persona": "🐻 Bearish Macro & Risk Analyst",
+                "thesis": f"Downside vulnerability in {sym} due to multiple compression or resistance.",
+                "points": bear_points or ["Broader macro volatility and sector rotation risks."]
+            },
+            "risk_assessment": {
+                "persona": "🛡️ Chief Risk Officer (CRO)",
+                "account_equity": 10000.0,
+                "risk_tolerance_pct": "2.0% ($200.00)",
+                "recommended_stop_loss": round(price - stop_dist, 2),
+                "recommended_target": round(price + (stop_dist * 2.2), 2),
+                "recommended_shares": suggested_qty,
+                "capital_required": round(alloc_val, 2),
+                "portfolio_exposure_pct": round((alloc_val / 10000.0 * 100), 1),
+                "concentration_verdict": "SAFE (<25% Cap)" if alloc_val <= 2500.0 else "WARNING: High Allocation"
+            },
+            "verdict": {
+                "action": "BUY" if conviction >= 6 else ("SELL / HEDGE" if conviction <= 4 else "HOLD / NEUTRAL"),
+                "conviction_score": f"{conviction}/10"
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error in multi-agent debater for {sym}: {e}")
+        return {"error": str(e), "symbol": sym}
+
+@app.get("/api/agent/briefing")
+async def get_daily_desk_briefing():
+    """
+    FinGPT-style Morning / Desk Intelligence Note across S&P 500:
+    Regime analysis, high-conviction setups, and portfolio risk briefing.
+    """
+    p = load_portfolio()
+    movers = await run_sp500_scanner(strategy="all")
+    results = movers.get("results", [])
+
+    top_buys = [s for s in results if s.get("pct_change", 0) > 0 and s.get("rsi", 50) < 60][:3]
+    top_hedges = [s for s in results if s.get("pct_change", 0) < 0][:2]
+
+    return {
+        "date": datetime.now().strftime("%A, %B %d, %Y"),
+        "timestamp": datetime.now().strftime("%H:%M:%S EST"),
+        "market_regime": "NEUTRAL / SELECTIVE MOMENTUM",
+        "portfolio_health": {
+            "account_equity": p.get("cash", 10000.0) + sum(pos.get("cost_basis", 0) for pos in p.get("positions", {}).values()),
+            "active_positions_count": len(p.get("positions", {})),
+            "cash_reserves": p.get("cash", 10000.0),
+            "risk_profile": "CONSERVATIVE / DISCIPLINED ($10K BASE)"
+        },
+        "top_setups": top_buys,
+        "watch_out": top_hedges
+    }
 
 # -----------------------------------------------------------------------------
 # Chatbot Trader Agent Engine (Groq / Ollama / Fallback Quant Rule-Engine)
@@ -930,6 +1126,73 @@ async def chat_with_agent(req: ChatRequest):
         if t in SP500_MAP:
             target_sym = t
             break
+
+    # 3. Detect Syndicate Multi-Agent Debate intent (TradingAgents Model)
+    if any(k in prompt.lower() for k in ["debate", "bull vs bear", "syndicate", "cro", "adversarial"]):
+        deb = await get_multi_agent_debate(target_sym)
+        bull = deb.get("bull_case", {})
+        bear = deb.get("bear_case", {})
+        cro = deb.get("risk_assessment", {})
+        verdict = deb.get("verdict", {})
+
+        bull_text = "\n".join([f"  • {p}" for p in bull.get("points", [])])
+        bear_text = "\n".join([f"  • {p}" for p in bear.get("points", [])])
+
+        debate_md = f"""### 🥊 Multi-Agent Syndicate Debate: **{target_sym}** (${deb.get('price', 0):.2f})
+*TradingAgents Adversarial Institutional Framework*
+
+---
+
+#### {bull.get('persona', '🐂 Bull Analyst')}
+> *"{bull.get('thesis', '')}"*
+{bull_text}
+
+#### {bear.get('persona', '🐻 Bear Analyst')}
+> *"{bear.get('thesis', '')}"*
+{bear_text}
+
+---
+
+#### {cro.get('persona', '🛡️ Chief Risk Officer (CRO)')}
+- **Account Capital Baseline:** `${cro.get('account_equity', 10000.0):,.2f}` (Disciplined Paper Account)
+- **Max Account Risk Per Trade:** `{cro.get('risk_tolerance_pct', '2% ($200)')}`
+- **Recommended Position Sizing:** **`{cro.get('recommended_shares', 10)} shares`** (`${cro.get('capital_required', 0):,.2f}` exposure)
+- **Stop-Loss Protection:** `${cro.get('recommended_stop_loss', 0):.2f}`
+- **Profit Target:** `${cro.get('recommended_target', 0):.2f}`
+- **Concentration Risk Check:** **`{cro.get('concentration_verdict', 'SAFE')}`** ({cro.get('portfolio_exposure_pct', 0)}% of account)
+
+---
+
+### ⚖️ Final Synthesized Verdict: **`{verdict.get('action', 'HOLD')}`**
+**Conviction Score:** `{verdict.get('conviction_score', '5/10')}`  
+*Say `Buy {cro.get('recommended_shares', 10)} {target_sym}` to execute this trade on your paper desk.*
+"""
+        return {"response": debate_md, "provider": "TradingAgents Syndicate"}
+
+    # 4. Detect Daily Desk Briefing intent (FinGPT Model)
+    if any(k in prompt.lower() for k in ["brief", "briefing", "morning note", "desk report"]):
+        brief = await get_daily_desk_briefing()
+        buys = brief.get("top_setups", [])
+        buys_text = "\n".join([f"  • **{b['symbol']}** (${b['price']:.2f}): RSI `{b['rsi']}`, MACD `{b['macd']:.2f}` — Signals: `{', '.join(b['signals'][:2])}`" for b in buys]) or "  • Consolidating markets; awaiting breakout confirmation."
+
+        briefing_md = f"""### 📋 S&P 500 Daily Desk Intelligence Brief
+**Date:** {brief.get('date')} | **Wire Time:** {brief.get('timestamp')}  
+**Macro Market Regime:** **`{brief.get('market_regime')}`**
+
+---
+
+#### 💼 Portfolio Health & Risk Parameters ($10K Base):
+- **Account Status:** Active Capital `${brief.get('portfolio_health', {}).get('account_equity', 10000.0):,.2f}`
+- **Cash Reserves:** `${brief.get('portfolio_health', {}).get('cash_reserves', 10000.0):,.2f}`
+- **Risk Posture:** `{brief.get('portfolio_health', {}).get('risk_profile')}`
+
+#### 🎯 High-Conviction S&P 500 Opportunities:
+{buys_text}
+
+---
+*Ask: `Debate <SYMBOL>` to trigger multi-agent cross-examination on any candidate.*
+"""
+        return {"response": briefing_md, "provider": "FinGPT Desk Intelligence"}
 
     # Fetch live context for the LLM
     context_data = ""

@@ -254,8 +254,9 @@ def display_portfolio_cli():
                 f"[bold white]TOTAL PORTFOLIO EQUITY:[/bold white] [bold cyan]${p['total_equity']:,.2f}[/bold cyan]  |  "
                 f"[bold white]CASH BALANCE:[/bold white] [green]${p['cash']:,.2f}[/green]  |  "
                 f"[bold white]HOLDINGS:[/bold white] ${p['holdings_value']:,.2f}  |  "
-                f"[bold white]TOTAL PnL:[/bold white] [{ 'green' if p['total_pnl'] >= 0 else 'red' }]${p['total_pnl']:,.2f} ({p['total_pnl_pct']:+.2f}%)[/{ 'green' if p['total_pnl'] >= 0 else 'red' }]",
-                title="[bold yellow]PORTFOLIO OVERVIEW[/bold yellow]",
+                f"[bold white]TOTAL PnL:[/bold white] [{ 'green' if p['total_pnl'] >= 0 else 'red' }]${p['total_pnl']:,.2f} ({p['total_pnl_pct']:+.2f}%)[/{ 'green' if p['total_pnl'] >= 0 else 'red' }]\n"
+                f"[dim]Risk Analytics: Win Rate: {p.get('win_rate', 0.0)}%  |  Profit Factor: {p.get('profit_factor', 1.0)}x  |  Max Concentration: {p.get('concentration_risk', 0.0)}% (Cap: 25%)  |  Cash: {p.get('cash_ratio', 100)}%[/dim]",
+                title="[bold yellow]PORTFOLIO OVERVIEW ($10,000 BASELINE)[/bold yellow]",
                 border_style="yellow"
             )
             console.print(summary)

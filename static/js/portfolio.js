@@ -1,15 +1,18 @@
 /**
- * Bloomberg Terminal V3.0 - S&P 500 Paper Trading Portfolio Engine
- * Mark-to-Market Valuation, Position Blotter & Order Pad Execution
+ * Bloomberg Terminal V3.0 - S&P 500 Paper Trading Portfolio & Risk Desk
+ * Institutional Risk Analytics: Win Rate, Profit Factor, Concentration Cap,
+ * Equity Trajectory Curve & Risk-Based Position Sizing (FinRobot/TradingAgents Model)
  */
 
 class SP500PaperPortfolio {
   constructor() {
     this.currentData = null;
+    this.equityChart = null;
   }
 
   async init() {
     this.setupListeners();
+    this.setupRiskSizing();
     await this.loadPortfolio();
   }
 
@@ -23,6 +26,45 @@ class SP500PaperPortfolio {
     if (resetBtn) resetBtn.addEventListener("click", () => this.handleReset());
   }
 
+  setupRiskSizing() {
+    // Risk-based and Allocation-based sizing chips
+    const bindSizingChips = (selector, isRisk) => {
+      document.querySelectorAll(selector).forEach(chip => {
+        chip.addEventListener("click", () => {
+          const sym = window.terminalApp ? window.terminalApp.activeSymbol : "NVDA";
+          const price = window.terminalChart ? window.terminalChart.currentPrice || 100.0 : 100.0;
+          let qty = 1;
+
+          if (isRisk) {
+            // Risk amount ($100 or $200) / estimated 4% stop-loss distance
+            const riskDollars = parseFloat(chip.dataset.risk) || 200.0;
+            const stopDist = Math.max(price * 0.04, 1.0);
+            qty = Math.max(1, Math.floor(riskDollars / stopDist));
+          } else {
+            // Direct dollar allocation ($1,000 or $2,500)
+            const allocDollars = parseFloat(chip.dataset.alloc) || 1000.0;
+            qty = Math.max(1, Math.floor(allocDollars / price));
+          }
+
+          // Update qty inputs across both order pads
+          const qtyInput1 = document.getElementById("order-qty-input");
+          const qtyInput2 = document.getElementById("term-order-qty");
+          if (qtyInput1) qtyInput1.value = qty;
+          if (qtyInput2) qtyInput2.value = qty;
+
+          // Trigger est cost update
+          const estEl = document.getElementById("term-order-est");
+          if (estEl && price) {
+            estEl.innerText = `$${(price * qty).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+          }
+        });
+      });
+    };
+
+    bindSizingChips(".order-risk-chip, .term-risk-chip", true);
+    bindSizingChips(".order-alloc-chip, .term-alloc-chip", false);
+  }
+
   async loadPortfolio() {
     try {
       const res = await fetch("/api/portfolio/get");
@@ -31,6 +73,7 @@ class SP500PaperPortfolio {
       this.renderOverview(data);
       this.renderPositions(data.positions || []);
       this.renderTradeBlotter(data.recent_trades || []);
+      this.renderEquityChart(data.equity_history || []);
     } catch (e) {
       console.error("Failed to load portfolio:", e);
     }
@@ -42,6 +85,7 @@ class SP500PaperPortfolio {
       if (el) el.innerText = val !== undefined ? val : "--";
     };
 
+    // Primary Ledger Overview ($10K base)
     setT("port-total-equity", `$${p.total_equity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
     setT("port-cash", `$${p.cash.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
     setT("port-holdings", `$${p.holdings_value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
@@ -55,6 +99,20 @@ class SP500PaperPortfolio {
     }
 
     setT("port-realized-pnl", `$${p.realized_pnl.toFixed(2)}`);
+
+    // Advanced Risk Desk Analytics (TradingAgents Model)
+    setT("port-win-rate", `${p.win_rate !== undefined ? p.win_rate : 0.0}%`);
+    setT("port-profit-factor", `${p.profit_factor !== undefined ? p.profit_factor : 1.00}x`);
+
+    const concEl = document.getElementById("port-concentration");
+    if (concEl) {
+      const conc = p.concentration_risk || 0.0;
+      concEl.innerText = `${conc}% (${conc > 25 ? '⚠️ HIGH' : 'SAFE'})`;
+      concEl.style.color = conc > 25 ? "var(--red-down)" : "var(--green-up)";
+    }
+
+    setT("port-cash-ratio", `${p.cash_ratio || 100}% Cash / ${p.invested_ratio || 0}% Stocks`);
+    setT("port-total-trades", p.total_trades !== undefined ? p.total_trades : 0);
 
     // Sync Mini-Portfolio box on Chatbot page
     setT("agent-mini-equity", `$${p.total_equity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
@@ -73,7 +131,7 @@ class SP500PaperPortfolio {
     if (!tbody) return;
 
     if (!positions || positions.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:15px; color:var(--text-muted);">No open positions. Use the order pad or Trader Agent to execute paper trades.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:18px; color:var(--text-muted);">No open positions. Account initialized with $10,000 cash (0 positions). Execute paper trades via Order Pad or Chatbot.</td></tr>`;
       return;
     }
 
@@ -83,7 +141,7 @@ class SP500PaperPortfolio {
       const col = isUp ? "color:var(--green-up);" : "color:var(--red-down);";
 
       return `
-        <tr class="clickable-row" data-sym="${pos.symbol}" title="Click to view ${pos.symbol}">
+        <tr class="clickable-row" data-sym="${pos.symbol}" title="Inspect ${pos.symbol}">
           <td><strong style="color:var(--cyan-primary);">${pos.symbol}</strong></td>
           <td style="text-align:right; font-weight:700;">${pos.quantity}</td>
           <td style="text-align:right;">$${pos.avg_price.toFixed(2)}</td>
@@ -92,7 +150,8 @@ class SP500PaperPortfolio {
           <td style="text-align:right; font-weight:700;">$${pos.current_value.toLocaleString()}</td>
           <td style="text-align:right; ${col} font-weight:800;">${sign}$${pos.unrealized_pnl.toFixed(2)} (${sign}${pos.unrealized_pct.toFixed(2)}%)</td>
           <td style="text-align:center;">
-            <button class="f-key btn-port-term" data-sym="${pos.symbol}" style="font-size:9.5px; padding:1px 5px;">📈 TERMINAL</button>
+            <button class="f-key btn-port-term" data-sym="${pos.symbol}" style="font-size:9.5px; padding:1px 5px;">📈 TERM</button>
+            <button class="f-key btn-port-close" data-sym="${pos.symbol}" data-qty="${pos.quantity}" style="font-size:9.5px; padding:1px 5px; color:var(--red-down); border-color:var(--red-down);">CLOSE</button>
           </td>
         </tr>
       `;
@@ -100,7 +159,7 @@ class SP500PaperPortfolio {
 
     tbody.querySelectorAll("tr.clickable-row").forEach(r => {
       r.addEventListener("click", (e) => {
-        if (e.target.closest(".btn-port-term")) return;
+        if (e.target.closest(".btn-port-term") || e.target.closest(".btn-port-close")) return;
         if (window.terminalApp) window.terminalApp.selectStock(r.dataset.sym);
       });
     });
@@ -114,6 +173,32 @@ class SP500PaperPortfolio {
         }
       });
     });
+
+    tbody.querySelectorAll(".btn-port-close").forEach(b => {
+      b.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        const sym = b.dataset.sym;
+        const qty = parseInt(b.dataset.qty) || 1;
+        if (confirm(`Close entire position of ${qty} shares in ${sym} at market?`)) {
+          try {
+            const res = await fetch("/api/portfolio/trade", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "SELL", symbol: sym, quantity: qty, rationale: "Manual Position Close" })
+            });
+            const data = await res.json();
+            if (res.status === 200) {
+              alert(`Position closed: ${data.message}`);
+              await this.loadPortfolio();
+            } else {
+              alert(`Close failed: ${data.detail || data.message}`);
+            }
+          } catch (err) {
+            alert(`Error closing position: ${err}`);
+          }
+        }
+      });
+    });
   }
 
   renderTradeBlotter(trades) {
@@ -121,32 +206,102 @@ class SP500PaperPortfolio {
     if (!tbody) return;
 
     if (!trades || trades.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:10px; color:var(--text-muted);">No trades executed yet.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:12px; color:var(--text-muted);">No trades executed yet. Account initialized with $10,000 cash.</td></tr>`;
       return;
     }
 
     tbody.innerHTML = trades.slice().reverse().map(t => {
       const isBuy = t.type === "BUY";
       const col = isBuy ? "color:var(--green-up);" : "color:var(--amber-primary);";
+      const pnlStr = t.pnl !== undefined ? (t.pnl >= 0 ? `+${t.pnl.toFixed(2)}` : `${t.pnl.toFixed(2)}`) : "--";
+      const pnlCol = t.pnl !== undefined ? (t.pnl >= 0 ? "color:var(--green-up);" : "color:var(--red-down);") : "color:var(--text-muted);";
 
       return `
         <tr>
           <td style="color:var(--text-muted); font-size:10px;">${t.timestamp}</td>
           <td><strong style="${col}">${t.type}</strong></td>
+          <td style="font-size:10px; color:#94a3b8;">${t.order_type || 'MARKET'}</td>
           <td><strong style="color:var(--cyan-primary);">${t.symbol}</strong></td>
-          <td>${t.quantity}</td>
-          <td>$${t.price.toFixed(2)}</td>
-          <td style="font-weight:700;">$${t.total.toLocaleString()}</td>
+          <td style="text-align:right;">${t.quantity}</td>
+          <td style="text-align:right;">$${t.price.toFixed(2)}</td>
+          <td style="text-align:right; font-weight:700;">$${t.total.toLocaleString()}</td>
+          <td style="text-align:right; font-weight:bold; ${pnlCol}">${pnlStr}</td>
+          <td style="font-size:10px; color:#cbd5e1; max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${t.rationale || 'Manual Desk Execution'}</td>
         </tr>
       `;
     }).join("");
   }
 
+  renderEquityChart(history) {
+    const canvas = document.getElementById("portfolio-equity-canvas");
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    if (this.equityChart) this.equityChart.destroy();
+
+    const labels = history.map(h => h.timestamp.split(" ")[1] || h.timestamp);
+    const equityVals = history.map(h => h.equity);
+
+    const isProfit = (equityVals[equityVals.length - 1] || 10000.0) >= 10000.0;
+    const strokeCol = isProfit ? "#00ff66" : "#ff3344";
+
+    this.equityChart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: labels,
+        datasets: [{
+          label: "Portfolio Equity ($)",
+          data: equityVals,
+          borderColor: strokeCol,
+          backgroundColor: isProfit ? "rgba(0, 255, 102, 0.08)" : "rgba(255, 51, 68, 0.08)",
+          borderWidth: 2,
+          pointRadius: equityVals.length <= 1 ? 4 : 2,
+          pointBackgroundColor: strokeCol,
+          fill: true,
+          tension: 0.2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: "rgba(10, 14, 23, 0.95)",
+            borderColor: strokeCol,
+            borderWidth: 1,
+            callbacks: {
+              label: (ctx) => `Equity: $${Number(ctx.raw || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: "#161f30" },
+            ticks: { color: "#94a3b8", font: { family: "JetBrains Mono", size: 8 } }
+          },
+          y: {
+            position: "right",
+            grid: { color: "#161f30" },
+            ticks: {
+              color: "#94a3b8",
+              font: { family: "JetBrains Mono", size: 9 },
+              callback: (v) => `$${Number(v).toLocaleString()}`
+            }
+          }
+        }
+      }
+    });
+  }
+
   async handleQuickOrder(action) {
     const symInput = document.getElementById("order-symbol-input");
     const qtyInput = document.getElementById("order-qty-input");
+    const typeSelect = document.getElementById("order-type-select");
+
     const symbol = (symInput ? symInput.value : window.terminalApp.activeSymbol || "NVDA").toUpperCase().trim();
     const quantity = parseInt(qtyInput ? qtyInput.value : "10");
+    const order_type = typeSelect ? typeSelect.value : "MARKET";
 
     if (!symbol || quantity <= 0) {
       alert("Please specify a valid symbol and quantity > 0");
@@ -157,7 +312,13 @@ class SP500PaperPortfolio {
       const res = await fetch("/api/portfolio/trade", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, symbol, quantity })
+        body: JSON.stringify({
+          action,
+          symbol,
+          quantity,
+          order_type,
+          rationale: `Manual Order Pad (${order_type})`
+        })
       });
 
       const data = await res.json();
@@ -173,11 +334,11 @@ class SP500PaperPortfolio {
   }
 
   async handleReset() {
-    if (confirm("Reset paper trading portfolio back to $100,000 cash?")) {
+    if (confirm("Reset paper trading account back to clean $10,000 cash balance and 0 positions?")) {
       try {
         await fetch("/api/portfolio/reset", { method: "POST" });
         await this.loadPortfolio();
-        alert("Portfolio reset to $100,000 cash.");
+        alert("Portfolio reset to initial $10,000 cash balance with 0 positions.");
       } catch (e) {
         alert(`Reset error: ${e.message}`);
       }

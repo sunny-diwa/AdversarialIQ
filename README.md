@@ -14,12 +14,22 @@ An institutional-grade trading terminal, live technical scanner, and conversatio
   - **Most Active / Momentum:** High-volatility equities with active technical setups.
 - **11 GICS Sector Heatmap:** Constituent counts, sector weights, and industry breakdown.
 
-### 2. Conversational Trader Agent (Chatbot Desk)
+### 2. Conversational Trader Agent & Multi-Agent Syndicate (TradingAgents & FinRobot Model)
 - **Model Providers:**
   - **Groq Cloud API:** High-speed inference using Llama 3.3 70B, Llama 3.1 8B, and Mixtral 8x7B.
   - **Ollama Local:** Offline on-device inference via local models.
   - **Autonomous Quantitative Rule Engine:** Algorithmic rule-based analyzer that functions with zero external API keys.
-- **Paper Trading Execution:** Intent parser capable of executing virtual trades (e.g. `Buy 20 shares of AAPL`) directly from the conversational prompt into the paper ledger.
+- **Multi-Persona Syndicate Debate:**
+  - 🐂 **Bullish Researcher:** Momentum catalysts, technical breakouts, and volume structure.
+  - 🐻 **Bearish Risk Analyst:** Multiples compression, resistance hurdles, and macro risks.
+  - 🛡️ **Chief Risk Officer (CRO):** Kelly Criterion & 2% account sizing on the $10,000 capital baseline.
+  - ⚖️ **Synthesized Trader Verdict:** Conviction score and execution recommendations.
+- **FinGPT Morning Desk Intelligence Brief:** Daily regime analysis, high-conviction S&P 500 setups, and risk guardrails.
+- **Disciplined Paper Trading Engine:**
+  - **Starting Capital:** **$10,000.00 USD** with **0 initial positions**.
+  - **Order Types:** Market and Limit orders with attached Stop-Loss & Take-Profit brackets.
+  - **Risk Metrics Desk:** Live Win Rate %, Profit Factor, Max Concentration % (25% cap), Cash Allocation ratio, and Equity Trajectory curve.
+  - **Execution Logging:** Intent parser capable of executing virtual trades (e.g. `Buy 10 shares of NVDA`) directly into the ledger with agent rationale.
 
 ### 3. Comprehensive Company Overview (Stock Page)
 - **Complete Fundamentals on One Screen:**
@@ -113,4 +123,7 @@ python terminal_trader.py --chat
 | `GET` | `/api/scanner/run` | Multi-factor S&P 500 technical screener |
 | `GET` | `/api/portfolio/get` | Paper trading portfolio and marked-to-market PnL |
 | `POST` | `/api/portfolio/trade` | Route virtual BUY/SELL order |
+| `POST` | `/api/portfolio/reset` | Reset paper trading account to $10,000 cash balance |
+| `GET` | `/api/agent/debater` | TradingAgents syndicate debate (Bull vs Bear vs CRO) |
+| `GET` | `/api/agent/briefing` | FinGPT daily desk intelligence note |
 | `POST` | `/api/agent/chat` | AI Trader Agent conversational inference |

@@ -267,10 +267,10 @@
           <div class="chat-header">
             <div>
               <span style="color:var(--amber-primary); font-weight:800; font-size:12px;">S&amp;P 500 QUANTITATIVE TRADER AGENT</span>
-              <span style="font-size:10px; color:var(--text-muted); margin-left:8px;">GROQ CLOUD &amp; LOCAL OLLAMA DESK</span>
+              <span style="font-size:10px; color:var(--text-muted); margin-left:8px;">FINROBOT &amp; TRADINGAGENTS SYNDICATE</span>
             </div>
             <div style="display:flex; gap:10px; align-items:center;">
-              <span style="font-size:10px; color:var(--cyan-primary);">PAPER ACCOUNT: $100K CAPITAL</span>
+              <span style="font-size:10px; color:var(--cyan-primary);">PAPER ACCOUNT: $10,000 CAPITAL (0 POSITIONS)</span>
               <button id="btn-clear-chat" class="f-key" style="font-size:10px; padding:2px 6px;">CLEAR</button>
             </div>
           </div>
@@ -279,28 +279,29 @@
             <div class="chat-msg agent">
               <div class="meta">TRADER AGENT • DESK ONLINE</div>
               <div class="msg-bubble">
-                Welcome to the <strong>S&amp;P 500 AI Quantitative Trading Desk</strong>. I analyze real-time market data directly from <code>yfinance</code> for all 503 S&amp;P 500 constituents.<br><br>
-                • <strong>Technical Analysis:</strong> Ask <code>Analyze NVDA setup</code> or <code>What are AAPL support and resistance levels?</code><br>
-                • <strong>Market Screener:</strong> <code>Find oversold tech stocks</code> or <code>Scan bullish MACD crossovers</code><br>
-                • <strong>Virtual Paper Trading:</strong> Execute trades: <code>Buy 25 shares of TSLA</code> or <code>Sell 10 AAPL</code>.<br>
-                • Click any prompt chip below or type your strategy question.
+                Welcome to the <strong>S&amp;P 500 Multi-Agent Trading Desk</strong> (inspired by <em>FinGPT</em>, <em>TradingAgents</em>, and <em>FinRobot</em>).<br><br>
+                • <strong>Starting Capital:</strong> <code>$10,000.00 USD</code> in cash with <strong>0 open positions</strong>.<br>
+                • <strong>🥊 Multi-Agent Syndicate Debate:</strong> Run adversarial Bull vs. Bear debate with Chief Risk Officer sizing.<br>
+                • <strong>🛡️ Disciplined Risk Guardrails:</strong> 1% risk ($100), 2% risk ($200), max 25% single-stock allocation cap.<br>
+                • <strong>Virtual Paper Trades:</strong> Say <code>Buy 10 shares of NVDA</code> or <code>Sell 5 AAPL</code>.<br>
+                • Use the prompt chips below or type any ticker strategy question!
               </div>
             </div>
           </div>
 
           <!-- Quick Prompts Bar -->
           <div class="quick-prompts-bar">
+            <button class="quick-pill" data-prompt="Run syndicate debate (Bull vs Bear vs CRO) for {symbol}">🥊 Syndicate Debate</button>
+            <button class="quick-pill" data-prompt="Generate S&P 500 daily desk morning briefing note">📋 Morning Desk Brief</button>
+            <button class="quick-pill" data-prompt="Calculate 2% risk position size and stop-loss for {symbol} on $10K capital">🛡️ 2% Risk Position Sizing</button>
             <button class="quick-pill" data-prompt="Analyze technical setup and indicators for {symbol}">📊 Technical Setup</button>
-            <button class="quick-pill" data-prompt="What are key support and resistance levels for {symbol}?">🎯 Support &amp; Resistance</button>
-            <button class="quick-pill" data-prompt="Scan S&P 500 for oversold RSI stocks right now">🔍 Scan Oversold Stocks</button>
-            <button class="quick-pill" data-prompt="Compare valuation and margins of {symbol} vs sector peers">🏢 Peer Valuation</button>
-            <button class="quick-pill" data-prompt="Buy 15 shares of {symbol}">⚡ Buy 15 Shares</button>
-            <button class="quick-pill" data-prompt="Show my paper trading portfolio and PnL">💼 My Portfolio</button>
+            <button class="quick-pill" data-prompt="Buy 10 shares of {symbol}">⚡ Buy 10 Shares</button>
+            <button class="quick-pill" data-prompt="Show my paper trading portfolio risk metrics and PnL">💼 Portfolio Risk Desk</button>
           </div>
 
           <!-- Input Bar -->
           <div class="chat-input-bar">
-            <input type="text" id="chat-user-input" class="chat-input" placeholder="ASK AGENT (e.g. 'Analyze NVDA setup', 'Buy 20 TSLA', 'Scan oversold tech stocks')...">
+            <input type="text" id="chat-user-input" class="chat-input" placeholder="ASK AGENT (e.g. 'Debate NVDA setup', 'Buy 10 TSLA', 'Morning desk brief')...">
             <button id="chat-send-btn" class="chat-send-btn">TRANSMIT &gt;</button>
           </div>
         </div>
@@ -337,22 +338,44 @@
             </div>
           </div>
 
-          <!-- Virtual Order Pad -->
+          <!-- Virtual Order Pad with Risk Sizing -->
           <div class="panel">
             <div class="panel-header">
-              <span>QUICK PAPER ORDER PAD</span>
-              <span style="color:var(--green-up); font-size:10px;">$100K CAPITAL</span>
+              <span>DISCIPLINED PAPER ORDER PAD</span>
+              <span style="color:var(--green-up); font-size:10px;">$10K BASE</span>
             </div>
             <div class="panel-body" style="display:flex; flex-direction:column; gap:8px;">
-              <div class="form-group">
-                <label>Symbol</label>
-                <input type="text" id="order-symbol-input" class="form-control" value="NVDA" style="text-transform:uppercase;">
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
+                <div class="form-group">
+                  <label>Symbol</label>
+                  <input type="text" id="order-symbol-input" class="form-control" value="NVDA" style="text-transform:uppercase;">
+                </div>
+                <div class="form-group">
+                  <label>Order Type</label>
+                  <select id="order-type-select" class="form-control">
+                    <option value="MARKET">Market Order</option>
+                    <option value="LIMIT">Limit Order</option>
+                  </select>
+                </div>
               </div>
+
+              <!-- Risk-based Position Sizing Chips -->
+              <div>
+                <label style="font-size:9.5px; color:var(--text-muted); display:block; margin-bottom:3px;">QUICK RISK / CAPITAL SIZING:</label>
+                <div style="display:flex; gap:3px; flex-wrap:wrap;">
+                  <button type="button" class="f-key order-risk-chip" data-risk="100" style="font-size:9px; padding:2px 4px;">1% Risk ($100)</button>
+                  <button type="button" class="f-key order-risk-chip" data-risk="200" style="font-size:9px; padding:2px 4px;">2% Risk ($200)</button>
+                  <button type="button" class="f-key order-alloc-chip" data-alloc="1000" style="font-size:9px; padding:2px 4px;">10% ($1K)</button>
+                  <button type="button" class="f-key order-alloc-chip" data-alloc="2500" style="font-size:9px; padding:2px 4px;">25% Max ($2.5K)</button>
+                </div>
+              </div>
+
               <div class="form-group">
                 <label>Quantity (Shares)</label>
                 <input type="number" id="order-qty-input" class="form-control" value="10" min="1">
               </div>
-              <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:4px;">
+
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:2px;">
                 <button id="btn-quick-buy" style="background:var(--green-up); color:#000; border:none; padding:9px; font-weight:900; font-family:var(--font-mono); border-radius:2px; cursor:pointer;">BUY (MARKET)</button>
                 <button id="btn-quick-sell" style="background:var(--red-down); color:#fff; border:none; padding:9px; font-weight:900; font-family:var(--font-mono); border-radius:2px; cursor:pointer;">SELL (MARKET)</button>
               </div>
@@ -361,15 +384,15 @@
 
           <!-- Portfolio Summary Mini-Box -->
           <div class="panel">
-            <div class="panel-header"><span>ACCOUNT LIQUIDITY</span></div>
+            <div class="panel-header"><span>ACCOUNT LIQUIDITY ($10K BASE)</span></div>
             <div class="panel-body">
               <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
                 <span style="color:var(--text-muted);">Total Equity:</span>
-                <span id="agent-mini-equity" style="color:var(--cyan-primary); font-weight:bold;">$100,000.00</span>
+                <span id="agent-mini-equity" style="color:var(--cyan-primary); font-weight:bold;">$10,000.00</span>
               </div>
               <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
                 <span style="color:var(--text-muted);">Cash Available:</span>
-                <span id="agent-mini-cash" style="color:var(--green-up); font-weight:bold;">$100,000.00</span>
+                <span id="agent-mini-cash" style="color:var(--green-up); font-weight:bold;">$10,000.00</span>
               </div>
               <div style="display:flex; justify-content:space-between;">
                 <span style="color:var(--text-muted);">Total Return:</span>
@@ -662,6 +685,12 @@
               <span style="color:var(--cyan-primary); font-size:10px;">INSTANT ROUTING</span>
             </div>
             <div class="panel-body" style="padding:8px; display:flex; flex-direction:column; gap:6px;">
+              <div style="display:flex; gap:3px; flex-wrap:wrap; margin-bottom:2px;">
+                <button type="button" class="f-key term-risk-chip" data-risk="100" style="font-size:9px; padding:1px 4px;">1% Risk ($100)</button>
+                <button type="button" class="f-key term-risk-chip" data-risk="200" style="font-size:9px; padding:1px 4px;">2% Risk ($200)</button>
+                <button type="button" class="f-key term-alloc-chip" data-alloc="1000" style="font-size:9px; padding:1px 4px;">10% ($1K)</button>
+                <button type="button" class="f-key term-alloc-chip" data-alloc="2500" style="font-size:9px; padding:1px 4px;">25% Max ($2.5K)</button>
+              </div>
               <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px;">
                 <div>
                   <label style="font-size:9px; color:var(--text-muted);">QTY</label>
@@ -689,7 +718,7 @@
               <pre id="term-cli-feed" style="margin:0; font-family:var(--font-mono); font-size:9.5px; line-height:1.3; color:#cbd5e1;">
 [CLI READY] Ticker stream synchronized with yfinance daemon.
 Type in shell: `python terminal_trader.py NVDA` for ASCII Candlesticks.
-Paper trade ledger linked ($100K capital active).
+Paper trade ledger linked ($10,000 capital active).
               </pre>
             </div>
           </div>
@@ -707,11 +736,11 @@ Paper trade ledger linked ($100K capital active).
         <div class="portfolio-overview-banner">
           <div class="portfolio-stat">
             <span class="title">TOTAL EQUITY</span>
-            <span class="val" id="port-total-equity" style="color:var(--cyan-primary);">$100,000.00</span>
+            <span class="val" id="port-total-equity" style="color:var(--cyan-primary);">$10,000.00</span>
           </div>
           <div class="portfolio-stat">
             <span class="title">AVAILABLE CASH</span>
-            <span class="val" id="port-cash" style="color:var(--green-up);">$100,000.00</span>
+            <span class="val" id="port-cash" style="color:var(--green-up);">$10,000.00</span>
           </div>
           <div class="portfolio-stat">
             <span class="title">HOLDINGS VALUE</span>
@@ -727,11 +756,46 @@ Paper trade ledger linked ($100K capital active).
           </div>
         </div>
 
+        <!-- Institutional Risk & Quant Analytics Desk (TradingAgents Model) -->
+        <div style="background:#090e18; border:1px solid #1a2538; padding:8px 12px; border-radius:2px; display:grid; grid-template-columns:repeat(5, 1fr); gap:8px; font-size:11px;">
+          <div>
+            <div style="color:var(--text-muted); font-size:9.5px;">WIN RATE (CLOSED)</div>
+            <div id="port-win-rate" style="font-weight:bold; color:var(--green-up); font-size:13px;">0.0%</div>
+          </div>
+          <div>
+            <div style="color:var(--text-muted); font-size:9.5px;">PROFIT FACTOR</div>
+            <div id="port-profit-factor" style="font-weight:bold; color:var(--cyan-primary); font-size:13px;">1.00</div>
+          </div>
+          <div>
+            <div style="color:var(--text-muted); font-size:9.5px;">MAX CONCENTRATION</div>
+            <div id="port-concentration" style="font-weight:bold; color:var(--amber-primary); font-size:13px;">0.0% (Cap: 25%)</div>
+          </div>
+          <div>
+            <div style="color:var(--text-muted); font-size:9.5px;">CASH ALLOCATION</div>
+            <div id="port-cash-ratio" style="font-weight:bold; color:#cbd5e1; font-size:13px;">100.0% Cash</div>
+          </div>
+          <div>
+            <div style="color:var(--text-muted); font-size:9.5px;">TOTAL TRADES</div>
+            <div id="port-total-trades" style="font-weight:bold; color:#fff; font-size:13px;">0</div>
+          </div>
+        </div>
+
+        <!-- Portfolio Equity Trajectory Curve -->
+        <div class="panel">
+          <div class="panel-header">
+            <span>PORTFOLIO EQUITY TRAJECTORY ($10,000 BASELINE)</span>
+            <span style="font-size:10px; color:var(--text-muted);">REAL-TIME EQUITY CURVE</span>
+          </div>
+          <div class="panel-body" style="padding:4px 8px; height:85px;">
+            <canvas id="portfolio-equity-canvas"></canvas>
+          </div>
+        </div>
+
         <!-- Open Positions Table -->
         <div class="panel">
           <div class="panel-header">
-            <span>ACTIVE HOLDINGS &amp; POSITIONS</span>
-            <button id="btn-reset-portfolio" class="f-key" style="color:var(--red-down); border-color:var(--red-down);">RESET ACCOUNT ($100K)</button>
+            <span>ACTIVE HOLDINGS &amp; POSITIONS (0 INITIAL)</span>
+            <button id="btn-reset-portfolio" class="f-key" style="color:var(--red-down); border-color:var(--red-down);">RESET ACCOUNT ($10,000)</button>
           </div>
           <div class="panel-body" style="padding:0;">
             <table class="bloomberg-table">
@@ -748,7 +812,7 @@ Paper trade ledger linked ($100K capital active).
                 </tr>
               </thead>
               <tbody id="portfolio-positions-tbody">
-                <tr><td colspan="8" style="text-align:center; padding:15px; color:var(--text-muted);">Loading positions...</td></tr>
+                <tr><td colspan="8" style="text-align:center; padding:15px; color:var(--text-muted);">No open positions. Use the order pad or Trader Agent to execute paper trades.</td></tr>
               </tbody>
             </table>
           </div>
@@ -756,21 +820,24 @@ Paper trade ledger linked ($100K capital active).
 
         <!-- Recent Trade Blotter -->
         <div class="panel">
-          <div class="panel-header"><span>EXECUTED TRADE BLOTTER</span></div>
-          <div class="panel-body" style="padding:0;">
+          <div class="panel-header"><span>EXECUTED TRADE BLOTTER &amp; AGENT RATIONALE</span></div>
+          <div class="panel-body" style="padding:0; overflow-y:auto; max-height:220px;">
             <table class="bloomberg-table">
               <thead>
                 <tr>
                   <th>TIMESTAMP</th>
                   <th>ACTION</th>
+                  <th>ORDER</th>
                   <th>SYMBOL</th>
-                  <th style="text-align:right;">QUANTITY</th>
-                  <th style="text-align:right;">EXECUTION PRICE</th>
-                  <th style="text-align:right;">TOTAL VALUE</th>
+                  <th style="text-align:right;">QTY</th>
+                  <th style="text-align:right;">PRICE</th>
+                  <th style="text-align:right;">TOTAL</th>
+                  <th style="text-align:right;">REALIZED PnL</th>
+                  <th>AGENT RATIONALE</th>
                 </tr>
               </thead>
               <tbody id="portfolio-blotter-tbody">
-                <tr><td colspan="6" style="text-align:center; padding:10px; color:var(--text-muted);">No trades executed yet.</td></tr>
+                <tr><td colspan="9" style="text-align:center; padding:10px; color:var(--text-muted);">No trades executed yet. Account initialized with $10,000.</td></tr>
               </tbody>
             </table>
           </div>

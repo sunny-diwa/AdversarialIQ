@@ -473,7 +473,7 @@ TICKER: ${this.currentSymbol} | LAST: $${price.toFixed(2)} | RSI(14): ${rsi}
 20-DAY HIGH: $${high20.toFixed(2)} | 20-DAY LOW: $${low20.toFixed(2)}
 MACD: ${summary.macd || 0} (Signal: ${summary.macd_signal || 0})
 Trade Target: $${(high20 * 1.025).toFixed(2)} | Stop-Loss: $${(low20 * 0.985).toFixed(2)}
-Virtual Ledger: Ready to route BUY/SELL ${this.currentSymbol} to $100K portfolio.
+Virtual Ledger: Ready to route BUY/SELL ${this.currentSymbol} to $10,000 paper account.
 `;
     }
   }
