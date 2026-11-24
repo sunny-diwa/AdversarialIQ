@@ -144,7 +144,7 @@ class SP500TraderAgent {
         const metaTag = data.tool_called 
           ? `${data.provider || 'TRADER AGENT'} • TOOL: ${data.tool_called.toUpperCase()}`
           : data.provider;
-        this.appendMessage("agent", data.response, metaTag);
+        this.appendMessage("agent", data.response, metaTag, data.evaluation);
 
         // If backtest was executed, feed to Backtest Studio
         if (data.backtest && window.backtestStudio) {
@@ -164,21 +164,59 @@ class SP500TraderAgent {
     }
   }
 
-  appendMessage(sender, content, provider = null) {
+  appendMessage(sender, content, provider = null, evaluation = null) {
     if (!this.messagesContainer) return;
 
     const msgEl = document.createElement("div");
     msgEl.className = `chat-msg ${sender}`;
 
     const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-    const metaTag = sender === "user" ? `YOU • ${timeStr}` : `${provider || 'TRADER AGENT'} • ${timeStr}`;
+    let metaTag = sender === "user" ? `YOU • ${timeStr}` : `${provider || 'TRADER AGENT'} • ${timeStr}`;
+
+    if (evaluation && sender === "agent") {
+      const passColor = evaluation.verdict === 'PASS' ? '#22c55e' : (evaluation.verdict === 'NEEDS_REVISION' ? '#f59e0b' : '#ef4444');
+      const score = Math.round(evaluation.composite_score || 0);
+      metaTag += ` • <span class="eval-pill-clickable" style="cursor:pointer; color:${passColor}; font-weight:bold; border:1px solid ${passColor}; padding:1px 6px; border-radius:3px; font-size:9.5px; background:rgba(0,0,0,0.4);" title="Click to inspect Agent Evaluation & Benchmark Audit">🛡️ EVAL: ${score}/100 ${evaluation.verdict}</span>`;
+    }
 
     const formattedContent = this.formatMarkdown(content);
 
+    let evalDrawerHtml = "";
+    if (evaluation && sender === "agent") {
+      const gScore = evaluation.grounding_score != null ? Math.round(evaluation.grounding_score) : '--';
+      const rScore = evaluation.guardrail_score != null ? Math.round(evaluation.guardrail_score) : '--';
+      const advScore = evaluation.adversarial_score != null ? Math.round(evaluation.adversarial_score) : '--';
+      const tScore = evaluation.tool_score != null ? Math.round(evaluation.tool_score) : '--';
+      const selfCorr = evaluation.needs_revision ? 'Self-Corrected' : 'Deterministic Direct';
+
+      evalDrawerHtml = `
+        <div class="eval-detail-drawer" style="margin-top:8px; padding:6px 10px; background:rgba(15,23,42,0.7); border:1px solid rgba(56,189,248,0.25); border-radius:4px; font-size:10px; color:#94a3b8; display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
+          <div><span style="color:#64748b;">Grounding:</span> <strong style="color:#38bdf8;">${gScore}/100</strong></div>
+          <div><span style="color:#64748b;">Risk Guardrails:</span> <strong style="color:#22c55e;">${rScore}/100</strong></div>
+          <div><span style="color:#64748b;">Adversarial Balance:</span> <strong style="color:#f59e0b;">${advScore}/100</strong></div>
+          <div><span style="color:#64748b;">Tool Integrity:</span> <strong style="color:#a855f7;">${tScore}/100</strong></div>
+          <div><span style="color:#64748b;">Reflection:</span> <strong style="color:#fff;">${selfCorr}</strong></div>
+        </div>
+      `;
+    }
+
     msgEl.innerHTML = `
       <div class="meta">${metaTag}</div>
-      <div class="msg-bubble">${formattedContent}</div>
+      <div class="msg-bubble">${formattedContent}${evalDrawerHtml}</div>
     `;
+
+    // Hook click on eval pill to open traces modal directly to eval tab
+    const pill = msgEl.querySelector(".eval-pill-clickable");
+    if (pill) {
+      pill.addEventListener("click", () => {
+        const modal = document.getElementById("traces-modal");
+        const evalTabBtn = document.getElementById("tab-btn-eval-audit");
+        if (modal) {
+          modal.classList.add("open");
+          if (evalTabBtn) evalTabBtn.click();
+        }
+      });
+    }
 
     this.messagesContainer.appendChild(msgEl);
     this.messagesContainer.scrollTop = this.messagesContainer.scrollHeight;

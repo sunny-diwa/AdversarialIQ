@@ -113,6 +113,20 @@ def run_adversarial_trade_tribunal(
         runner = LangChainTribunal(symbol=sym, account_capital=account_capital, provider=provider, model=model)
         res = runner.run(auto_execute=False)
         result = _normalize_tribunal_dict(res, sym)
+        try:
+            from src.eval.critic import AgentCriticRefiner
+            eval_res = AgentCriticRefiner.evaluate_turn(
+                response_text=result.get("verdict_summary", ""),
+                symbol=sym,
+                agent_name="AdversarialTribunal",
+                provider=provider,
+                model=model or "default",
+                tribunal_data=result
+            )
+            result["evaluation"] = eval_res.to_dict()
+        except Exception as ee:
+            logger.debug(f"Tribunal eval notice: {ee}")
+
         _TRIBUNAL_CACHE[cache_key] = {"data": result, "ts": time.time()}
         return result
     except Exception as e:
@@ -121,6 +135,20 @@ def run_adversarial_trade_tribunal(
             fsm = AdversarialStateMachine(symbol=sym, account_capital=account_capital)
             res = fsm.run_full_pipeline(auto_execute=False)
             result = _normalize_tribunal_dict(res, sym)
+            try:
+                from src.eval.critic import AgentCriticRefiner
+                eval_res = AgentCriticRefiner.evaluate_turn(
+                    response_text=result.get("verdict_summary", ""),
+                    symbol=sym,
+                    agent_name="AdversarialTribunal",
+                    provider=provider,
+                    model=model or "default",
+                    tribunal_data=result
+                )
+                result["evaluation"] = eval_res.to_dict()
+            except Exception as ee:
+                logger.debug(f"Tribunal eval notice: {ee}")
+
             _TRIBUNAL_CACHE[cache_key] = {"data": result, "ts": time.time()}
             return result
         except Exception as fe:
