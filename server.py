@@ -55,6 +55,11 @@ from src.data import (
     fetch_stock_quote,
     fetch_stock_technicals,
 )
+from src.eval import (
+    AgentBenchmarkSuite,
+    AgentCriticRefiner,
+    EvalStore,
+)
 from src.execution import (
     AlpacaPaperClient,
     execute_order,
@@ -629,6 +634,70 @@ async def get_llm_metrics():
 async def get_langfuse_telemetry():
     """Returns Langfuse Cloud connectivity status, host, and trace configuration."""
     return get_langfuse_status()
+
+
+# -----------------------------------------------------------------------------
+# Agentic Architecture - Evaluators & Golden Benchmark Suite
+# -----------------------------------------------------------------------------
+class EvaluateRequest(BaseModel):
+    response_text: str
+    symbol: str = "NVDA"
+    agent_name: str = "CustomAgent"
+    provider: str = "Groq"
+    model: str = "openai/gpt-oss-120b"
+    grounded_data: Optional[Dict[str, Any]] = None
+    trade_context: Optional[Dict[str, Any]] = None
+
+
+class BenchmarkRunRequest(BaseModel):
+    provider: Optional[str] = "groq"
+    model: Optional[str] = "openai/gpt-oss-120b"
+
+
+@app.get("/api/eval/metrics")
+async def get_evaluation_metrics():
+    """Returns real-time aggregate KPI metrics across all agent evaluations."""
+    return EvalStore.get_evaluation_metrics()
+
+
+@app.get("/api/eval/recent")
+async def get_recent_evaluations(limit: int = 50, symbol: Optional[str] = None):
+    """Returns recent evaluation audits with pass/fail status and issue breakdowns."""
+    return EvalStore.get_recent_evaluations(limit=limit, symbol=symbol)
+
+
+@app.post("/api/eval/evaluate")
+async def evaluate_agent_output(req: EvaluateRequest):
+    """Evaluates an agent output across grounding, risk compliance, adversarial rigor, and tool correctness."""
+    result = AgentCriticRefiner.evaluate_turn(
+        response_text=req.response_text,
+        symbol=req.symbol,
+        agent_name=req.agent_name,
+        provider=req.provider,
+        model=req.model,
+        grounded_data=req.grounded_data,
+        trade_context=req.trade_context
+    )
+    return result.to_dict()
+
+
+@app.post("/api/eval/benchmark/run")
+async def run_agent_benchmark_suite(req: Optional[BenchmarkRunRequest] = None):
+    """Executes the 10 golden benchmark test cases assessing agentic precision and guardrails."""
+    prov = req.provider if req else "groq"
+    mod = req.model if req else "openai/gpt-oss-120b"
+    report = AgentBenchmarkSuite.run_suite(provider=prov, model=mod)
+    return report.to_dict()
+
+
+@app.get("/api/eval/benchmark/latest")
+async def get_latest_benchmark_report():
+    """Retrieves the most recent benchmark suite execution results."""
+    latest = EvalStore.get_latest_benchmark_report()
+    if not latest:
+        report = AgentBenchmarkSuite.run_suite()
+        return report.to_dict()
+    return latest
 
 
 

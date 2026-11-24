@@ -572,9 +572,42 @@ class BloombergApp {
 
   initObservabilityModal() {
     const btnOpen = document.getElementById("btn-open-traces");
+    const btnOpenEvals = document.getElementById("btn-open-evals");
     const btnClose = document.getElementById("btn-close-traces");
     const btnRefresh = document.getElementById("btn-refresh-traces");
+    const btnRefreshEvals = document.getElementById("btn-refresh-evals");
+    const btnRunBenchmark = document.getElementById("btn-run-benchmark");
     const modal = document.getElementById("traces-modal");
+
+    const switchModalTab = (tabId) => {
+      if (!modal) return;
+      const tabBtns = modal.querySelectorAll(".setting-tabs .settings-tab-btn");
+      tabBtns.forEach(btn => {
+        if (btn.dataset.tab === tabId) {
+          btn.classList.add("active");
+        } else {
+          btn.classList.remove("active");
+        }
+      });
+      modal.querySelectorAll(".tab-pane").forEach(pane => {
+        pane.style.display = pane.id === tabId ? "block" : "none";
+      });
+
+      if (tabId === "tab-eval-audit") {
+        loadEvaluatorData();
+      } else {
+        loadObservabilityData();
+      }
+    };
+
+    // Modal Tab click listeners
+    if (modal) {
+      modal.querySelectorAll(".setting-tabs .settings-tab-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          switchModalTab(btn.dataset.tab);
+        });
+      });
+    }
 
     const loadObservabilityData = async () => {
       try {
@@ -626,10 +659,127 @@ class BloombergApp {
       }
     };
 
+    const loadEvaluatorData = async () => {
+      try {
+        const [metricsRes, benchRes, recentRes] = await Promise.all([
+          fetch("/api/eval/metrics"),
+          fetch("/api/eval/benchmark/latest"),
+          fetch("/api/eval/recent?limit=25")
+        ]);
+
+        const metrics = await metricsRes.json();
+        const bench = await benchRes.json();
+        const recent = await recentRes.json();
+
+        // Update KPI Metrics Cards
+        const totalEl = document.getElementById("eval-metric-total");
+        const passRateEl = document.getElementById("eval-metric-passrate");
+        const compEl = document.getElementById("eval-metric-composite");
+        const groundEl = document.getElementById("eval-metric-grounding");
+        const guardEl = document.getElementById("eval-metric-guardrail");
+        const advEl = document.getElementById("eval-metric-adversarial");
+
+        if (totalEl) totalEl.innerText = metrics.total_evaluations || 0;
+        if (passRateEl) passRateEl.innerText = `${metrics.pass_rate_pct != null ? metrics.pass_rate_pct.toFixed(1) : 100}%`;
+        if (compEl) compEl.innerText = `${metrics.avg_composite_score != null ? metrics.avg_composite_score.toFixed(1) : '--'} / 100`;
+        if (groundEl) groundEl.innerText = `${metrics.avg_grounding_score != null ? metrics.avg_grounding_score.toFixed(1) : '--'}%`;
+        if (guardEl) guardEl.innerText = `${metrics.avg_guardrail_score != null ? metrics.avg_guardrail_score.toFixed(1) : '--'}%`;
+        if (advEl) advEl.innerText = `${metrics.avg_adversarial_score != null ? metrics.avg_adversarial_score.toFixed(1) : '--'}%`;
+
+        // Update Benchmark Suite Card
+        const benchBadge = document.getElementById("benchmark-status-badge");
+        const benchTime = document.getElementById("benchmark-timestamp-label");
+        const benchTbody = document.getElementById("benchmark-table-tbody");
+
+        if (benchBadge && bench.total_cases) {
+          const passPct = bench.pass_rate_pct != null ? bench.pass_rate_pct.toFixed(1) : 100;
+          benchBadge.innerText = `${bench.passed_cases}/${bench.total_cases} PASSED (${passPct}%)`;
+          benchBadge.style.background = bench.failed_cases === 0 ? "#22c55e" : "#ef4444";
+          benchBadge.style.color = bench.failed_cases === 0 ? "#000" : "#fff";
+        }
+
+        if (benchTime && bench.timestamp) {
+          const durSec = bench.total_duration_ms ? (bench.total_duration_ms / 1000).toFixed(1) : "--";
+          benchTime.innerText = `Last Run: ${bench.timestamp} (${durSec}s)`;
+        }
+
+        if (benchTbody && bench.results && bench.results.length > 0) {
+          benchTbody.innerHTML = bench.results.map(r => {
+            const statusBadge = r.passed
+              ? `<span class="pill-badge" style="background:#22c55e; color:#000; font-size:9px; font-weight:bold; padding:2px 6px;">PASS</span>`
+              : `<span class="pill-badge" style="background:#ef4444; color:#fff; font-size:9px; font-weight:bold; padding:2px 6px;">FAIL</span>`;
+            
+            const catColors = {
+              "Grounding": "#38bdf8",
+              "Guardrail": "#22c55e",
+              "Tribunal": "#f59e0b",
+              "SEC EDGAR": "#a855f7",
+              "Macro": "#06b6d4",
+              "Ecosystem": "#ec4899",
+              "Order Integrity": "#10b981",
+              "Latency": "#eab308"
+            };
+            const catColor = catColors[r.category] || "#94a3b8";
+
+            return `
+              <tr>
+                <td><strong style="color:#fff; font-family:'JetBrains Mono',monospace;">${r.case_id}</strong></td>
+                <td><strong style="color:#e2e8f0;">${r.name}</strong></td>
+                <td><span class="pill-badge" style="border:1px solid ${catColor}; color:${catColor}; font-size:8.5px; padding:1px 5px; background:rgba(0,0,0,0.3);">${r.category}</span></td>
+                <td style="text-align:right; font-family:'JetBrains Mono',monospace; color:var(--cyan-primary);">${r.latency_ms ? r.latency_ms.toFixed(0) : '--'} ms</td>
+                <td style="text-align:center;">${statusBadge}</td>
+                <td style="color:#cbd5e1; font-size:10px;">${r.details || (r.error ? `<span style="color:#ef4444;">${r.error}</span>` : '--')}</td>
+              </tr>
+            `;
+          }).join("");
+        }
+
+        // Update Recent Turn Evaluations Table
+        const evalTbody = document.getElementById("eval-audit-tbody");
+        if (evalTbody) {
+          if (!recent || recent.length === 0) {
+            evalTbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:12px; color:var(--text-muted);">No evaluation records in SQLite memory yet. Interact with the Trader Agent to audit turns.</td></tr>`;
+          } else {
+            evalTbody.innerHTML = recent.map(ev => {
+              const verdictCol = ev.verdict === "PASS" ? "color:var(--green-up);" : (ev.verdict === "NEEDS_REVISION" ? "color:var(--amber-primary);" : "color:var(--red-down);");
+              const verdictBadge = `<strong style="${verdictCol} font-size:9.5px; border:1px solid currentColor; padding:1px 5px; border-radius:2px;">${ev.verdict}</strong>`;
+              const issuesStr = ev.issues && ev.issues.length > 0 
+                ? `<span style="color:#f59e0b;">${ev.issues.join("; ")}</span>` 
+                : `<span style="color:#64748b;">None (All strict gates satisfied)</span>`;
+
+              return `
+                <tr>
+                  <td style="color:var(--text-muted); font-size:9.5px;">${ev.timestamp ? (ev.timestamp.split(" ")[1] || ev.timestamp) : '--'}</td>
+                  <td><strong style="color:var(--cyan-primary); font-size:10px;">${ev.agent_name || 'Agent'}</strong></td>
+                  <td><strong style="color:#fff;">${ev.symbol || '--'}</strong></td>
+                  <td style="text-align:right; font-weight:bold; color:var(--cyan-primary);">${ev.composite_score != null ? Math.round(ev.composite_score) : '--'}/100</td>
+                  <td style="text-align:right; color:#38bdf8;">${ev.grounding_score != null ? Math.round(ev.grounding_score) : '--'}</td>
+                  <td style="text-align:right; color:var(--green-up);">${ev.guardrail_score != null ? Math.round(ev.guardrail_score) : '--'}</td>
+                  <td style="text-align:right; color:var(--amber-primary);">${ev.adversarial_score != null ? Math.round(ev.adversarial_score) : '--'}</td>
+                  <td style="text-align:center;">${verdictBadge}</td>
+                  <td style="font-size:9.5px;">${issuesStr}</td>
+                </tr>
+              `;
+            }).join("");
+          }
+        }
+
+      } catch (e) {
+        console.error("Error loading evaluator data:", e);
+      }
+    };
+
     if (btnOpen && modal) {
       btnOpen.addEventListener("click", () => {
         modal.classList.add("open");
-        loadObservabilityData();
+        switchModalTab("tab-traces-wire");
+      });
+    }
+
+    if (btnOpenEvals && modal) {
+      btnOpenEvals.addEventListener("click", () => {
+        modal.classList.add("open");
+        switchModalTab("tab-eval-audit");
       });
     }
 
@@ -639,6 +789,31 @@ class BloombergApp {
 
     if (btnRefresh) {
       btnRefresh.addEventListener("click", () => loadObservabilityData());
+    }
+
+    if (btnRefreshEvals) {
+      btnRefreshEvals.addEventListener("click", () => loadEvaluatorData());
+    }
+
+    if (btnRunBenchmark) {
+      btnRunBenchmark.addEventListener("click", async () => {
+        btnRunBenchmark.disabled = true;
+        const originalText = btnRunBenchmark.innerHTML;
+        btnRunBenchmark.innerHTML = `⏳ RUNNING 10-POINT BENCHMARK SUITE... (~30s)`;
+        btnRunBenchmark.style.opacity = "0.75";
+        try {
+          const res = await fetch("/api/eval/benchmark/run", { method: "POST" });
+          if (res.ok) {
+            await loadEvaluatorData();
+          }
+        } catch (err) {
+          console.error("Failed to run benchmark suite:", err);
+        } finally {
+          btnRunBenchmark.disabled = false;
+          btnRunBenchmark.innerHTML = originalText;
+          btnRunBenchmark.style.opacity = "1";
+        }
+      });
     }
 
     if (modal) {
