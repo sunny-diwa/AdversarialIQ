@@ -1,0 +1,72 @@
+[
+  {
+    "triumph_id": "GAIN-01",
+    "symbol": "NVDA",
+    "action": "BUY",
+    "gain_amount": 4850.0,
+    "gain_pct": 48.5,
+    "strategy": "4D Supply Chain Spillover",
+    "entry_price": 102.5,
+    "exit_price": 152.2,
+    "winning_thesis": "Mapped tier-1 hyperscaler capex commitments (MSFT, GOOGL, META) to TSMC advanced packaging wafer starts; predicted Q3 datacenter gross margin expansion 3 weeks ahead of Wall Street consensus.",
+    "conviction_score": 96,
+    "holding_period": "24 Trading Days",
+    "created_at": "2026-07-15 09:45:00"
+  },
+  {
+    "triumph_id": "GAIN-02",
+    "symbol": "AAPL",
+    "action": "BUY",
+    "gain_amount": 3420.0,
+    "gain_pct": 28.5,
+    "strategy": "13F Institutional Cluster Accumulation",
+    "entry_price": 182.0,
+    "exit_price": 233.85,
+    "winning_thesis": "Identified coordinated Form 4 insider holdings expansion alongside Berkshire Hathaway and sovereign wealth fund accumulation during China supply chain panic.",
+    "conviction_score": 91,
+    "holding_period": "38 Trading Days",
+    "created_at": "2026-08-01 10:15:00"
+  },
+  {
+    "triumph_id": "GAIN-03",
+    "symbol": "MSFT",
+    "action": "BUY",
+    "gain_amount": 2980.0,
+    "gain_pct": 24.8,
+    "strategy": "ATR Dynamic Volatility Breakout",
+    "entry_price": 380.0,
+    "exit_price": 474.25,
+    "winning_thesis": "Azure enterprise cloud AI run-rate accelerated above B; dialectical tribunal synthesized 89/100 conviction with  price target and 1:2.8 risk/reward.",
+    "conviction_score": 89,
+    "holding_period": "19 Trading Days",
+    "created_at": "2026-08-20 11:30:00"
+  },
+  {
+    "triumph_id": "GAIN-04",
+    "symbol": "AVGO",
+    "action": "BUY",
+    "gain_amount": 2410.0,
+    "gain_pct": 22.1,
+    "strategy": "SEC 10-K Catalytic Turnaround",
+    "entry_price": 145.0,
+    "exit_price": 177.05,
+    "winning_thesis": "Extracted custom ASIC hyperscaler co-design contracts from SEC 10-K footnote disclosures before analyst consensus modeled custom silicon gross margins.",
+    "conviction_score": 92,
+    "holding_period": "14 Trading Days",
+    "created_at": "2026-09-12 14:00:00"
+  },
+  {
+    "triumph_id": "GAIN-05",
+    "symbol": "AMZN",
+    "action": "BUY",
+    "gain_amount": 1890.0,
+    "gain_pct": 17.5,
+    "strategy": "Macro Flight-to-Quality Yield Hedge",
+    "entry_price": 172.0,
+    "exit_price": 202.1,
+    "winning_thesis": "Rate cut cycle onset + AWS cloud workload optimization inflection; Chief Judge ruled BUY with verified 1:2.8 risk-to-reward bracket.",
+    "conviction_score": 87,
+    "holding_period": "12 Trading Days",
+    "created_at": "2026-10-05 13:45:00"
+  }
+]

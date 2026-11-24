@@ -19,7 +19,8 @@ class ToolCallEvaluator:
         "get_macro_regime", "get_earnings_calendar", "get_market_movers", "scan_sp500_stocks",
         "get_sp500_sectors", "get_market_benchmarks", "get_company_profile", "get_company_ecosystem",
         "run_backtest", "run_adversarial_tribunal", "evaluate_risk_guardrail", "execute_paper_trade",
-        "get_portfolio_status", "get_desk_briefing", "get_post_mortem_lessons"
+        "get_portfolio_status", "get_desk_briefing", "get_post_mortem_lessons",
+        "query_agent_memory", "rewrite_agent_memory"
     }
 
     @classmethod

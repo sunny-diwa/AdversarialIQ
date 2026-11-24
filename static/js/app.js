@@ -573,6 +573,7 @@ class BloombergApp {
   initObservabilityModal() {
     const btnOpen = document.getElementById("btn-open-traces");
     const btnOpenEvals = document.getElementById("btn-open-evals");
+    const btnOpenMemory = document.getElementById("btn-open-memory");
     const btnClose = document.getElementById("btn-close-traces");
     const btnRefresh = document.getElementById("btn-refresh-traces");
     const btnRefreshEvals = document.getElementById("btn-refresh-evals");
@@ -595,6 +596,8 @@ class BloombergApp {
 
       if (tabId === "tab-eval-audit") {
         loadEvaluatorData();
+      } else if (tabId === "tab-agent-memory") {
+        loadAgentMemoryData();
       } else {
         loadObservabilityData();
       }
@@ -769,6 +772,206 @@ class BloombergApp {
       }
     };
 
+    const loadAgentMemoryData = async () => {
+      try {
+        const res = await fetch("/api/agent/memory/report");
+        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+        const data = await res.json();
+
+        // 1. Update KPI Summary Cards
+        const kpis = data.kpis || {};
+        const pnlEl = document.getElementById("mem-metric-pnl");
+        const winrateEl = document.getElementById("mem-metric-winrate");
+        const tradesEl = document.getElementById("mem-metric-trades");
+        const blunderEl = document.getElementById("mem-metric-blunder");
+        const winnerEl = document.getElementById("mem-metric-winner");
+        const stratCountEl = document.getElementById("mem-metric-strategies");
+
+        if (pnlEl) {
+          const pnlVal = Number(kpis.all_time_net_pnl || 0);
+          pnlEl.innerText = `${pnlVal >= 0 ? '+' : ''}$${pnlVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+          pnlEl.style.color = pnlVal >= 0 ? "var(--green-up)" : "var(--red-down)";
+        }
+        if (winrateEl) winrateEl.innerText = `${kpis.overall_win_rate_pct != null ? kpis.overall_win_rate_pct : '--'}%`;
+        if (tradesEl) tradesEl.innerText = kpis.total_historical_trades || 0;
+        if (blunderEl) blunderEl.innerText = `${kpis.worst_blunder_symbol || '--'} (-$${Math.abs(kpis.worst_blunder_loss || 0).toLocaleString()})`;
+        if (winnerEl) winnerEl.innerText = `${kpis.biggest_gain_symbol || '--'} (+$${Number(kpis.biggest_gain_amount || 0).toLocaleString()})`;
+        if (stratCountEl) stratCountEl.innerText = `${kpis.active_strategies_count || 5} Strategies`;
+
+        // 2. Render Top 5 Blunders Table
+        const blundersTbody = document.getElementById("mem-blunders-tbody");
+        if (blundersTbody) {
+          const blunders = data.top_blunders || [];
+          if (blunders.length === 0) {
+            blundersTbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:12px; color:var(--text-muted);">No recorded blunders in memory partition yet.</td></tr>`;
+          } else {
+            blundersTbody.innerHTML = blunders.map((b, idx) => `
+              <tr>
+                <td style="font-weight:bold; color:var(--text-muted); font-family:'JetBrains Mono',monospace;">#${idx + 1}</td>
+                <td><strong style="color:#ef4444; font-size:11px;">${b.symbol}</strong></td>
+                <td style="text-align:right; font-family:'JetBrains Mono',monospace; color:#ef4444; font-weight:bold;">-$${Math.abs(b.loss_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td style="text-align:right; font-family:'JetBrains Mono',monospace; color:#ef4444;">${b.loss_pct}%</td>
+                <td><span style="color:var(--amber-primary); font-size:10px; font-weight:bold;">${b.strategy || '--'}</span></td>
+                <td style="font-size:10px; color:#cbd5e1; max-width:320px; line-height:1.35;">${b.the_blunder || '--'}</td>
+                <td style="font-size:10px; color:#fca5a5; max-width:320px; line-height:1.35;"><strong style="color:#ef4444;">RULE:</strong> ${b.lesson_learned || '--'}</td>
+              </tr>
+            `).join("");
+          }
+        }
+
+        // 3. Render Top 5 Biggest Gains Table
+        const gainsTbody = document.getElementById("mem-gains-tbody");
+        if (gainsTbody) {
+          const gains = data.biggest_gains || [];
+          if (gains.length === 0) {
+            gainsTbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:12px; color:var(--text-muted);">No recorded gains in memory partition yet.</td></tr>`;
+          } else {
+            gainsTbody.innerHTML = gains.map((g, idx) => `
+              <tr>
+                <td style="font-weight:bold; color:var(--text-muted); font-family:'JetBrains Mono',monospace;">#${idx + 1}</td>
+                <td><strong style="color:var(--green-up); font-size:11px;">${g.symbol}</strong></td>
+                <td style="text-align:right; font-family:'JetBrains Mono',monospace; color:var(--green-up); font-weight:bold;">+$${Number(g.gain_amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td style="text-align:right; font-family:'JetBrains Mono',monospace; color:var(--green-up);">+${g.gain_pct}%</td>
+                <td><span style="color:var(--cyan-primary); font-size:10px; font-weight:bold;">${g.strategy || '--'}</span></td>
+                <td style="font-size:10px; color:#cbd5e1; max-width:360px; line-height:1.35;">${g.winning_thesis || '--'}</td>
+                <td style="text-align:center; font-family:'JetBrains Mono',monospace; color:var(--green-up); font-weight:bold;">${g.conviction_score || '--'}/100</td>
+                <td style="font-size:10px; color:var(--text-muted);">${g.holding_period || '--'}</td>
+              </tr>
+            `).join("");
+          }
+        }
+
+        // 4. Render Active Strategies Table
+        const stratsTbody = document.getElementById("mem-strategies-tbody");
+        if (stratsTbody) {
+          const strats = data.strategies_driven || [];
+          if (strats.length === 0) {
+            stratsTbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:12px; color:var(--text-muted);">No active strategies registered in partition.</td></tr>`;
+          } else {
+            stratsTbody.innerHTML = strats.map(s => {
+              const riskStr = Array.isArray(s.risk_rules) ? s.risk_rules.join(" • ") : (s.risk_rules || '--');
+              return `
+                <tr>
+                  <td><strong style="color:#fff; font-size:11px;">${s.strategy_name}</strong></td>
+                  <td><span class="pill-badge" style="border:1px solid var(--cyan-primary); color:var(--cyan-primary); font-size:9px; padding:1px 5px; background:rgba(0,0,0,0.3);">${s.category}</span></td>
+                  <td style="text-align:right; font-family:'JetBrains Mono',monospace; font-weight:bold; color:var(--green-up);">${s.win_rate_pct}%</td>
+                  <td style="text-align:right; font-family:'JetBrains Mono',monospace; color:#e2e8f0;">${s.trades_count}</td>
+                  <td style="text-align:right; font-family:'JetBrains Mono',monospace; font-weight:bold; color:var(--green-up);">+$${Number(s.cumulative_pnl_usd || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                  <td style="text-align:right; font-family:'JetBrains Mono',monospace; color:var(--amber-primary);">${s.profit_factor}</td>
+                  <td style="text-align:center;"><span class="pill-badge" style="background:#22c55e; color:#000; font-size:9px; font-weight:bold; padding:2px 6px;">${s.status}</span></td>
+                  <td style="font-size:9.5px; color:#94a3b8; max-width:280px; line-height:1.35;">${riskStr}</td>
+                </tr>
+              `;
+            }).join("");
+          }
+        }
+
+      } catch (err) {
+        console.error("Error loading agent memory data:", err);
+      }
+    };
+
+    // Live JSON Partition Inspector & Rewrite Handler
+    const partSelector = document.getElementById("memory-part-selector");
+    const jsonEditor = document.getElementById("memory-json-editor");
+    const btnReloadPart = document.getElementById("btn-reload-memory-part");
+    const btnSavePart = document.getElementById("btn-save-memory-part");
+    const saveStatus = document.getElementById("memory-save-status");
+
+    const loadSelectedMemoryPartition = async (partName) => {
+      if (!jsonEditor || !partName) return;
+      if (saveStatus) {
+        saveStatus.innerText = `⏳ Loading data/memory/${partName}.json from disk...`;
+        saveStatus.style.color = "var(--text-muted)";
+      }
+      try {
+        const res = await fetch(`/api/agent/memory/part/${partName}`);
+        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+        const data = await res.json();
+        jsonEditor.value = JSON.stringify(data, null, 2);
+        if (saveStatus) {
+          saveStatus.innerText = `🟢 Loaded data/memory/${partName}.json at ${(new Date()).toLocaleTimeString()}`;
+          saveStatus.style.color = "var(--cyan-primary)";
+        }
+      } catch (e) {
+        if (saveStatus) {
+          saveStatus.innerText = `🔴 Failed to load partition: ${e.message}`;
+          saveStatus.style.color = "var(--red-down)";
+        }
+      }
+    };
+
+    if (partSelector) {
+      partSelector.addEventListener("change", (e) => {
+        loadSelectedMemoryPartition(e.target.value);
+      });
+      // Initial load for default selection
+      loadSelectedMemoryPartition(partSelector.value || "strategies");
+    }
+
+    if (btnReloadPart && partSelector) {
+      btnReloadPart.addEventListener("click", () => {
+        loadSelectedMemoryPartition(partSelector.value);
+      });
+    }
+
+    if (btnSavePart && partSelector && jsonEditor) {
+      btnSavePart.addEventListener("click", async () => {
+        const partName = partSelector.value;
+        let parsedData;
+        try {
+          parsedData = JSON.parse(jsonEditor.value);
+        } catch (jsonErr) {
+          if (saveStatus) {
+            saveStatus.innerText = `🔴 JSON Syntax Error: ${jsonErr.message}`;
+            saveStatus.style.color = "var(--red-down)";
+          }
+          return;
+        }
+
+        btnSavePart.disabled = true;
+        btnSavePart.innerHTML = `⏳ SAVING TO DISK...`;
+        if (saveStatus) {
+          saveStatus.innerText = `Persisting to data/memory/${partName}.json...`;
+          saveStatus.style.color = "var(--amber-primary)";
+        }
+
+        try {
+          const res = await fetch(`/api/agent/memory/part/${partName}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              part: partName,
+              data: parsedData,
+              operation: "rewrite"
+            })
+          });
+          const result = await res.json();
+          if (res.ok && result.success) {
+            if (saveStatus) {
+              saveStatus.innerText = `✅ SUCCESS: Successfully rewrote data/memory/${partName}.json at ${(new Date()).toLocaleTimeString()}`;
+              saveStatus.style.color = "var(--green-up)";
+            }
+            // Refresh table views and metrics
+            await loadAgentMemoryData();
+          } else {
+            if (saveStatus) {
+              saveStatus.innerText = `🔴 Save Error: ${result.error || 'Failed to rewrite partition'}`;
+              saveStatus.style.color = "var(--red-down)";
+            }
+          }
+        } catch (err) {
+          if (saveStatus) {
+            saveStatus.innerText = `🔴 Network Error: ${err.message}`;
+            saveStatus.style.color = "var(--red-down)";
+          }
+        } finally {
+          btnSavePart.disabled = false;
+          btnSavePart.innerHTML = `SAVE & REWRITE PARTITION`;
+        }
+      });
+    }
+
     if (btnOpen && modal) {
       btnOpen.addEventListener("click", () => {
         modal.classList.add("open");
@@ -780,6 +983,13 @@ class BloombergApp {
       btnOpenEvals.addEventListener("click", () => {
         modal.classList.add("open");
         switchModalTab("tab-eval-audit");
+      });
+    }
+
+    if (btnOpenMemory && modal) {
+      btnOpenMemory.addEventListener("click", () => {
+        modal.classList.add("open");
+        switchModalTab("tab-agent-memory");
       });
     }
 

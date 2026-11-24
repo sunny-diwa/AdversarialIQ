@@ -1,0 +1,72 @@
+[
+  {
+    "blunder_id": "BLUNDER-01",
+    "symbol": "TSLA",
+    "action": "BUY",
+    "loss_amount": -1420.0,
+    "loss_pct": -14.2,
+    "strategy": "Momentum Breakout Chaser",
+    "entry_price": 265.4,
+    "exit_price": 227.7,
+    "initial_thesis": "Bull prosecuted parabolic continuation above  with RSI 84 follow-through; anticipated delivery surprise.",
+    "the_blunder": "Chased overbought parabolic euphoria despite Bear adversary warning of delivery slowdown and negative automotive margin compression. Failed to set deterministic ATR stop-loss.",
+    "lesson_learned": "Hard Safety Rule: Never execute long entries when RSI(14) > 78 without verified upward consensus revisions. Mandatory non-LLM 2% ATR bracket stop enforced on all trades.",
+    "created_at": "2026-08-14 15:45:00"
+  },
+  {
+    "blunder_id": "BLUNDER-02",
+    "symbol": "SMCI",
+    "action": "BUY",
+    "loss_amount": -1180.0,
+    "loss_pct": -11.8,
+    "strategy": "Supply Chain Bottleneck Neglect",
+    "entry_price": 890.0,
+    "exit_price": 785.0,
+    "initial_thesis": "Liquid-cooling datacenter expansion; anticipated blowout revenue following NVDA GPU roadmap acceleration.",
+    "the_blunder": "Ignored SEC EDGAR Item 1A delayed 10-K filing warning and supplier lead-time bottlenecks flagged by Bear adversary.",
+    "lesson_learned": "Mandatory Non-LLM Gate: Any ticker with delinquent SEC 10-K/10-Q filings or unresolved auditor disputes is permanently vetoed regardless of LLM conviction score.",
+    "created_at": "2026-09-02 11:20:00"
+  },
+  {
+    "blunder_id": "BLUNDER-03",
+    "symbol": "BA",
+    "action": "BUY",
+    "loss_amount": -950.0,
+    "loss_pct": -9.5,
+    "strategy": "Falling Knife Dip Buying",
+    "entry_price": 188.5,
+    "exit_price": 170.6,
+    "initial_thesis": "Commercial aerospace order backlog at all-time high; bought oversold dip near historic 52-week support.",
+    "the_blunder": "Failed to calculate 4D supply chain cascade contagion from tier-1 fuselage supplier Spirit AeroSystems; cascade score was deep red (-72) with chronic delivery halts.",
+    "lesson_learned": "Integrated 4D Ecosystem Dependency Score: If key upstream suppliers have negative movement contagion > -50, long entry is vetoed by the risk gate.",
+    "created_at": "2026-09-28 14:10:00"
+  },
+  {
+    "blunder_id": "BLUNDER-04",
+    "symbol": "META",
+    "action": "BUY",
+    "loss_amount": -820.0,
+    "loss_pct": -8.2,
+    "strategy": "Pre-Earnings Blackout Blindspot",
+    "entry_price": 510.0,
+    "exit_price": 468.2,
+    "initial_thesis": "Ad revenue stabilization, WhatsApp monetization inflection, and open-source LLaMA ecosystem adoption.",
+    "the_blunder": "Held full speculative allocation into earnings release 14 hours away; unexpected capex guidance increase caused sharp gap-down beyond stop level.",
+    "lesson_learned": "Enforced 48-Hour Earnings Blackout Window: Position sizes automatically halved and speculative entries blocked within 48 hours of quarterly earnings releases.",
+    "created_at": "2026-10-18 16:02:00"
+  },
+  {
+    "blunder_id": "BLUNDER-05",
+    "symbol": "NVDA",
+    "action": "BUY",
+    "loss_amount": -640.0,
+    "loss_pct": -6.4,
+    "strategy": "Yield Curve Spread Inversion Blindspot",
+    "entry_price": 128.5,
+    "exit_price": 120.3,
+    "initial_thesis": "Datacenter revenue expansion; bought intra-day dip at .50 following Blackwell GPU launch.",
+    "the_blunder": "Macro yield curve steepened rapidly with 10Y Treasury yield surging to 4.50%; high-multiple semiconductor peers experienced systemic multiple compression.",
+    "lesson_learned": "Macro Gate Telemetry: Position sizes automatically scaled down by 50% when FRED 10Y-2Y spread contracts rapidly or VIX spikes above 25.0.",
+    "created_at": "2026-11-04 10:30:00"
+  }
+]

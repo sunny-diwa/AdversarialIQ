@@ -553,6 +553,50 @@ async def execute_agent_tool_endpoint(req: ToolExecuteRequest):
 
 
 # -----------------------------------------------------------------------------
+# Agentic Modular Memory & Strategy Registry Endpoints (data/memory/*.json)
+# -----------------------------------------------------------------------------
+
+class MemoryRewriteRequest(BaseModel):
+    data: Any
+    operation: Optional[str] = "rewrite"
+
+
+@app.get("/api/agent/memory/parts")
+async def get_memory_partitions():
+    """Lists all accessible JSON memory partitions in data/memory/."""
+    from src.memory.agent_memory import AgentMemory
+    return {"partitions": AgentMemory.list_parts()}
+
+
+@app.get("/api/agent/memory/part/{part_name}")
+async def get_memory_partition(part_name: str):
+    """Retrieves the exact JSON content of a memory partition (strategies, blunders, gains, etc.)."""
+    from src.memory.agent_memory import AgentMemory
+    try:
+        data = AgentMemory.get_part_data(part_name)
+        return {"part": part_name, "data": data}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/agent/memory/part/{part_name}")
+async def rewrite_memory_partition(part_name: str, req: MemoryRewriteRequest):
+    """Rewrites, appends to, or updates items in any JSON memory partition."""
+    from src.memory.agent_memory import AgentMemory
+    res = AgentMemory.rewrite_part(part=part_name, data=req.data, operation=req.operation or "rewrite")
+    if not res.get("success"):
+        raise HTTPException(status_code=400, detail=res.get("error", "Failed to update memory"))
+    return res
+
+
+@app.get("/api/agent/memory/report")
+async def get_memory_report(symbol: Optional[str] = None):
+    """Returns the full memory audit report: top 5 blunders, biggest gains, active strategies, and KPIs."""
+    from src.memory.agent_memory import AgentMemory
+    return AgentMemory.get_full_memory_payload()
+
+
+# -----------------------------------------------------------------------------
 # 5-Year High-Speed Quantitative Backtest Suite (10 Marquee S&P 500 Stocks)
 # -----------------------------------------------------------------------------
 @app.get("/api/backtest/symbols")
