@@ -43,6 +43,7 @@
       <button id="btn-open-traces" class="btn-settings" style="border-color:#38bdf8; color:#38bdf8;">📡 TRACES /
         OBSERVABILITY</button>
       <button id="btn-open-evals" class="btn-settings" style="border-color:#10b981; color:#10b981;">🛡️ EVALUATORS &amp; BENCHMARKS</button>
+      <button id="btn-open-memory" class="btn-settings" style="border-color:#a855f7; color:#a855f7;">🧠 AGENT MEMORY</button>
       <button id="btn-open-auth" class="btn-settings" style="border-color:#10b981; color:#10b981;">👤 <span
           id="user-display-label">LOGIN</span></button>
       <button id="btn-open-settings" class="btn-settings">⚙️ AI SETTINGS</button>
@@ -340,6 +341,12 @@
               Sizing</button>
             <button class="quick-pill"
               data-prompt="Audit agent grounding, risk compliance, and dialectical evaluation scores for {symbol}">🛡️ Evaluator Audit</button>
+            <button class="quick-pill"
+              data-prompt="Show your memory report: top 5 blunders, biggest gains, and active strategies">🧠 Agent Memory &amp; Blunders</button>
+            <button class="quick-pill"
+              data-prompt="What are your top 5 all-time blunders and the structural lessons learned?">🚨 Top 5 Blunders</button>
+            <button class="quick-pill"
+              data-prompt="What quantitative strategies do you actively drive?">⚙️ Strategies Driven</button>
             <button class="quick-pill" data-prompt="Check 48-Hour Earnings Blackout Window for {symbol}">📅 Earnings
               Blackout</button>
             <button class="quick-pill" data-prompt="Prosecute the strongest Bull case for {symbol} with catalysts">🐂
@@ -1800,6 +1807,7 @@ Paper trade ledger linked ($100K capital active).
         <div class="setting-tabs" role="tablist" style="margin-bottom:14px;">
           <button class="settings-tab-btn active" data-tab="tab-traces-wire" id="tab-btn-traces-wire" role="tab">📡 LLM TRACES &amp; WIRE</button>
           <button class="settings-tab-btn" data-tab="tab-eval-audit" id="tab-btn-eval-audit" role="tab">🛡️ AGENT EVALUATION &amp; BENCHMARKS</button>
+          <button class="settings-tab-btn" data-tab="tab-agent-memory" id="tab-btn-agent-memory" role="tab">🧠 AGENT MEMORY &amp; STRATEGIES</button>
         </div>
 
         <!-- TAB 1: LLM Traces & Telemetry Wire -->
@@ -1976,6 +1984,149 @@ Paper trade ledger linked ($100K capital active).
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+
+        <!-- TAB 3: Agent Memory & Strategies (JSON Files in data/memory/) -->
+        <div id="tab-agent-memory" class="tab-pane" style="display:none;">
+          <!-- Telemetry KPI Cards -->
+          <div style="display:grid; grid-template-columns:repeat(6, 1fr); gap:8px; margin-bottom:14px;">
+            <div class="metric-cell" style="padding:8px;">
+              <div class="label">All-Time Net P&amp;L</div>
+              <div class="val" id="mem-metric-pnl" style="font-size:15px; color:var(--green-up);">+$53,800.00</div>
+            </div>
+            <div class="metric-cell" style="padding:8px;">
+              <div class="label">Historical Win Rate</div>
+              <div class="val" id="mem-metric-winrate" style="font-size:15px; color:var(--green-up);">73.7%</div>
+            </div>
+            <div class="metric-cell" style="padding:8px;">
+              <div class="label">Total Trades</div>
+              <div class="val" id="mem-metric-trades" style="font-size:15px; color:#fff;">175</div>
+            </div>
+            <div class="metric-cell" style="padding:8px;">
+              <div class="label">Worst Blunder</div>
+              <div class="val" id="mem-metric-blunder" style="font-size:15px; color:var(--red-down);">TSLA (-$1,420)</div>
+            </div>
+            <div class="metric-cell" style="padding:8px;">
+              <div class="label">Peak Winner</div>
+              <div class="val" id="mem-metric-winner" style="font-size:15px; color:var(--cyan-primary);">NVDA (+$4,850)</div>
+            </div>
+            <div class="metric-cell" style="padding:8px;">
+              <div class="label">Active Desks</div>
+              <div class="val" id="mem-metric-strategies" style="font-size:15px; color:var(--amber-primary);">5 Strategies</div>
+            </div>
+          </div>
+
+          <!-- Section 1: Top 5 Blunders of All Time -->
+          <div style="background:rgba(239, 68, 68, 0.05); border:1px solid rgba(239, 68, 68, 0.3); border-radius:4px; padding:12px; margin-bottom:16px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <div style="font-size:11.5px; font-weight:bold; color:#ef4444; display:flex; align-items:center; gap:8px;">
+                <span>🚨 TOP 5 ALL-TIME AGENT BLUNDERS &amp; FAILURE POST-MORTEMS</span>
+                <span class="pill-badge" style="background:#ef4444; color:#fff; font-size:9px; padding:1px 6px;">data/memory/blunders.json</span>
+              </div>
+              <span style="font-size:10px; color:var(--text-muted);">Self-correcting memory: rules strictly enforced to prevent repeat losses</span>
+            </div>
+            <div style="overflow-x:auto;">
+              <table class="bloomberg-table" style="width:100%; font-size:10.5px;">
+                <thead>
+                  <tr>
+                    <th style="width:50px;">RANK</th>
+                    <th style="width:65px;">TICKER</th>
+                    <th style="width:85px; text-align:right;">LOSS ($)</th>
+                    <th style="width:75px; text-align:right;">LOSS (%)</th>
+                    <th style="width:160px;">STRATEGY DRIVEN</th>
+                    <th>CRITICAL ERROR &amp; ROOT CAUSE</th>
+                    <th>PERMANENT NON-LLM RULE ENFORCED</th>
+                  </tr>
+                </thead>
+                <tbody id="mem-blunders-tbody">
+                  <tr><td colspan="7" style="text-align:center; padding:10px; color:var(--text-muted);">Loading blunders...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Section 2: Top 5 Biggest Gains -->
+          <div style="background:rgba(34, 197, 94, 0.05); border:1px solid rgba(34, 197, 94, 0.3); border-radius:4px; padding:12px; margin-bottom:16px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <div style="font-size:11.5px; font-weight:bold; color:var(--green-up); display:flex; align-items:center; gap:8px;">
+                <span>🏆 TOP 5 ALL-TIME BIGGEST GAINS (HALL OF FAME)</span>
+                <span class="pill-badge" style="background:#22c55e; color:#000; font-size:9px; padding:1px 6px;">data/memory/gains.json</span>
+              </div>
+              <span style="font-size:10px; color:var(--text-muted);">Peak alpha captures driven by 4D supply chain mapping &amp; SEC filings</span>
+            </div>
+            <div style="overflow-x:auto;">
+              <table class="bloomberg-table" style="width:100%; font-size:10.5px;">
+                <thead>
+                  <tr>
+                    <th style="width:50px;">RANK</th>
+                    <th style="width:65px;">TICKER</th>
+                    <th style="width:85px; text-align:right;">REALIZED GAIN</th>
+                    <th style="width:75px; text-align:right;">RETURN (%)</th>
+                    <th style="width:160px;">STRATEGY DRIVEN</th>
+                    <th>WINNING CATALYST &amp; THESIS</th>
+                    <th style="width:70px; text-align:center;">CONVICTION</th>
+                    <th style="width:100px;">HOLDING PERIOD</th>
+                  </tr>
+                </thead>
+                <tbody id="mem-gains-tbody">
+                  <tr><td colspan="8" style="text-align:center; padding:10px; color:var(--text-muted);">Loading triumphs...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Section 3: Active Strategies Driven -->
+          <div style="background:rgba(15, 23, 42, 0.6); border:1px solid rgba(56, 189, 248, 0.3); border-radius:4px; padding:12px; margin-bottom:16px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <div style="font-size:11.5px; font-weight:bold; color:var(--cyan-primary); display:flex; align-items:center; gap:8px;">
+                <span>⚙️ ACTIVE QUANTITATIVE STRATEGIES DRIVEN</span>
+                <span class="pill-badge" style="background:#0284c7; color:#fff; font-size:9px; padding:1px 6px;">data/memory/strategies.json</span>
+              </div>
+              <span style="font-size:10px; color:var(--text-muted);">Operational strategies continually driven and tunable by the agent</span>
+            </div>
+            <div style="overflow-x:auto;">
+              <table class="bloomberg-table" style="width:100%; font-size:10.5px;">
+                <thead>
+                  <tr>
+                    <th>STRATEGY NAME</th>
+                    <th>CATEGORY</th>
+                    <th style="text-align:right;">WIN RATE</th>
+                    <th style="text-align:right;">TRADES</th>
+                    <th style="text-align:right;">CUMULATIVE P&amp;L</th>
+                    <th style="text-align:right;">PROFIT FACTOR</th>
+                    <th style="text-align:center;">STATUS</th>
+                    <th>OPERATIONAL RISK RULES</th>
+                  </tr>
+                </thead>
+                <tbody id="mem-strategies-tbody">
+                  <tr><td colspan="8" style="text-align:center; padding:10px; color:var(--text-muted);">Loading strategies...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Section 4: Live JSON Partition Inspector & Rewrite Studio -->
+          <div style="background:rgba(15, 23, 42, 0.8); border:1px solid var(--border-color); border-radius:4px; padding:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:11px; font-weight:bold; color:var(--amber-primary);">📝 LIVE JSON MEMORY PARTITION STUDIO:</span>
+                <select id="memory-part-selector" class="terminal-select" style="font-size:10.5px; padding:3px 8px;">
+                  <option value="strategies">strategies.json (Active Strategies)</option>
+                  <option value="blunders">blunders.json (Top Blunders)</option>
+                  <option value="gains">gains.json (Biggest Gains)</option>
+                  <option value="reflections">reflections.json (Episodic Lessons)</option>
+                  <option value="theses">theses.json (Trade Journal)</option>
+                  <option value="kpis">kpis.json (Performance KPIs)</option>
+                </select>
+              </div>
+              <div style="display:flex; gap:8px;">
+                <button id="btn-reload-memory-part" class="f-key" style="font-size:9.5px; padding:3px 10px;">RELOAD FROM DISK</button>
+                <button id="btn-save-memory-part" class="f-key active" style="font-size:9.5px; padding:3px 12px; background:#0284c7; border-color:#38bdf8; color:#fff;">SAVE &amp; REWRITE PARTITION</button>
+              </div>
+            </div>
+            <textarea id="memory-json-editor" class="terminal-input" rows="10" style="width:100%; font-family:'JetBrains Mono', monospace; font-size:10.5px; line-height:1.4; color:#38bdf8; background:#020509; border:1px solid #1e293b; border-radius:3px; padding:8px; box-sizing:border-box;" spellcheck="false"></textarea>
+            <div id="memory-save-status" style="font-size:10px; margin-top:5px; color:var(--text-muted);"></div>
           </div>
         </div>
 

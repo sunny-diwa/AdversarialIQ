@@ -9,6 +9,7 @@ and orchestrates multi-provider LLMs with loop protection and graceful error han
 
 import json
 import logging
+from pathlib import Path
 import re
 from typing import Any, Dict, List, Optional
 
@@ -36,6 +37,18 @@ from src.llm.manager import LLMManager
 from src.risk.guardrail import RiskGuardrail
 
 logger = logging.getLogger("ChatAgent")
+
+INSTRUCTIONS_FILE = Path("instructions.md")
+
+
+def get_system_instructions() -> str:
+    """Loads instructions.md so it is always present in the agent system prompt."""
+    if INSTRUCTIONS_FILE.exists():
+        try:
+            return INSTRUCTIONS_FILE.read_text(encoding="utf-8")
+        except Exception as e:
+            logger.warning(f"Could not read instructions.md: {e}")
+    return "You are AdversarialIQ, an elite institutional quantitative hedge fund trader and adversarial intelligence syndicate."
 
 
 def _process_chat_message_inner(
@@ -155,16 +168,19 @@ def _process_chat_message_inner(
         ])
 
         if is_greeting and not is_tool_intent:
-            system_prompt = f"""You are AdversarialIQ, a high-performance quantitative trading desk and adversarial intelligence agent.
+            instructions_text = get_system_instructions()
+            system_prompt = f"""{instructions_text}
+
 The user is greeting you or asking about your capabilities.
 The active symbol selected on the terminal is {target_sym} ({SP500_MAP.get(target_sym, {}).get('name', target_sym)}).
 Warmly greet the user, introduce yourself as AdversarialIQ, and succinctly explain what you can do:
 - Analyze {target_sym} or any of the 500 S&P stocks (technicals, live news catalysts, SEC filings, insider trades)
 - Run 3-agent Adversarial Trade Tribunals (Bull vs Bear vs Chief Judge)
 - Map company ecosystems (suppliers, buyers, competitors, A-CIS movement scores)
+- Inspect agent institutional memory: top 5 all-time blunders, biggest gains, and active quantitative strategies
 - Run 5-year quantitative strategy backtests with Sharpe/Sortino and equity curves
 - Execute paper trades with non-LLM 2% ATR risk gates and bracket orders
-Invite them to ask any question or name a ticker to inspect."""
+Invite them to ask any question, query memory/blunders, or name a ticker to inspect."""
 
             gen_result = LLMManager.generate(
                 prompt=prompt,
@@ -200,6 +216,56 @@ The bot is equipped with autonomous real-time quantitative and analytical tools:
 ---
 *You can invoke any tool directly by asking (e.g. `What is the latest news on NVDA?`, `Show market movers`, `Show technicals for AAPL`, `Check SEC filings for MSFT`, `What is the macro regime?`, or `Backtest RSI strategy on TSLA`).*""",
                 "tools": TOOL_SCHEMAS
+            }
+
+        # 3b. Detect Agent Memory & Blunders Queries (Modular JSON partitions in data/memory/)
+        p_lower = prompt.lower()
+        if any(k in p_lower for k in ["blunder", "blunders", "worst loss", "worst trade", "worst drawdown", "catastrophic trade", "top blunders"]):
+            logger.info(f"Routing to Agent Memory: Blunders partition for {target_sym}")
+            from src.memory.agent_memory import AgentMemory
+            res = AgentMemory.query(part="blunders", symbol=target_sym)
+            return {
+                "response": res.get("formatted_markdown", ""),
+                "memory": res,
+                "tool_called": "query_agent_memory",
+                "symbol": target_sym,
+                "provider": "Agent Memory Store (data/memory/blunders.json)"
+            }
+
+        if any(k in p_lower for k in ["biggest gain", "biggest gains", "best trade", "hall of fame", "biggest win", "top winners", "top gains"]):
+            logger.info(f"Routing to Agent Memory: Gains partition for {target_sym}")
+            from src.memory.agent_memory import AgentMemory
+            res = AgentMemory.query(part="gains", symbol=target_sym)
+            return {
+                "response": res.get("formatted_markdown", ""),
+                "memory": res,
+                "tool_called": "query_agent_memory",
+                "symbol": target_sym,
+                "provider": "Agent Memory Store (data/memory/gains.json)"
+            }
+
+        if any(k in p_lower for k in ["strategies you drive", "what strategies", "active strategies", "show strategies", "strategy registry"]):
+            logger.info(f"Routing to Agent Memory: Strategies partition")
+            from src.memory.agent_memory import AgentMemory
+            res = AgentMemory.query(part="strategies")
+            return {
+                "response": res.get("formatted_markdown", ""),
+                "memory": res,
+                "tool_called": "query_agent_memory",
+                "symbol": target_sym,
+                "provider": "Agent Memory Store (data/memory/strategies.json)"
+            }
+
+        if any(k in p_lower for k in ["show memory", "memory report", "track record", "agent memory", "memory status", "what is in your memory"]):
+            logger.info(f"Routing to Agent Memory: Full Overview")
+            from src.memory.agent_memory import AgentMemory
+            res = AgentMemory.query(part="all", symbol=target_sym)
+            return {
+                "response": res.get("formatted_markdown", ""),
+                "memory": res,
+                "tool_called": "query_agent_memory",
+                "symbol": target_sym,
+                "provider": "Agent Memory Store (data/memory/*.json)"
             }
 
         # 4. Detect Backtest / Strategy Simulation intent
@@ -424,8 +490,10 @@ The bot is equipped with autonomous real-time quantitative and analytical tools:
             headlines_summary = "\n".join([f"- {a.get('title')} ({a.get('sentiment')}): {a.get('summary')[:140]}" for a in articles[:4]])
             sentiment = raw_news.get("overall_sentiment", {})
 
-            system_prompt = f"""You are AdversarialIQ, a quantitative trader and financial analyst.
-The user is asking an analytical question regarding {target_sym}.
+            system_prompt = f"""{get_system_instructions()}
+
+---
+ANALYTICAL LIVE NEWS SYNTHESIS REQUEST FOR {target_sym}:
 You have just retrieved the latest real-time news articles and catalyst tags for {target_sym} using the `get_company_news` tool:
 - Aggregate Sentiment: {sentiment.get('label', 'NEUTRAL')} ({sentiment.get('score', 0):+.2f})
 - Top Catalysts: {', '.join(raw_news.get('top_catalysts', []))}
@@ -535,9 +603,9 @@ Highlight how the reported catalysts impact valuation, revenue visibility, and t
         conviction = 65 if price > sma50 and rsi > 50 else 45
         verdict = "BUY" if conviction >= 65 else ("HOLD" if conviction >= 45 else "SELL")
 
-        system_prompt = f"""You are AdversarialIQ, an institutional quantitative hedge fund trader and adversarial intelligence syndicate.
-You evaluate every stock using an adversarial debate approach with non-LLM risk guardrails and live real-time tools.
+        system_prompt = f"""{get_system_instructions()}
 
+---
 LIVE DOSSIER IN INPUT FOR {target_sym}:
 - Current Price: ${price:.2f}
 - Breaking News Sentiment: {news_sentiment.get('label', 'NEUTRAL')} ({news_sentiment.get('score', 0):+.2f})
@@ -552,6 +620,8 @@ LIVE DOSSIER IN INPUT FOR {target_sym}:
 
 AVAILABLE TOOLS YOU CAN CALL (Max 5 tool calls per turn with loop prevention):
 You can invoke any tool by responding with `TOOL_CALL: {{"tool": "<name>", "arguments": {{...}}}}`:
+- `query_agent_memory(part, symbol, limit)`: Query modular memory partitions ('all', 'blunders', 'gains', 'strategies', 'theses', 'reflections', 'kpis')
+- `rewrite_agent_memory(part, data, operation)`: Rewrite, update, or append to any JSON memory partition in data/memory/
 - `get_company_news(symbol, limit)`: Breaking news, sentiment score, catalyst tags
 - `get_stock_technicals(symbol)`: RSI, MACD, ATR, moving averages, Bollinger Bands
 - `get_sec_filings(symbol)`: SEC EDGAR 10-K, 10-Q, 8-K filings and risk factors
@@ -562,6 +632,7 @@ You can invoke any tool by responding with `TOOL_CALL: {{"tool": "<name>", "argu
 - `get_market_benchmarks()`: Real-time S&P 500, Dow Jones, Nasdaq, VIX, Oil
 - `get_sp500_sectors()`: All 11 GICS sectors with constituent counts
 - `get_company_profile(symbol)`: Valuation metrics, P/E, beta, 52W ranges
+- `get_company_ecosystem(symbol)`: 4D supply chain ecosystem, upstream suppliers, downstream clients, competitors
 - `run_backtest(symbol, strategy)`: 5-year quantitative strategy backtest
 - `run_adversarial_tribunal(symbol)`: Bull vs Bear debate and judicial ruling
 - `evaluate_risk_guardrail(symbol, action)`: Non-LLM mathematical risk gate audit

@@ -1,0 +1,12 @@
+{
+  "total_historical_trades": 175,
+  "overall_win_rate_pct": 73.7,
+  "all_time_net_pnl": 53800.0,
+  "worst_blunder_loss": -1420.0,
+  "worst_blunder_symbol": "TSLA",
+  "biggest_gain_amount": 4850.0,
+  "biggest_gain_symbol": "NVDA",
+  "active_strategies_count": 5,
+  "structural_lessons_count": 5,
+  "last_updated": "2026-11-24 23:00:00"
+}

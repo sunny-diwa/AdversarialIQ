@@ -1,3 +1,4 @@
+from .agent_memory import AgentMemory, get_agent_memory
 from .journal import (
     init_journal_db,
     log_trade_thesis,
@@ -12,6 +13,8 @@ from .reflection_store import (
 )
 
 __all__ = [
+    "AgentMemory",
+    "get_agent_memory",
     "init_journal_db",
     "log_trade_thesis",
     "record_trade_close",

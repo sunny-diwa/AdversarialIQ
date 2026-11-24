@@ -1,0 +1,42 @@
+[
+  {
+    "id": 1,
+    "trade_id": "BLUNDER-01",
+    "symbol": "TSLA",
+    "sector": "Consumer Discretionary",
+    "outcome": "LOSS",
+    "lesson": "Failed parabolic momentum setup on TSLA (-14.2%). Extreme overbought RSI(14) > 80 indicates buyer exhaustion rather than sustainable continuation.",
+    "key_factors": "Overbought Technical Divergence & Ignored Bear Risk",
+    "created_at": "2026-08-14 16:00:00"
+  },
+  {
+    "id": 2,
+    "trade_id": "BLUNDER-02",
+    "symbol": "SMCI",
+    "sector": "Information Technology",
+    "outcome": "LOSS",
+    "lesson": "Failed fundamental setup on SMCI (-11.8%). Delinquent SEC 10-K Item 1A filings and accounting auditor friction precede severe equity repricing.",
+    "key_factors": "Regulatory/SEC Filing Non-Compliance",
+    "created_at": "2026-09-02 11:35:00"
+  },
+  {
+    "id": 3,
+    "trade_id": "BLUNDER-03",
+    "symbol": "BA",
+    "sector": "Industrials",
+    "outcome": "LOSS",
+    "lesson": "Failed dip-buying on BA (-9.5%). Upstream tier-1 supplier bottleneck cascade contagion must be modeled before buying oversold aerospace dips.",
+    "key_factors": "Supply Chain Bottleneck Contagion",
+    "created_at": "2026-09-28 14:30:00"
+  },
+  {
+    "id": 4,
+    "trade_id": "GAIN-01",
+    "symbol": "NVDA",
+    "sector": "Information Technology",
+    "outcome": "WIN",
+    "lesson": "High-alpha win on NVDA (+48.5%). Mapping tier-1 cloud buyer commitments to wafer node delivery yields predictive margin visibility.",
+    "key_factors": "4D Ecosystem Demand Spillover",
+    "created_at": "2026-08-08 16:05:00"
+  }
+]

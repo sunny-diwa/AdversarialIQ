@@ -945,6 +945,53 @@ def tool_get_company_ecosystem(symbol: str) -> Dict[str, Any]:
         }
 
 
+def tool_query_agent_memory(part: str = "all", symbol: Optional[str] = None, limit: int = 5) -> Dict[str, Any]:
+    """Queries agent modular memory partitions (strategies, blunders, gains, reflections, theses, kpis, or all)."""
+    try:
+        from src.memory.agent_memory import AgentMemory
+        res = AgentMemory.query(part=part, symbol=symbol, limit=limit)
+        return {
+            "tool": "query_agent_memory",
+            "part": part,
+            "symbol": symbol,
+            "result": res,
+            "formatted_markdown": res.get("formatted_markdown", "")
+        }
+    except Exception as e:
+        logger.exception(f"Error querying memory part '{part}': {e}")
+        return {
+            "tool": "query_agent_memory",
+            "part": part,
+            "error": str(e),
+            "formatted_markdown": f"⚠️ **Agent Memory Error:** Could not query partition `{part}`: {e}"
+        }
+
+
+def tool_rewrite_agent_memory(part: str, data: Any, operation: str = "rewrite") -> Dict[str, Any]:
+    """Allows the agent to rewrite, update, or append to any JSON memory partition (strategies, blunders, gains, reflections, theses, kpis)."""
+    try:
+        from src.memory.agent_memory import AgentMemory
+        res = AgentMemory.rewrite_part(part=part, data=data, operation=operation)
+        success = res.get("success", False)
+        status_icon = "✅" if success else "⚠️"
+        md = f"{status_icon} **Agent Memory Protocol:** {res.get('message', res.get('error', 'Processed rewrite'))}"
+        return {
+            "tool": "rewrite_agent_memory",
+            "part": part,
+            "operation": operation,
+            "result": res,
+            "formatted_markdown": md
+        }
+    except Exception as e:
+        logger.exception(f"Error rewriting memory part '{part}': {e}")
+        return {
+            "tool": "rewrite_agent_memory",
+            "part": part,
+            "error": str(e),
+            "formatted_markdown": f"⚠️ **Agent Memory Error:** Could not rewrite partition `{part}`: {e}"
+        }
+
+
 # -----------------------------------------------------------------------------
 # Tool Registry Map & Dispatcher with Loop Protection
 # -----------------------------------------------------------------------------
@@ -969,6 +1016,8 @@ AVAILABLE_TOOLS: Dict[str, Callable[..., Dict[str, Any]]] = {
     "get_portfolio_status": tool_get_portfolio_status,
     "get_desk_briefing": tool_get_desk_briefing,
     "get_post_mortem_lessons": tool_get_post_mortem_lessons,
+    "query_agent_memory": tool_query_agent_memory,
+    "rewrite_agent_memory": tool_rewrite_agent_memory,
 }
 
 
@@ -1166,6 +1215,31 @@ TOOL_SCHEMAS: List[Dict[str, Any]] = [
                 "symbol": {"type": "string", "description": "The stock ticker symbol, e.g. NVDA, AAPL, MSFT, TSLA"}
             },
             "required": ["symbol"]
+        }
+    },
+    {
+        "name": "query_agent_memory",
+        "description": "Queries any partition of agent institutional memory: 'blunders' (worst losses and lessons), 'gains' (biggest wins and catalysts), 'strategies' (active quantitative strategies driven), 'theses' (court debate records), 'reflections' (episodic lessons), 'kpis' (performance stats), or 'all' (comprehensive track record report).",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "part": {"type": "string", "description": "The memory partition to query: 'all', 'blunders', 'gains', 'strategies', 'theses', 'reflections', 'kpis'"},
+                "symbol": {"type": "string", "description": "Optional ticker symbol to filter memory by (e.g. NVDA, TSLA)"},
+                "limit": {"type": "integer", "description": "Maximum number of records to return (default 5)"}
+            }
+        }
+    },
+    {
+        "name": "rewrite_agent_memory",
+        "description": "Allows the autonomous agent to rewrite, update, or append to any JSON memory partition in data/memory/ (strategies, blunders, gains, reflections, theses, kpis). Enables continuous self-improvement and adaptive strategy tuning.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "part": {"type": "string", "description": "Memory partition to modify: 'strategies', 'blunders', 'gains', 'reflections', 'theses', 'kpis'"},
+                "data": {"type": "object", "description": "Data payload (list of items, single item dictionary, or full partition object)"},
+                "operation": {"type": "string", "enum": ["rewrite", "append", "update_item"], "description": "'rewrite' (replaces entire partition), 'append' (adds new item), 'update_item' (updates item matching ID)"}
+            },
+            "required": ["part", "data"]
         }
     }
 ]
