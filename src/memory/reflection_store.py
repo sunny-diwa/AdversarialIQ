@@ -10,6 +10,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from src.core.config import DB_FILE, SP500_MAP
+from src.core.prompt_loader import load_prompt
 
 logger = logging.getLogger("ReflectionStore")
 
@@ -113,7 +114,12 @@ def format_lessons_for_prompt(symbol: str) -> str:
 
     lines = []
     for l in lessons:
-        lines.append(
-            f"• [{l['outcome']} on {l['symbol']}] {l['lesson']} (Key Factors: {l.get('key_factors', 'Technical/Fundamental')})"
+        formatted = load_prompt(
+            "memory/reflection_block.txt",
+            default="- [{outcome}] on {symbol}: {lesson_learned}",
+            outcome=l["outcome"],
+            symbol=l["symbol"],
+            lesson_learned=f"{l['lesson']} (Key Factors: {l.get('key_factors', 'Technical/Fundamental')})"
         )
+        lines.append(formatted)
     return "\n".join(lines)

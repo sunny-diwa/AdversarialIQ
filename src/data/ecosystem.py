@@ -20,6 +20,7 @@ from typing import Any, Dict, List, Optional
 import requests
 
 from src.core.config import GEMINI_API_KEY, SP500_MAP, SP500_STOCKS
+from src.core.prompt_loader import load_prompt
 from src.data.market import fetch_stock_quote, fetch_stock_technicals
 from src.data.news import fetch_breaking_news
 
@@ -977,12 +978,10 @@ def _query_gemini_grounding(symbol: str, company_name: str) -> Optional[Dict[str
 
     # Check internet / DNS connectivity quickly
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={key}"
-    prompt_text = (
-        f"You are an institutional equity research analyst. Analyze {symbol} ({company_name}). "
-        f"Provide the exact supply chain ecosystem in structured JSON with keys: "
-        f"'top_suppliers' (list of strings), 'top_customers' (list of strings), "
-        f"'primary_competitors' (list of strings), 'b2b_pct' (number), 'b2c_pct' (number), "
-        f"'pricing_power_summary' (string). Return ONLY valid JSON."
+    prompt_text = load_prompt(
+        "ecosystem/gemini_grounding_user.txt",
+        symbol=symbol,
+        company_name=company_name
     )
 
     payload = {

@@ -32,6 +32,7 @@ from src.agents.tools import (
 from src.agents.tribunal import get_daily_desk_briefing, run_adversarial_trade_tribunal
 from src.backtest import StrategyGenerator
 from src.core.config import SP500_MAP
+from src.core.prompt_loader import load_prompt
 from src.execution.portfolio import execute_order
 from src.llm.manager import LLMManager
 from src.risk.guardrail import RiskGuardrail
@@ -48,7 +49,10 @@ def get_system_instructions() -> str:
             return INSTRUCTIONS_FILE.read_text(encoding="utf-8")
         except Exception as e:
             logger.warning(f"Could not read instructions.md: {e}")
-    return "You are AdversarialIQ, an elite institutional quantitative hedge fund trader and adversarial intelligence syndicate."
+    return load_prompt(
+        "chat/instructions_fallback.txt",
+        default="You are AdversarialIQ, an elite institutional quantitative hedge fund trader and adversarial intelligence syndicate."
+    )
 
 
 def _process_chat_message_inner(
@@ -169,18 +173,13 @@ def _process_chat_message_inner(
 
         if is_greeting and not is_tool_intent:
             instructions_text = get_system_instructions()
-            system_prompt = f"""{instructions_text}
-
-The user is greeting you or asking about your capabilities.
-The active symbol selected on the terminal is {target_sym} ({SP500_MAP.get(target_sym, {}).get('name', target_sym)}).
-Warmly greet the user, introduce yourself as AdversarialIQ, and succinctly explain what you can do:
-- Analyze {target_sym} or any of the 500 S&P stocks (technicals, live news catalysts, SEC filings, insider trades)
-- Run 3-agent Adversarial Trade Tribunals (Bull vs Bear vs Chief Judge)
-- Map company ecosystems (suppliers, buyers, competitors, A-CIS movement scores)
-- Inspect agent institutional memory: top 5 all-time blunders, biggest gains, and active quantitative strategies
-- Run 5-year quantitative strategy backtests with Sharpe/Sortino and equity curves
-- Execute paper trades with non-LLM 2% ATR risk gates and bracket orders
-Invite them to ask any question, query memory/blunders, or name a ticker to inspect."""
+            target_name = SP500_MAP.get(target_sym, {}).get('name', target_sym)
+            system_prompt = load_prompt(
+                "chat/greeting_system.txt",
+                instructions_text=instructions_text,
+                target_sym=target_sym,
+                target_name=target_name
+            )
 
             gen_result = LLMManager.generate(
                 prompt=prompt,
@@ -490,18 +489,15 @@ The bot is equipped with autonomous real-time quantitative and analytical tools:
             headlines_summary = "\n".join([f"- {a.get('title')} ({a.get('sentiment')}): {a.get('summary')[:140]}" for a in articles[:4]])
             sentiment = raw_news.get("overall_sentiment", {})
 
-            system_prompt = f"""{get_system_instructions()}
-
----
-ANALYTICAL LIVE NEWS SYNTHESIS REQUEST FOR {target_sym}:
-You have just retrieved the latest real-time news articles and catalyst tags for {target_sym} using the `get_company_news` tool:
-- Aggregate Sentiment: {sentiment.get('label', 'NEUTRAL')} ({sentiment.get('score', 0):+.2f})
-- Top Catalysts: {', '.join(raw_news.get('top_catalysts', []))}
-- Live Breaking Headlines:
-{headlines_summary}
-
-Synthesize these live news articles directly to answer the user's inquiry with professional rigor.
-Highlight how the reported catalysts impact valuation, revenue visibility, and trade positioning."""
+            system_prompt = load_prompt(
+                "chat/news_synthesis_system.txt",
+                instructions_text=get_system_instructions(),
+                target_sym=target_sym,
+                sentiment_label=sentiment.get('label', 'NEUTRAL'),
+                sentiment_score=f"{sentiment.get('score', 0):+.2f}",
+                top_catalysts=', '.join(raw_news.get('top_catalysts', [])),
+                headlines_summary=headlines_summary
+            )
 
             gen_result = LLMManager.generate(
                 prompt=prompt,
@@ -603,47 +599,27 @@ Highlight how the reported catalysts impact valuation, revenue visibility, and t
         conviction = 65 if price > sma50 and rsi > 50 else 45
         verdict = "BUY" if conviction >= 65 else ("HOLD" if conviction >= 45 else "SELL")
 
-        system_prompt = f"""{get_system_instructions()}
-
----
-LIVE DOSSIER IN INPUT FOR {target_sym}:
-- Current Price: ${price:.2f}
-- Breaking News Sentiment: {news_sentiment.get('label', 'NEUTRAL')} ({news_sentiment.get('score', 0):+.2f})
-- Top Catalysts: {', '.join(news_dossier.get('top_catalysts', []))}
-- Recent Headlines: {news_headlines or 'None'}
-- Key Technicals: RSI={rsi:.1f}, MACD={macd:.2f}, ATR14=${atr:.2f}, SMA50=${sma50:.2f}
-- Bull Prosecution Case: {bull_args_str}
-- Bear Defense Case: {bear_args_str}
-- AdversarialIQ Conviction Score: {conviction}/100
-- Adjudicated Ruling: {verdict}
-- Suggested Position Size: {rec_shares} shares | Stop Loss: {stop_loss} | Target: {take_profit}
-
-AVAILABLE TOOLS YOU CAN CALL (Max 5 tool calls per turn with loop prevention):
-You can invoke any tool by responding with `TOOL_CALL: {{"tool": "<name>", "arguments": {{...}}}}`:
-- `query_agent_memory(part, symbol, limit)`: Query modular memory partitions ('all', 'blunders', 'gains', 'strategies', 'theses', 'reflections', 'kpis')
-- `rewrite_agent_memory(part, data, operation)`: Rewrite, update, or append to any JSON memory partition in data/memory/
-- `get_company_news(symbol, limit)`: Breaking news, sentiment score, catalyst tags
-- `get_stock_technicals(symbol)`: RSI, MACD, ATR, moving averages, Bollinger Bands
-- `get_sec_filings(symbol)`: SEC EDGAR 10-K, 10-Q, 8-K filings and risk factors
-- `get_insider_activity(symbol)`: Form 4 executive buy/sell clusters, 13F holdings
-- `get_macro_regime()`: FRED interest rates, yield curve spread, CPI, VIX
-- `get_earnings_calendar(symbol)`: 48-hour earnings blackout window
-- `get_market_movers()`: Top gainers, top losers, and most active stocks
-- `get_market_benchmarks()`: Real-time S&P 500, Dow Jones, Nasdaq, VIX, Oil
-- `get_sp500_sectors()`: All 11 GICS sectors with constituent counts
-- `get_company_profile(symbol)`: Valuation metrics, P/E, beta, 52W ranges
-- `get_company_ecosystem(symbol)`: 4D supply chain ecosystem, upstream suppliers, downstream clients, competitors
-- `run_backtest(symbol, strategy)`: 5-year quantitative strategy backtest
-- `run_adversarial_tribunal(symbol)`: Bull vs Bear debate and judicial ruling
-- `evaluate_risk_guardrail(symbol, action)`: Non-LLM mathematical risk gate audit
-- `execute_paper_trade(symbol, action, quantity)`: Order routing with bracket orders
-- `get_portfolio_status()`: Portfolio balance, positions, win rate
-- `get_desk_briefing()`: Morning desk intelligence note across S&P 500
-- `get_post_mortem_lessons(symbol)`: Historical lessons learned on similar setups
-
-Deliver structured, direct, professional institutional analysis using markdown tables and bullet points.
-If the user's message is a greeting or general inquiry (e.g., 'hi', 'hello', 'who are you', 'how does this work'), respond cordially, introduce yourself as AdversarialIQ, mention the currently active stock on the terminal ({target_sym}), and briefly offer what you can help with.
-If the user asks to execute a trade, remind them they can type 'Buy <qty> <symbol>' or 'Sell <qty> <symbol>'."""
+        system_prompt = load_prompt(
+            "chat/dossier_system.txt",
+            instructions_text=get_system_instructions(),
+            target_sym=target_sym,
+            price=f"{price:.2f}",
+            sentiment_label=news_sentiment.get('label', 'NEUTRAL'),
+            sentiment_score=f"{news_sentiment.get('score', 0):+.2f}",
+            top_catalysts=', '.join(news_dossier.get('top_catalysts', [])),
+            news_headlines=news_headlines or 'None',
+            rsi=f"{rsi:.1f}",
+            macd=f"{macd:.2f}",
+            atr=f"{atr:.2f}",
+            sma50=f"{sma50:.2f}",
+            bull_args_str=bull_args_str,
+            bear_args_str=bear_args_str,
+            conviction=str(conviction),
+            verdict=verdict,
+            rec_shares=str(rec_shares),
+            stop_loss=stop_loss,
+            take_profit=take_profit
+        )
 
         gen_result = LLMManager.generate(
             prompt=prompt,

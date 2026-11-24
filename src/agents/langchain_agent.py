@@ -37,6 +37,7 @@ from src.data.news import fetch_breaking_news
 from src.data.sec_edgar import fetch_insider_and_13f_activity, fetch_sec_filings
 from src.execution.alpaca import AlpacaPaperClient
 from src.execution.portfolio import get_portfolio_state
+from src.core.prompt_loader import load_prompt
 from src.llm.manager import LLMManager
 from src.memory.journal import log_trade_thesis
 from src.memory.reflection_store import format_lessons_for_prompt
@@ -51,67 +52,31 @@ logger = logging.getLogger("LangChainAgent")
 
 
 # -----------------------------------------------------------------------------
-# LangChain Prompt Templates
+# LangChain Prompt Templates (Dynamically loaded from prompts/ folder)
 # -----------------------------------------------------------------------------
 
-BULL_PROMPT = ChatPromptTemplate.from_messages([
-    ("system", (
-        "You are AGENT BULL, Senior Long Equity Prosecutor of the AdversarialIQ Syndicate. "
-        "Your duty is to build an aggressive, rigorously evidenced prosecution case for initiating "
-        "a LONG position on {symbol} ({company_name}).\n"
-        "Ground your case on: technical breakout indicators (RSI, MACD, moving averages), "
-        "SEC EDGAR 10-K/10-Q growth metrics, Form 4 insider buying clusters, and positive catalyst news sentiment."
-    )),
-    ("human", (
-        "Market Dossier for {symbol}:\n"
-        "- Current Price: ${price:.2f}\n"
-        "- Technicals: RSI={rsi:.1f}, MACD={macd:.2f}, Signal={macd_signal:.2f}, SMA50=${sma50:.2f}\n"
-        "- Form 4 Insider Sentiment: {insider_summary}\n"
-        "- News Catalysts: {news_summary}\n"
-        "- SEC EDGAR MD&A Status: {sec_summary}\n"
-        "- Historical Reflexivity Lessons: {past_lessons}\n\n"
-        "Present your prosecutorial case. Highlight key catalysts and argue why upside outweighs market beta."
-    ))
-])
+def get_bull_prompt() -> ChatPromptTemplate:
+    return ChatPromptTemplate.from_messages([
+        ("system", load_prompt("tribunal/bull_system.txt")),
+        ("human", load_prompt("tribunal/bull_user.txt"))
+    ])
 
-BEAR_PROMPT = ChatPromptTemplate.from_messages([
-    ("system", (
-        "You are AGENT BEAR, Senior Downside Adversary and Risk Auditor of the AdversarialIQ Syndicate. "
-        "Your sworn mandate is to dismantle the Bull thesis, identify tail-risk vulnerabilities, and protect "
-        "institutional capital from drawdown.\n"
-        "Audit: technical overextension/resistance, yield curve inversion (FRED DGS10/2Y), CBOE VIX volatility, "
-        "insider selling clusters, and imminent earnings announcement blackout windows (48 hours)."
-    )),
-    ("human", (
-        "Review {symbol} Dossier & Bull Prosecution:\n"
-        "- Bull Thesis: {bull_thesis}\n"
-        "- Technical Indicators: RSI={rsi:.1f}, MACD={macd:.2f}, SMA50=${sma50:.2f}\n"
-        "- Macro Regime: {macro_regime} (VIX: {vix:.2f}, 10Y-2Y Spread: {yield_spread_bps:.1f} bps)\n"
-        "- Earnings Blackout: {earnings_status}\n"
-        "- Form 4 Insider Activity: {insider_summary}\n\n"
-        "Cross-examine the setup. Expose downside hazards and state why long exposure carries excessive risk."
-    ))
-])
+def get_bear_prompt() -> ChatPromptTemplate:
+    return ChatPromptTemplate.from_messages([
+        ("system", load_prompt("tribunal/bear_system.txt")),
+        ("human", load_prompt("tribunal/bear_user.txt"))
+    ])
 
-JUDGE_PROMPT = ChatPromptTemplate.from_messages([
-    ("system", (
-        "You are THE CHIEF JUDGE of the AdversarialIQ Tribunal, an impartial quantitative magistrate. "
-        "You adjudicate debates between Agent Bull and Agent Bear under institutional risk standards.\n"
-        "Assign a definitive Conviction Score (0 to 100):\n"
-        "- >= 65: APPROVED (EXECUTE LONG / BUY)\n"
-        "- <= 38: PROHIBITED (BEARISH / VETO)\n"
-        "- 39 to 64: REJECTED (STAND DOWN / HOLD)\n"
-        "Synthesize both arguments, weigh the macro regime, and issue a binding judicial ruling."
-    )),
-    ("human", (
-        "Adversarial Debate Transcript for {symbol}:\n\n"
-        "[AGENT BULL PROSECUTION]:\n{bull_arguments}\n\n"
-        "[AGENT BEAR DEFENSE]:\n{bear_arguments}\n\n"
-        "[MACRO REGIME]: {macro_regime} (VIX={vix:.2f}, Spread={yield_spread_bps:.1f} bps)\n"
-        "[EARNINGS RISK]: {earnings_status}\n\n"
-        "Render your judicial decision, conviction score, and actionable synthesis."
-    ))
-])
+def get_judge_prompt() -> ChatPromptTemplate:
+    return ChatPromptTemplate.from_messages([
+        ("system", load_prompt("tribunal/judge_system.txt")),
+        ("human", load_prompt("tribunal/judge_user.txt"))
+    ])
+
+# Baseline module exports for backward compatibility
+BULL_PROMPT = get_bull_prompt()
+BEAR_PROMPT = get_bear_prompt()
+JUDGE_PROMPT = get_judge_prompt()
 
 
 # -----------------------------------------------------------------------------
@@ -120,12 +85,14 @@ JUDGE_PROMPT = ChatPromptTemplate.from_messages([
 
 def invoke_langchain_model(
     prompt_text: str,
-    system_prompt: str = "You are an institutional trading syndicate agent.",
+    system_prompt: Optional[str] = None,
     provider: str = "groq",
     model: str = "openai/gpt-oss-120b",
     symbol: str = "MARKET"
 ) -> str:
     """Dispatches prompt through LLMManager with automatic Langfuse Cloud tracing and failover."""
+    if not system_prompt:
+        system_prompt = load_prompt("tribunal/default_syndicate_system.txt", default="You are an institutional trading syndicate agent.")
     res = LLMManager.generate(
         prompt=prompt_text,
         system_prompt=system_prompt,
@@ -199,7 +166,7 @@ class LangChainTribunal:
             "sec_summary": sec_summary,
             "past_lessons": past_lessons
         }
-        bull_formatted = BULL_PROMPT.format_messages(**bull_input)
+        bull_formatted = get_bull_prompt().format_messages(**bull_input)
         bull_response = invoke_langchain_model(
             prompt_text=bull_formatted[1].content,
             system_prompt=bull_formatted[0].content,
@@ -241,7 +208,7 @@ class LangChainTribunal:
             "earnings_status": earnings_status,
             "insider_summary": insider_summary
         }
-        bear_formatted = BEAR_PROMPT.format_messages(**bear_input)
+        bear_formatted = get_bear_prompt().format_messages(**bear_input)
         bear_response = invoke_langchain_model(
             prompt_text=bear_formatted[1].content,
             system_prompt=bear_formatted[0].content,
@@ -282,7 +249,7 @@ class LangChainTribunal:
             "yield_spread_bps": yield_spread,
             "earnings_status": earnings_status
         }
-        judge_formatted = JUDGE_PROMPT.format_messages(**judge_input)
+        judge_formatted = get_judge_prompt().format_messages(**judge_input)
         judge_response = invoke_langchain_model(
             prompt_text=judge_formatted[1].content,
             system_prompt=judge_formatted[0].content,

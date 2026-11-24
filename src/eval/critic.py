@@ -191,27 +191,25 @@ class AgentCriticRefiner:
 
         # Attempt automated self-correction
         try:
+            from src.core.prompt_loader import load_prompt
             from src.llm.manager import LLMManager
 
-            critic_prompt = f"""### 🛡️ CRITIC AUDIT FEEDBACK & SELF-CORRECTION DIRECTIVE
-Your initial draft output contained institutional audit failures:
-{chr(10).join([f'- {iss}' for iss in eval_res.issues])}
-
-USER PROMPT: {prompt}
-ORIGINAL DRAFT:
-{draft_text}
-
-MANDATORY CORRECTIONS:
-1. Ensure all prices and metrics match grounded data for {symbol}.
-2. If proposing a trade, include mandatory stop-loss (strictly below entry for longs) and target (strictly above entry).
-3. Ensure position sizing does not exceed 5% portfolio risk.
-4. Deliver structured, direct institutional analysis.
-
-Please output the revised, corrected final response now."""
+            audit_issues = "\n".join([f"- {iss}" for iss in eval_res.issues])
+            critic_prompt = load_prompt(
+                "critic/critic_user.txt",
+                audit_issues=audit_issues,
+                prompt=prompt,
+                draft_text=draft_text,
+                symbol=symbol
+            )
+            system_prompt = load_prompt(
+                "critic/critic_system.txt",
+                default="You are AdversarialIQ Senior Compliance Officer and Quality Auditor. Output the corrected response."
+            )
 
             correction = LLMManager.generate(
                 prompt=critic_prompt,
-                system_prompt="You are AdversarialIQ Senior Compliance Officer and Quality Auditor. Output the corrected response.",
+                system_prompt=system_prompt,
                 preferred_provider=provider,
                 model=model,
                 symbol=symbol

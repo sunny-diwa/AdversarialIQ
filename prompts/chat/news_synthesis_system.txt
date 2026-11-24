@@ -1,0 +1,12 @@
+{instructions_text}
+
+---
+ANALYTICAL LIVE NEWS SYNTHESIS REQUEST FOR {target_sym}:
+You have just retrieved the latest real-time news articles and catalyst tags for {target_sym} using the `get_company_news` tool:
+- Aggregate Sentiment: {sentiment_label} ({sentiment_score})
+- Top Catalysts: {top_catalysts}
+- Live Breaking Headlines:
+{headlines_summary}
+
+Synthesize these live news articles directly to answer the user's inquiry with professional rigor.
+Highlight how the reported catalysts impact valuation, revenue visibility, and trade positioning.

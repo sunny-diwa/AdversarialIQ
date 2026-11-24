@@ -574,6 +574,7 @@ class BloombergApp {
     const btnOpen = document.getElementById("btn-open-traces");
     const btnOpenEvals = document.getElementById("btn-open-evals");
     const btnOpenMemory = document.getElementById("btn-open-memory");
+    const btnOpenPrompts = document.getElementById("btn-open-prompts");
     const btnClose = document.getElementById("btn-close-traces");
     const btnRefresh = document.getElementById("btn-refresh-traces");
     const btnRefreshEvals = document.getElementById("btn-refresh-evals");
@@ -598,6 +599,8 @@ class BloombergApp {
         loadEvaluatorData();
       } else if (tabId === "tab-agent-memory") {
         loadAgentMemoryData();
+      } else if (tabId === "tab-prompts-studio") {
+        loadPromptsStudio();
       } else {
         loadObservabilityData();
       }
@@ -972,6 +975,173 @@ class BloombergApp {
       });
     }
 
+    // -------------------------------------------------------------------------
+    // Prompts Studio - Centralized prompts/ Registry View & Edit
+    // -------------------------------------------------------------------------
+    const loadPromptsStudio = async () => {
+      try {
+        const res = await fetch("/api/prompts/list");
+        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+        const data = await res.json();
+        const prompts = data.prompts || [];
+
+        const tbody = document.getElementById("prompts-catalog-tbody");
+        if (tbody) {
+          if (prompts.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:12px; color:var(--text-muted);">No prompt files found in prompts/ folder.</td></tr>`;
+          } else {
+            const catColors = {
+              "tribunal": "#f59e0b",
+              "chat": "#38bdf8",
+              "backtest": "#10b981",
+              "critic": "#ef4444",
+              "ecosystem": "#ec4899",
+              "memory": "#a855f7"
+            };
+
+            tbody.innerHTML = prompts.map(p => {
+              const col = catColors[p.category] || "#94a3b8";
+              const varsBadges = p.variables && p.variables.length > 0 
+                ? p.variables.map(v => `<span class="pill-badge" style="border:1px solid #475569; color:#94a3b8; font-size:8.5px; padding:1px 4px;">{${v}}</span>`).join(" ")
+                : `<span style="color:#64748b; font-size:9px;">None</span>`;
+
+              return `
+                <tr>
+                  <td><strong style="color:#fff; font-family:'JetBrains Mono',monospace;">${p.name}</strong></td>
+                  <td><span class="pill-badge" style="border:1px solid ${col}; color:${col}; font-size:8.5px; padding:1px 6px; background:rgba(0,0,0,0.3); text-transform:uppercase;">${p.category}</span></td>
+                  <td style="text-align:right; font-family:'JetBrains Mono',monospace; color:#cbd5e1;">${(p.size_bytes / 1024).toFixed(1)} KB</td>
+                  <td style="text-align:right; font-family:'JetBrains Mono',monospace; color:var(--cyan-primary);">${p.char_count}</td>
+                  <td>${varsBadges}</td>
+                  <td style="font-size:9.5px; color:#cbd5e1; max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${p.preview}</td>
+                  <td style="text-align:center;">
+                    <button class="f-key btn-edit-prompt-row" data-name="${p.name}" style="font-size:9px; padding:2px 8px;">EDIT</button>
+                  </td>
+                </tr>
+              `;
+            }).join("");
+
+            tbody.querySelectorAll(".btn-edit-prompt-row").forEach(btn => {
+              btn.addEventListener("click", () => {
+                const name = btn.dataset.name;
+                const selector = document.getElementById("prompt-file-selector");
+                if (selector) selector.value = name;
+                loadSelectedPromptFile(name);
+              });
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Error loading prompts catalog:", err);
+      }
+    };
+
+    const loadSelectedPromptFile = async (promptName) => {
+      const editor = document.getElementById("prompt-file-editor");
+      const badge = document.getElementById("prompt-file-badge");
+      const varsContainer = document.getElementById("prompt-variables-container");
+      const statusEl = document.getElementById("prompt-save-status");
+
+      if (!editor || !promptName) return;
+      if (statusEl) {
+        statusEl.innerText = `⏳ Loading prompts/${promptName} from disk...`;
+        statusEl.style.color = "var(--text-muted)";
+      }
+
+      try {
+        const res = await fetch(`/api/prompts/get?name=${encodeURIComponent(promptName)}`);
+        if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+        const data = await res.json();
+        editor.value = data.content;
+        if (badge) badge.innerText = `prompts/${promptName}`;
+
+        // Detect variables
+        const matches = Array.from(new Set(data.content.match(/\{([a-zA-Z0-9_]+)\}/g) || []));
+        if (varsContainer) {
+          if (matches.length > 0) {
+            varsContainer.innerHTML = matches.map(m => `<span class="pill-badge" style="background:#0369a1; color:#fff; font-size:9px; padding:1px 5px; font-family:'JetBrains Mono',monospace;">${m}</span>`).join(" ");
+          } else {
+            varsContainer.innerHTML = `<span style="color:#64748b; font-size:9.5px;">Static prompt (no template variables)</span>`;
+          }
+        }
+
+        if (statusEl) {
+          statusEl.innerText = `🟢 Loaded prompts/${promptName} (${data.content.length} chars) at ${(new Date()).toLocaleTimeString()}`;
+          statusEl.style.color = "var(--cyan-primary)";
+        }
+      } catch (e) {
+        if (statusEl) {
+          statusEl.innerText = `🔴 Failed to load prompt file: ${e.message}`;
+          statusEl.style.color = "var(--red-down)";
+        }
+      }
+    };
+
+    const promptSelector = document.getElementById("prompt-file-selector");
+    const btnReloadPrompt = document.getElementById("btn-reload-prompt-file");
+    const btnSavePrompt = document.getElementById("btn-save-prompt-file");
+
+    if (promptSelector) {
+      promptSelector.addEventListener("change", (e) => {
+        loadSelectedPromptFile(e.target.value);
+      });
+      // Initial load default
+      loadSelectedPromptFile(promptSelector.value || "tribunal/bull_system.txt");
+    }
+
+    if (btnReloadPrompt && promptSelector) {
+      btnReloadPrompt.addEventListener("click", () => {
+        loadSelectedPromptFile(promptSelector.value);
+      });
+    }
+
+    if (btnSavePrompt && promptSelector) {
+      btnSavePrompt.addEventListener("click", async () => {
+        const promptName = promptSelector.value;
+        const editor = document.getElementById("prompt-file-editor");
+        const statusEl = document.getElementById("prompt-save-status");
+        if (!editor) return;
+
+        btnSavePrompt.disabled = true;
+        btnSavePrompt.innerHTML = `⏳ SAVING...`;
+        if (statusEl) {
+          statusEl.innerText = `Saving to prompts/${promptName}...`;
+          statusEl.style.color = "var(--amber-primary)";
+        }
+
+        try {
+          const res = await fetch("/api/prompts/save", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              name: promptName,
+              content: editor.value
+            })
+          });
+          const result = await res.json();
+          if (res.ok && result.success) {
+            if (statusEl) {
+              statusEl.innerText = `✅ SUCCESS: Saved prompts/${promptName} at ${(new Date()).toLocaleTimeString()} (Active immediately on next model turn)`;
+              statusEl.style.color = "var(--green-up)";
+            }
+            await loadPromptsStudio();
+          } else {
+            if (statusEl) {
+              statusEl.innerText = `🔴 Save Error: ${result.detail || result.error || 'Failed to save prompt'}`;
+              statusEl.style.color = "var(--red-down)";
+            }
+          }
+        } catch (err) {
+          if (statusEl) {
+            statusEl.innerText = `🔴 Network Error: ${err.message}`;
+            statusEl.style.color = "var(--red-down)";
+          }
+        } finally {
+          btnSavePrompt.disabled = false;
+          btnSavePrompt.innerHTML = `SAVE & APPLY PROMPT`;
+        }
+      });
+    }
+
     if (btnOpen && modal) {
       btnOpen.addEventListener("click", () => {
         modal.classList.add("open");
@@ -990,6 +1160,13 @@ class BloombergApp {
       btnOpenMemory.addEventListener("click", () => {
         modal.classList.add("open");
         switchModalTab("tab-agent-memory");
+      });
+    }
+
+    if (btnOpenPrompts && modal) {
+      btnOpenPrompts.addEventListener("click", () => {
+        modal.classList.add("open");
+        switchModalTab("tab-prompts-studio");
       });
     }
 

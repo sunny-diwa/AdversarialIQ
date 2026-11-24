@@ -44,6 +44,7 @@
         OBSERVABILITY</button>
       <button id="btn-open-evals" class="btn-settings" style="border-color:#10b981; color:#10b981;">🛡️ EVALUATORS &amp; BENCHMARKS</button>
       <button id="btn-open-memory" class="btn-settings" style="border-color:#a855f7; color:#a855f7;">🧠 AGENT MEMORY</button>
+      <button id="btn-open-prompts" class="btn-settings" style="border-color:#f59e0b; color:#f59e0b;">📑 PROMPTS STUDIO</button>
       <button id="btn-open-auth" class="btn-settings" style="border-color:#10b981; color:#10b981;">👤 <span
           id="user-display-label">LOGIN</span></button>
       <button id="btn-open-settings" class="btn-settings">⚙️ AI SETTINGS</button>
@@ -1808,6 +1809,7 @@ Paper trade ledger linked ($100K capital active).
           <button class="settings-tab-btn active" data-tab="tab-traces-wire" id="tab-btn-traces-wire" role="tab">📡 LLM TRACES &amp; WIRE</button>
           <button class="settings-tab-btn" data-tab="tab-eval-audit" id="tab-btn-eval-audit" role="tab">🛡️ AGENT EVALUATION &amp; BENCHMARKS</button>
           <button class="settings-tab-btn" data-tab="tab-agent-memory" id="tab-btn-agent-memory" role="tab">🧠 AGENT MEMORY &amp; STRATEGIES</button>
+          <button class="settings-tab-btn" data-tab="tab-prompts-studio" id="tab-btn-prompts-studio" role="tab">📑 PROMPTS STUDIO</button>
         </div>
 
         <!-- TAB 1: LLM Traces & Telemetry Wire -->
@@ -2127,6 +2129,104 @@ Paper trade ledger linked ($100K capital active).
             </div>
             <textarea id="memory-json-editor" class="terminal-input" rows="10" style="width:100%; font-family:'JetBrains Mono', monospace; font-size:10.5px; line-height:1.4; color:#38bdf8; background:#020509; border:1px solid #1e293b; border-radius:3px; padding:8px; box-sizing:border-box;" spellcheck="false"></textarea>
             <div id="memory-save-status" style="font-size:10px; margin-top:5px; color:var(--text-muted);"></div>
+          </div>
+        </div>
+
+        <!-- TAB 4: Prompts Studio (Centralized Prompt Registry in prompts/) -->
+        <div id="tab-prompts-studio" class="tab-pane" style="display:none;">
+          <!-- Header Banner -->
+          <div style="background:rgba(245, 158, 11, 0.08); border:1px solid rgba(245, 158, 11, 0.3); border-radius:4px; padding:10px 14px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <div>
+              <div style="font-size:11px; font-weight:bold; color:var(--amber-primary); display:flex; align-items:center; gap:8px;">
+                <span>📑 CENTRALIZED PROMPT REGISTRY (`prompts/` FOLDER)</span>
+                <span class="pill-badge" style="background:var(--amber-primary); color:#000; font-size:9px; padding:1px 6px;">HOT RELOAD ACTIVE</span>
+              </div>
+              <div style="font-size:10px; color:var(--text-muted); margin-top:3px;">
+                All system directives, role personas, and input templates stored as standalone text files. Edits save directly to disk and take effect on the next model turn.
+              </div>
+            </div>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <span id="prompt-file-badge" class="pill-badge" style="background:#1e293b; color:#38bdf8; font-size:10px; padding:3px 8px; font-family:'JetBrains Mono',monospace;">prompts/...</span>
+            </div>
+          </div>
+
+          <!-- Prompt File Selector & Action Bar -->
+          <div style="background:rgba(15, 23, 42, 0.8); border:1px solid var(--border-color); border-radius:4px; padding:12px; margin-bottom:14px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:11px; font-weight:bold; color:#fff;">SELECT PROMPT FILE:</span>
+                <select id="prompt-file-selector" class="terminal-select" style="font-size:10.5px; padding:4px 10px; min-width:280px;">
+                  <optgroup label="Tribunal Multi-Agent Syndicate">
+                    <option value="tribunal/bull_system.txt">tribunal/bull_system.txt (Agent Bull System)</option>
+                    <option value="tribunal/bull_user.txt">tribunal/bull_user.txt (Agent Bull User Dossier)</option>
+                    <option value="tribunal/bear_system.txt">tribunal/bear_system.txt (Agent Bear System)</option>
+                    <option value="tribunal/bear_user.txt">tribunal/bear_user.txt (Agent Bear Cross-Exam)</option>
+                    <option value="tribunal/judge_system.txt">tribunal/judge_system.txt (Chief Judge System)</option>
+                    <option value="tribunal/judge_user.txt">tribunal/judge_user.txt (Chief Judge Transcript)</option>
+                    <option value="tribunal/default_syndicate_system.txt">tribunal/default_syndicate_system.txt (Default Syndicate)</option>
+                  </optgroup>
+                  <optgroup label="Chat Trader &amp; Synthesizer">
+                    <option value="chat/dossier_system.txt">chat/dossier_system.txt (Main Dossier &amp; 19 Tools)</option>
+                    <option value="chat/greeting_system.txt">chat/greeting_system.txt (Greeting &amp; Onboarding)</option>
+                    <option value="chat/news_synthesis_system.txt">chat/news_synthesis_system.txt (Live Breaking News)</option>
+                    <option value="chat/instructions_fallback.txt">chat/instructions_fallback.txt (Fallback Persona)</option>
+                  </optgroup>
+                  <optgroup label="Quantitative Strategy Backtest">
+                    <option value="backtest/strategy_system.txt">backtest/strategy_system.txt (Quant Engineer System)</option>
+                    <option value="backtest/strategy_user.txt">backtest/strategy_user.txt (Signal Generator Template)</option>
+                  </optgroup>
+                  <optgroup label="Critic &amp; Quality Auditor">
+                    <option value="critic/critic_system.txt">critic/critic_system.txt (Compliance Officer System)</option>
+                    <option value="critic/critic_user.txt">critic/critic_user.txt (Critic Directive &amp; Feedback)</option>
+                  </optgroup>
+                  <optgroup label="Ecosystem &amp; Grounding">
+                    <option value="ecosystem/gemini_grounding_user.txt">ecosystem/gemini_grounding_user.txt (Gemini Supply Chain)</option>
+                  </optgroup>
+                  <optgroup label="Episodic Memory">
+                    <option value="memory/reflection_block.txt">memory/reflection_block.txt (Post-Mortem Block)</option>
+                  </optgroup>
+                </select>
+              </div>
+              <div style="display:flex; gap:8px;">
+                <button id="btn-reload-prompt-file" class="f-key" style="font-size:9.5px; padding:4px 12px;">RELOAD FROM DISK</button>
+                <button id="btn-save-prompt-file" class="f-key active" style="font-size:9.5px; padding:4px 14px; background:#f59e0b; border-color:#fbbf24; color:#000; font-weight:bold;">SAVE &amp; APPLY PROMPT</button>
+              </div>
+            </div>
+
+            <!-- Detected Template Variables -->
+            <div style="margin-bottom:8px; display:flex; align-items:center; gap:8px; font-size:10px;">
+              <span style="color:var(--text-muted);">Detected Template Variables:</span>
+              <span id="prompt-variables-container" style="display:flex; gap:5px; flex-wrap:wrap;"></span>
+            </div>
+
+            <!-- Prompt Textarea Editor -->
+            <textarea id="prompt-file-editor" class="terminal-input" rows="14" style="width:100%; font-family:'JetBrains Mono', monospace; font-size:11px; line-height:1.45; color:#fef08a; background:#020509; border:1px solid #1e293b; border-radius:3px; padding:10px; box-sizing:border-box;" spellcheck="false"></textarea>
+            <div id="prompt-save-status" style="font-size:10px; margin-top:6px; color:var(--text-muted);"></div>
+          </div>
+
+          <!-- All Prompts Registry Catalog Table -->
+          <div style="background:rgba(15, 23, 42, 0.6); border:1px solid rgba(148, 163, 184, 0.2); border-radius:4px; padding:12px;">
+            <div style="font-size:11px; font-weight:bold; color:#e2e8f0; margin-bottom:8px;">
+              📋 ALL ACTIVE PROMPTS IN <code style="color:var(--amber-primary);">prompts/</code> FOLDER
+            </div>
+            <div style="overflow-x:auto;">
+              <table class="bloomberg-table" style="width:100%; font-size:10px;">
+                <thead>
+                  <tr>
+                    <th>RELATIVE PATH</th>
+                    <th>CATEGORY</th>
+                    <th style="text-align:right;">SIZE</th>
+                    <th style="text-align:right;">CHARS</th>
+                    <th>VARIABLES</th>
+                    <th>PREVIEW / DIRECTIVE</th>
+                    <th style="text-align:center;">ACTION</th>
+                  </tr>
+                </thead>
+                <tbody id="prompts-catalog-tbody">
+                  <tr><td colspan="7" style="text-align:center; padding:12px; color:var(--text-muted);">Loading prompts registry...</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
 
