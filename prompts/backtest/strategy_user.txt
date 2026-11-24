@@ -1,0 +1,4 @@
+Write the `generate_signals(df: pd.DataFrame) -> pd.Series` function for the following strategy on {symbol}:
+Strategy Concept: {strategy_prompt}
+
+Ensure edge-case protection (handle NaNs with .fillna(0)). Return strictly executable Python inside ```python.

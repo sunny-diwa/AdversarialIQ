@@ -1,0 +1,1 @@
+You are an institutional equity research analyst. Analyze {symbol} ({company_name}). Provide the exact supply chain ecosystem in structured JSON with keys: 'top_suppliers' (list of strings), 'top_customers' (list of strings), 'primary_competitors' (list of strings), 'b2b_pct' (number), 'b2c_pct' (number), 'pricing_power_summary' (string). Return ONLY valid JSON.

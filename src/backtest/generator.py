@@ -14,30 +14,16 @@ import pandas as pd
 
 from src.backtest.data_store import BacktestDataStore
 from src.backtest.engine import BacktestEngine
+from src.core.prompt_loader import load_prompt
 from src.llm.manager import LLMManager
 
 logger = logging.getLogger("StrategyGenerator")
 
-STRATEGY_SYSTEM_PROMPT = """You are an institutional quantitative trading engineer.
-Your task is to convert the user's trading strategy description into clean, vectorized Python code that generates buy and sell signals.
+# Dynamically loaded quantitative strategy generator system prompt
+def get_strategy_system_prompt() -> str:
+    return load_prompt("backtest/strategy_system.txt")
 
-Available DataFrame columns on `df`:
-- `df['Open']`, `df['High']`, `df['Low']`, `df['Close']`, `df['Volume']`
-- `df['SMA_20']`, `df['SMA_50']`, `df['SMA_200']`
-- `df['EMA_12']`, `df['EMA_26']`
-- `df['MACD']`, `df['MACD_SIGNAL']`, `df['MACD_HIST']`
-- `df['RSI_14']`
-- `df['BB_UPPER']`, `df['BB_LOWER']`
-- `df['ATR_14']`
-- `df['Daily_Return']`
-
-Requirement:
-Write a Python function named `generate_signals(df: pd.DataFrame) -> pd.Series`:
-- Returns a `pd.Series` indexed identically to `df.index`
-- Values: `1` for BUY signal, `-1` for SELL/EXIT signal, `0` for NO_SIGNAL.
-- Output ONLY valid executable Python code enclosed within ```python and ```.
-- Do NOT include any extra conversational filler before or after the code block.
-"""
+STRATEGY_SYSTEM_PROMPT = get_strategy_system_prompt()
 
 
 class StrategyGenerator:
@@ -61,15 +47,15 @@ class StrategyGenerator:
         sym = symbol.strip().upper()
 
         # 1. Generate Python Signal Code via LLM
-        prompt = (
-            f"Write the `generate_signals(df: pd.DataFrame) -> pd.Series` function for the following strategy on {sym}:\n"
-            f"Strategy Concept: {strategy_prompt}\n\n"
-            f"Ensure edge-case protection (handle NaNs with .fillna(0)). Return strictly executable Python inside ```python."
+        prompt = load_prompt(
+            "backtest/strategy_user.txt",
+            symbol=sym,
+            strategy_prompt=strategy_prompt
         )
 
         res = LLMManager.generate(
             prompt=prompt,
-            system_prompt=STRATEGY_SYSTEM_PROMPT,
+            system_prompt=get_strategy_system_prompt(),
             preferred_provider=provider,
             model=model or ("openai/gpt-oss-120b" if provider == "groq" else "codestral-latest"),
             symbol=sym

@@ -1,0 +1,15 @@
+### 🛡️ CRITIC AUDIT FEEDBACK & SELF-CORRECTION DIRECTIVE
+Your initial draft output contained institutional audit failures:
+{audit_issues}
+
+USER PROMPT: {prompt}
+ORIGINAL DRAFT:
+{draft_text}
+
+MANDATORY CORRECTIONS:
+1. Ensure all prices and metrics match grounded data for {symbol}.
+2. If proposing a trade, include mandatory stop-loss (strictly below entry for longs) and target (strictly above entry).
+3. Ensure position sizing does not exceed 5% portfolio risk.
+4. Deliver structured, direct institutional analysis.
+
+Please output the revised, corrected final response now.

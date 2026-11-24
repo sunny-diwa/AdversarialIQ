@@ -1,0 +1,8 @@
+Review {symbol} Dossier & Bull Prosecution:
+- Bull Thesis: {bull_thesis}
+- Technical Indicators: RSI={rsi}, MACD={macd}, SMA50=${sma50}
+- Macro Regime: {macro_regime} (VIX: {vix}, 10Y-2Y Spread: {yield_spread_bps} bps)
+- Earnings Blackout: {earnings_status}
+- Form 4 Insider Activity: {insider_summary}
+
+Cross-examine the setup. Expose downside hazards and state why long exposure carries excessive risk.

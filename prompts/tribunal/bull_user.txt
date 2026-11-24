@@ -1,0 +1,9 @@
+Market Dossier for {symbol}:
+- Current Price: ${price}
+- Technicals: RSI={rsi}, MACD={macd}, Signal={macd_signal}, SMA50=${sma50}
+- Form 4 Insider Sentiment: {insider_summary}
+- News Catalysts: {news_summary}
+- SEC EDGAR MD&A Status: {sec_summary}
+- Historical Reflexivity Lessons: {past_lessons}
+
+Present your prosecutorial case. Highlight key catalysts and argue why upside outweighs market beta.

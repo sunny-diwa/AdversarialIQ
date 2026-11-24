@@ -597,6 +597,44 @@ async def get_memory_report(symbol: Optional[str] = None):
 
 
 # -----------------------------------------------------------------------------
+# Dynamic Prompt Registry & Live Prompt Studio
+# -----------------------------------------------------------------------------
+class PromptSaveRequest(BaseModel):
+    name: str
+    content: str
+
+
+@app.get("/api/prompts/list")
+async def get_prompts_list():
+    """Lists all available prompt files across prompts/ with metadata."""
+    from src.core.prompt_loader import list_prompts
+    return {"prompts": list_prompts()}
+
+
+@app.get("/api/prompts/get")
+async def get_prompt_file(name: str):
+    """Retrieves raw content of a specific prompt file in prompts/."""
+    from src.core.prompt_loader import read_prompt_raw
+    try:
+        content = read_prompt_raw(name)
+        return {"name": name, "content": content}
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@app.post("/api/prompts/save")
+async def save_prompt_file(req: PromptSaveRequest):
+    """Saves updated prompt text to disk in prompts/."""
+    from src.core.prompt_loader import save_prompt_raw
+    try:
+        save_prompt_raw(req.name, req.content)
+        return {"success": True, "name": req.name, "message": f"Successfully updated prompts/{req.name}"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+
+# -----------------------------------------------------------------------------
 # 5-Year High-Speed Quantitative Backtest Suite (10 Marquee S&P 500 Stocks)
 # -----------------------------------------------------------------------------
 @app.get("/api/backtest/symbols")

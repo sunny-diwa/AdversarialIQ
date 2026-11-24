@@ -1,0 +1,12 @@
+Adversarial Debate Transcript for {symbol}:
+
+[AGENT BULL PROSECUTION]:
+{bull_arguments}
+
+[AGENT BEAR DEFENSE]:
+{bear_arguments}
+
+[MACRO REGIME]: {macro_regime} (VIX={vix}, Spread={yield_spread_bps} bps)
+[EARNINGS RISK]: {earnings_status}
+
+Render your judicial decision, conviction score, and actionable synthesis.
