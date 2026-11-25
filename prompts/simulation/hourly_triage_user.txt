@@ -1,0 +1,12 @@
+TIMESTAMP: {as_of} | MACRO: {macro_summary}
+
+INTRA-DAY SESSION MEMORY SO FAR TODAY:
+{session_memory}
+
+OPEN PORTFOLIO POSITIONS ({open_count}/{max_pos}):
+{positions_summary}
+
+HOURLY TECHNICAL & SCORE SNAPSHOT ACROSS ALL UNIVERSE STOCKS:
+{stocks_technical_table}
+
+Respond strictly with valid JSON prioritizing up to {max_debates_per_hour} highest-signal symbols to send to Bull vs Bear Debate this hour.

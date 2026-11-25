@@ -1,0 +1,6 @@
+BEAR'S LATEST ARGUMENT:
+{opponent_message}
+
+CONTESTED ROUND {round_num} INSTRUCTIONS:
+Directly cross-examine and refute Bear's specific points using the dossier/technicals/fundamentals/A-CIS scores.
+Only concede (`VERDICT_TAG: CONCEDE`) if Bear's objective technical + fundamental evidence genuinely invalidates the bullish setup; otherwise rebut cleanly (`VERDICT_TAG: MAINTAIN`). Be concise (<= 160 words). End with your final line `VERDICT_TAG: MAINTAIN` or `VERDICT_TAG: CONCEDE`.

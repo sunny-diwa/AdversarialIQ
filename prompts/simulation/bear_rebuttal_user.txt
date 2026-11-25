@@ -1,0 +1,6 @@
+BULL'S LATEST REBUTTAL:
+{opponent_message}
+
+CONTESTED ROUND {round_num} INSTRUCTIONS:
+Directly attack Bull's latest claims using technicals, macro, fundamentals, and A-CIS scores.
+Only concede (`VERDICT_TAG: CONCEDE`) if Bull's objective trend/catalyst/score evidence genuinely defeats your bearish thesis and risking a short would cause a squeeze; otherwise rebut cleanly (`VERDICT_TAG: MAINTAIN`). Be concise (<= 160 words). End with `VERDICT_TAG: MAINTAIN` or `VERDICT_TAG: CONCEDE`.

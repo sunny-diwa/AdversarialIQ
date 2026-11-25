@@ -1,0 +1,15 @@
+DATE: {trade_date} | MACRO REGIME: {macro_summary}
+PORTFOLIO EOD SNAPSHOT: Starting Equity=${start_equity} -> Ending Equity=${end_equity} ({daily_pnl_pct:+.2f}%) | SPY Daily={spy_pct:+.2f}%
+REALIZED TRADES CLOSED TODAY:
+{closed_trades_summary}
+
+NEW ENTRIES & OPEN POSITIONS AT CLOSE:
+{open_positions_summary}
+
+KEY DEBATES TODAY:
+{debates_today_summary}
+
+RECENT CROSS-DAY MEMORY:
+{day_memory}
+
+Synthesize concrete, self-critical EOD lessons in strictly JSON format.

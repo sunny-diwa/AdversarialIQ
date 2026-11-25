@@ -996,7 +996,8 @@ class BloombergApp {
               "backtest": "#10b981",
               "critic": "#ef4444",
               "ecosystem": "#ec4899",
-              "memory": "#a855f7"
+              "memory": "#a855f7",
+              "simulation": "#fb923c"
             };
 
             tbody.innerHTML = prompts.map(p => {

@@ -1,0 +1,13 @@
+DATE: {trade_date} | TIME: 08:30 EST (Pre-Market — 1 Hour Before Open)
+MACRO REGIME: {macro_summary}
+
+CROSS-DAY MEMORY (Recent Sessions):
+{day_memory}
+
+CURRENT OPEN PORTFOLIO POSITIONS:
+{positions_summary}
+
+ALL UNIVERSE STOCKS PRE-MARKET DOSSIER (Strict as-of 08:30 EST):
+{stocks_digest}
+
+Evaluate every stock above (combining fundamentals, news catalysts, pre-market gap, Start-of-Day A-CIS scores, and earnings blackouts). Return strictly JSON matching your schema.

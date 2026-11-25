@@ -102,13 +102,14 @@ SECTOR_RISK_TEMPLATES: Dict[str, List[str]] = {
 }
 
 
-def fetch_sec_filings(symbol: str) -> Dict[str, Any]:
+def fetch_sec_filings(symbol: str, as_of_date: Optional[str] = None) -> Dict[str, Any]:
     """
     Fetches real SEC EDGAR 10-K, 10-Q, and 8-K filings.
     Extracts Item 7 (MD&A) and Item 1A (Risk Factors) summaries.
+    Optional `as_of_date` (YYYY-MM-DD) filters filings strictly <= that date to prevent lookahead bias.
     """
     sym = symbol.strip().upper()
-    cache_key = f"sec_filings_{sym}"
+    cache_key = f"sec_filings_{sym}_{as_of_date or 'live'}"
     cached = get_cached(cache_key, 300)
     if cached:
         return cached
@@ -191,25 +192,31 @@ def fetch_sec_filings(symbol: str) -> Dict[str, Any]:
     result["risk_factors_summary"] = " • ".join(result["risk_factors"])
 
     if not result["filings"]:
-        now_dt = datetime.now()
+        now_dt = datetime.strptime(as_of_date, "%Y-%m-%d") if as_of_date else datetime.now()
         result["filings"] = [
             {"form": "10-Q", "filing_date": now_dt.strftime("%Y-%m-%d"), "description": f"Quarterly Report ({sub_ind})", "url": f"https://www.sec.gov/edgar/browse/?CIK={sym}"},
             {"form": "8-K", "filing_date": (now_dt - pd.Timedelta(days=12)).strftime("%Y-%m-%d"), "description": "Current Event Disclosure / Material Agreement", "url": f"https://www.sec.gov/edgar/browse/?CIK={sym}"},
             {"form": "10-K", "filing_date": f"{now_dt.year - 1}-12-15", "description": "Annual Report & Audited Financial Statements", "url": f"https://www.sec.gov/edgar/browse/?CIK={sym}"},
             {"form": "8-K", "filing_date": f"{now_dt.year - 1}-10-24", "description": "Executive Compensation & Leadership Update", "url": f"https://www.sec.gov/edgar/browse/?CIK={sym}"}
         ]
+    elif as_of_date:
+        result["filings"] = [
+            f for f in result["filings"]
+            if not f.get("filing_date") or str(f["filing_date"])[:10] <= as_of_date
+        ]
 
     set_cached(cache_key, result)
     return result
 
 
-def fetch_insider_and_13f_activity(symbol: str) -> Dict[str, Any]:
+def fetch_insider_and_13f_activity(symbol: str, as_of_date: Optional[str] = None) -> Dict[str, Any]:
     """
     Fetches Form 4 insider transactions & 13F institutional ownership.
     Clusters transactions into Bullish (Aggressive Insider Buying) or Bearish (Heavy Divestment).
+    Optional `as_of_date` (YYYY-MM-DD) filters Form 4 transactions strictly <= that date.
     """
     sym = symbol.strip().upper()
-    cache_key = f"insider_{sym}"
+    cache_key = f"insider_{sym}_{as_of_date or 'live'}"
     cached = get_cached(cache_key, 300)
     if cached:
         return cached
@@ -362,6 +369,17 @@ def fetch_insider_and_13f_activity(symbol: str) -> Dict[str, Any]:
                 "value": round(shs * price, 2),
                 "date": dt
             })
+
+    # Filter strictly <= as_of_date when running in point-in-time historical simulation
+    if as_of_date:
+        transactions = [t for t in transactions if (t.get("date") or "")[:10] <= as_of_date]
+        recent_buys_count = sum(1 for t in transactions if "BUY" in str(t.get("type", "")).upper())
+        recent_sells_count = sum(1 for t in transactions if "SELL" in str(t.get("type", "")).upper())
+        net_insider_shares = sum(
+            int(t.get("shares", 0)) if "BUY" in str(t.get("type", "")).upper()
+            else (-int(t.get("shares", 0)) if "SELL" in str(t.get("type", "")).upper() else 0)
+            for t in transactions
+        )
 
     # Cluster Analysis Verdict
     if recent_buys_count > recent_sells_count and recent_buys_count > 0:

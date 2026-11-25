@@ -1,0 +1,11 @@
+TARGET: {symbol} | TIME: {as_of} ({session_mode})
+BULL PRIVATE MEMORY:
+{bull_memory}
+
+SESSION & DAY MEMORY:
+{session_context}
+
+POINT-IN-TIME MARKET, TECHNICAL, NEWS & A-CIS SCORES DOSSIER:
+{dossier_block}
+
+OPENING TASK (Round 1): Prosecute the strongest Bullish case for {symbol}. Cite exact technicals, fundamentals/news, and A-CIS scores. End with `VERDICT_TAG: MAINTAIN`.

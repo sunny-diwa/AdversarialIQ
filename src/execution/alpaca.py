@@ -8,9 +8,10 @@ import json
 import logging
 import time
 from typing import Any, Dict, List, Optional
+import os
 import requests
 
-from src.core.config import ALPACA_API_KEY, ALPACA_BASE_URL, ALPACA_SECRET_KEY
+from src.core.config import ALPACA_API_KEY, ALPACA_BASE_URL, ALPACA_ENABLED, ALPACA_SECRET_KEY
 
 logger = logging.getLogger("AlpacaClient")
 
@@ -22,8 +23,10 @@ class AlpacaPaperClient:
         self,
         api_key: Optional[str] = None,
         secret_key: Optional[str] = None,
-        base_url: Optional[str] = None
+        base_url: Optional[str] = None,
+        enabled: Optional[bool] = None
     ):
+        self.enabled = ALPACA_ENABLED if enabled is None else enabled
         self.api_key = (api_key or ALPACA_API_KEY).strip()
         self.secret_key = (secret_key or ALPACA_SECRET_KEY).strip()
         base = (base_url or ALPACA_BASE_URL).strip().rstrip("/")
@@ -32,8 +35,11 @@ class AlpacaPaperClient:
         self.base_url = base
 
     def is_configured(self) -> bool:
-        """Returns True if both API key and secret key are present."""
-        return bool(self.api_key and self.secret_key)
+        """Returns True only if Alpaca is enabled AND both API key and secret key are present."""
+        env_override = os.environ.get("ALPACA_ENABLED")
+        if env_override is not None and env_override.strip().lower() in ("false", "0", "no", "off"):
+            return False
+        return bool(self.enabled and self.api_key and self.secret_key)
 
     def _headers(self) -> Dict[str, str]:
         return {
