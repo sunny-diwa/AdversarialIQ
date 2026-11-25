@@ -131,8 +131,9 @@ class HistoricalMarketStore:
                 return
             except Exception:
                 pass
-        sec = fetch_sec_filings(sym)
-        ins = fetch_insider_and_13f_activity(sym)
+        # Resilient baseline fundamentals to avoid blocking Yahoo scrapers during backtest
+        sec = {"symbol": sym, "filings": [], "latest_10k": None}
+        ins = {"symbol": sym, "transactions": [], "net_activity": "NEUTRAL", "form4_transactions": []}
         self.sec_by_sym[sym] = sec
         self.insider_by_sym[sym] = ins
         with open(fpath, "w", encoding="utf-8") as f:
@@ -355,6 +356,8 @@ class HistoricalMarketStore:
 
     def get_trading_days(self, start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[date]:
         """Returns ordered list of regular market trading days found in SPY 5m data."""
+        if "SPY" not in self.intraday_dfs:
+            self._load_or_fetch_intraday("SPY")
         spy_df = self.intraday_dfs.get("SPY")
         if spy_df is None or spy_df.empty:
             return []
@@ -410,6 +413,129 @@ class HistoricalMarketStore:
             return pd.DataFrame()
         return df[(df.index >= start_dt) & (df.index < end_dt)]
 
+    def ensure_symbol_loaded(self, sym: str):
+        """Ensures daily, 5m intraday, news, and fundamentals are loaded in memory for `sym`."""
+        sym = sym.strip().upper()
+        if sym not in self.daily_dfs:
+            self._load_or_fetch_daily(sym)
+        if sym not in self.intraday_dfs:
+            self._load_or_fetch_intraday(sym)
+        if sym not in self.news_by_sym:
+            fpath = self.cache_dir / "news" / f"{sym}.json"
+            if fpath.exists():
+                try:
+                    with open(fpath, "r", encoding="utf-8") as f:
+                        self.news_by_sym[sym] = json.load(f)
+                except Exception:
+                    self.news_by_sym[sym] = []
+            else:
+                self.news_by_sym[sym] = []
+        if sym not in self.sec_by_sym or sym not in self.insider_by_sym:
+            self._load_or_fetch_fundamentals(sym)
+
+    def rank_universe_by_movement_score(
+        self, as_of_dt: datetime, top_n: int = 10, is_premarket: bool = False
+    ) -> List[Dict[str, Any]]:
+        """
+        Dynamically calculates movement impulse score across the entire S&P 500 universe
+        as of `as_of_dt` and returns the Top N highest-momentum candidates.
+        """
+        cur_day = as_of_dt.date()
+        today_str = cur_day.strftime("%Y-%m-%d")
+        daily_files = list((self.cache_dir / "daily").glob("*.csv"))
+        candidates: List[Dict[str, Any]] = []
+
+        for df_path in daily_files:
+            sym = df_path.stem.upper()
+            if sym == "SPY" or not sym.isalpha() or len(sym) > 5:
+                continue
+
+            intra_path = self.cache_dir / "intraday" / f"{sym}_5m.csv"
+            if not intra_path.exists():
+                continue
+
+            try:
+                idf = self.intraday_dfs.get(sym)
+                if idf is None or idf.empty:
+                    idf = pd.read_csv(intra_path, index_col=0)
+                    idf.index = pd.to_datetime(idf.index, utc=True).tz_convert(NY_TZ)
+                    self.intraday_dfs[sym] = idf.sort_index()
+
+                prior = idf[idf.index <= as_of_dt]
+                if prior.empty or len(prior) < 2:
+                    continue
+
+                cur_bar = prior.iloc[-1]
+                price = float(cur_bar["Close"])
+                if price <= 0:
+                    continue
+
+                today_bars = prior[prior.index.date == cur_day]
+                if today_bars.empty:
+                    self.ensure_symbol_loaded(sym)
+                    d_df = self.daily_dfs.get(sym)
+                    if d_df is not None and not d_df.empty:
+                        p_daily = d_df[d_df.index.date < cur_day]
+                        if not p_daily.empty:
+                            prev_c = float(p_daily.iloc[-1]["Close"])
+                            pct_change = ((price - prev_c) / prev_c) * 100.0 if prev_c > 0 else 0.0
+                            abs_pct = abs(pct_change)
+                            mov_score = min(98.0, max(15.0, round(25.0 + abs_pct * 7.5, 1)))
+                            candidates.append({
+                                "symbol": sym,
+                                "movement_score": mov_score,
+                                "price": round(price, 2),
+                                "pct_change": round(pct_change, 2),
+                                "range_pct": round(abs_pct, 2),
+                                "volume": 0
+                            })
+                    continue
+
+                open_p = float(today_bars.iloc[0]["Open"])
+                pct_change = ((price - open_p) / open_p) * 100.0 if open_p > 0 else 0.0
+                intraday_vol = int(today_bars["Volume"].sum())
+                day_high = float(today_bars["High"].max())
+                day_low = float(today_bars["Low"].min())
+                range_pct = ((day_high - day_low) / open_p) * 100.0 if open_p > 0 else 0.0
+
+                abs_pct = abs(pct_change)
+                impulse = min(98.0, max(15.0, (abs_pct ** 0.85) * 8.0 + (range_pct * 4.5)))
+                vol_score = min(98.0, max(10.0, (intraday_vol / 500_000.0) * 20.0))
+
+                # Dynamically factor in breaking fundamental news & catalyst intensity
+                news_intensity = 25.0
+                news_fpath = self.cache_dir / "news" / f"{sym}.json"
+                if sym in self.news_by_sym or news_fpath.exists():
+                    self.ensure_symbol_loaded(sym)
+                    n_obj = self.get_news_as_of(sym, as_of_dt, lookback_hours=36, limit=4)
+                    n_sc = float(n_obj.get("overall_sentiment", {}).get("score", 0.0))
+                    has_exec = n_obj.get("overall_sentiment", {}).get("has_executive_catalyst", False)
+                    news_intensity = min(99.0, max(25.0, 25.0 + abs(n_sc) * 75.0))
+                    if has_exec:
+                        news_intensity = min(99.0, news_intensity + 20.0)
+                    movement_score = round(0.50 * news_intensity + 0.35 * impulse + 0.15 * vol_score, 1)
+                else:
+                    movement_score = round(0.65 * impulse + 0.35 * vol_score, 1)
+
+                movement_score = min(98.0, max(15.0, movement_score))
+
+                candidates.append({
+                    "symbol": sym,
+                    "movement_score": movement_score,
+                    "price": round(price, 2),
+                    "pct_change": round(pct_change, 2),
+                    "range_pct": round(range_pct, 2),
+                    "volume": intraday_vol
+                })
+            except Exception:
+                continue
+
+        candidates.sort(key=lambda x: x["movement_score"], reverse=True)
+        top_list = candidates[:top_n]
+        for item in top_list:
+            self.ensure_symbol_loaded(item["symbol"])
+        return top_list
+
     def get_execution_fill_price(self, sym: str, decision_dt: datetime) -> Optional[float]:
         """
         Causal fill price: decision made at `decision_dt` executes at the Open of the bar
@@ -434,6 +560,7 @@ class HistoricalMarketStore:
     def get_quote_as_of(self, sym: str, as_of_dt: datetime) -> Dict[str, Any]:
         """Strictly causal quote as of `as_of_dt` using only bars strictly completed BEFORE `as_of_dt`."""
         sym = sym.strip().upper()
+        self.ensure_symbol_loaded(sym)
         meta = SP500_MAP.get(sym, {"name": sym, "sector": "Unknown", "sub_industry": ""})
         d_df = self.daily_dfs.get(sym)
         i_df = self.intraday_dfs.get(sym)
@@ -527,6 +654,7 @@ class HistoricalMarketStore:
           All strictly using 5m bars with timestamps < as_of_dt.
         """
         sym = sym.strip().upper()
+        self.ensure_symbol_loaded(sym)
         q = self.get_quote_as_of(sym, as_of_dt)
         price = float(q["price"])
         cur_day = as_of_dt.date()
@@ -655,6 +783,7 @@ class HistoricalMarketStore:
     def get_news_as_of(self, sym: str, as_of_dt: datetime, lookback_hours: int = 48, limit: int = 8) -> Dict[str, Any]:
         """Strictly causal real Finnhub news published in [as_of_dt - lookback_hours, as_of_dt]."""
         sym = sym.strip().upper()
+        self.ensure_symbol_loaded(sym)
         cutoff_hi = int(as_of_dt.timestamp())
         cutoff_lo = int((as_of_dt - timedelta(hours=lookback_hours)).timestamp())
 
@@ -675,7 +804,38 @@ class HistoricalMarketStore:
         selected = in_window[:limit]
 
         if selected:
-            avg_score = sum(a["sentiment_score"] for a in selected) / len(selected)
+            total_w = 0.0
+            weighted_sum = 0.0
+            has_exec_catalyst = False
+            max_abs_score = 0.0
+            decisive_lead_score = 0.0
+
+            for a in selected:
+                sc = float(a.get("sentiment_score", 0.0))
+                cats = a.get("catalysts", [])
+                w = 1.0
+                if "EXECUTIVE_LEADERSHIP" in cats:
+                    w = 4.0
+                    has_exec_catalyst = True
+                elif "EARNINGS" in cats or "M&A_DEALS" in cats:
+                    w = 2.5
+                elif "REGULATORY_LEGAL" in cats or "UPGRADE_DOWNGRADE" in cats:
+                    w = 2.0
+                
+                if abs(sc) >= 0.70:
+                    w *= 1.5
+
+                if abs(sc) > max_abs_score:
+                    max_abs_score = abs(sc)
+                    decisive_lead_score = sc
+
+                weighted_sum += sc * w
+                total_w += w
+
+            avg_score = weighted_sum / max(1.0, total_w)
+            if has_exec_catalyst and abs(decisive_lead_score) >= 0.70:
+                avg_score = (avg_score * 0.40) + (decisive_lead_score * 0.60)
+
             bullish_count = sum(1 for a in selected if a["sentiment"] == "BULLISH")
             bearish_count = sum(1 for a in selected if a["sentiment"] == "BEARISH")
             neutral_count = sum(1 for a in selected if a["sentiment"] == "NEUTRAL")
@@ -687,6 +847,7 @@ class HistoricalMarketStore:
             label = "BULLISH" if avg_score > 0.15 else ("BEARISH" if avg_score < -0.15 else "NEUTRAL")
         else:
             avg_score = 0.0
+            has_exec_catalyst = False
             bullish_count = bearish_count = neutral_count = 0
             top_cats = ["NONE_RECENT"]
             label = "NEUTRAL"
@@ -699,7 +860,8 @@ class HistoricalMarketStore:
                 "label": label,
                 "bullish_count": bullish_count,
                 "bearish_count": bearish_count,
-                "neutral_count": neutral_count
+                "neutral_count": neutral_count,
+                "has_executive_catalyst": has_exec_catalyst
             },
             "top_catalysts": top_cats,
             "article_count": len(selected)

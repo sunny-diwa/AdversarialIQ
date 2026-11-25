@@ -48,6 +48,8 @@ def main():
     parser.add_argument("--analyst-model", type=str, default="openai/gpt-oss-20b")
     parser.add_argument("--pacing", type=float, default=1.2, help="Seconds sleep between major LLM blocks to smooth TPM")
     parser.add_argument("--refresh-cache", action="store_true", help="Force re-download historical data cache")
+    parser.add_argument("--dynamic-universe", action="store_true", default=True, help="Dynamically rank entire S&P 500 universe by Movement Score at each checkpoint and select Top N")
+    parser.add_argument("--top-n", type=int, default=10, help="Number of highest-movement S&P 500 stocks to select dynamically")
 
     args = parser.parse_args()
     symbols = [s.strip().upper() for s in args.symbols.split(",") if s.strip()]
@@ -67,7 +69,9 @@ def main():
         judge_model=args.judge_model,
         analyst_provider=args.analyst_provider,
         analyst_model=args.analyst_model,
-        pacing_sleep_sec=args.pacing
+        pacing_sleep_sec=args.pacing,
+        dynamic_universe=args.dynamic_universe,
+        top_n_candidates=args.top_n
     )
 
     report = sim.run(

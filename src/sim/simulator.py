@@ -45,7 +45,9 @@ class AgenticTradingSimulator:
         judge_model: str = "openai/gpt-oss-120b",
         analyst_provider: str = "groq",
         analyst_model: str = "openai/gpt-oss-20b",
-        pacing_sleep_sec: float = 0.8
+        pacing_sleep_sec: float = 0.8,
+        dynamic_universe: bool = True,
+        top_n_candidates: int = 10
     ):
         # Strictly disable Alpaca inside simulator process
         os.environ["ALPACA_ENABLED"] = "false"
@@ -55,6 +57,8 @@ class AgenticTradingSimulator:
         self.debate_policy = debate_policy
         self.max_debates_per_hour = max_debates_per_hour
         self.pacing_sleep_sec = pacing_sleep_sec
+        self.dynamic_universe = dynamic_universe
+        self.top_n_candidates = top_n_candidates
 
         self.run_dir = DATA_DIR / "sim_runs" / run_id
         self.conv_dir = self.run_dir / "conversations"
@@ -135,7 +139,8 @@ class AgenticTradingSimulator:
 
         # Final performance summary
         last_close_dt = datetime.combine(trading_days[-1], dt_time(16, 0), tzinfo=NY_TZ)
-        final_prices = {s: self.store.get_mark_to_market_price(s, last_close_dt) for s in self.symbols}
+        final_symbols = set(self.broker.positions.keys()) | set(self.symbols)
+        final_prices = {s: self.store.get_mark_to_market_price(s, last_close_dt) for s in final_symbols}
         spy_end_price = self.store.get_mark_to_market_price("SPY", last_close_dt)
         report = self.broker.compute_performance_report(final_prices, spy_start_price, spy_end_price)
         report["run_id"] = self.run_id
@@ -158,7 +163,29 @@ class AgenticTradingSimulator:
         eod_dt = datetime.combine(trade_day, dt_time(16, 5), tzinfo=NY_TZ)
 
         macro_open = self.store.get_macro_as_of(premarket_dt)
-        premarket_prices = {s: self.store.get_mark_to_market_price(s, premarket_dt) for s in self.symbols}
+        # 1. Determine active pre-market universe
+        if self.dynamic_universe:
+            top_pm = self.store.rank_universe_by_movement_score(premarket_dt, top_n=self.top_n_candidates, is_premarket=True)
+            active_symbols = [m["symbol"] for m in top_pm]
+            for s in list(self.broker.positions.keys()):
+                if s not in active_symbols:
+                    active_symbols.append(s)
+            pm_rank_table = "\n".join([
+                f"| {i+1} | **{m['symbol']}** | `{m['movement_score']:.1f}` | `${m['price']:.2f}` | `{m['pct_change']:+.2f}%` | `{m['range_pct']:.2f}%` |"
+                for i, m in enumerate(top_pm)
+            ])
+            self._append_day_transcript(
+                d_str,
+                f"### 🎯 S&P 500 Dynamic Pre-Market Top {len(top_pm)} Movement Movers\n"
+                f"| Rank | Symbol | Movement Score | Price | Gap/Return | Range |\n|:---:|:---|:---:|:---:|:---:|:---:|\n{pm_rank_table}\n\n---"
+            )
+        else:
+            active_symbols = list(self.symbols)
+
+        premarket_prices = {s: self.store.get_mark_to_market_price(s, premarket_dt) for s in active_symbols}
+        for pos_sym in self.broker.positions:
+            if pos_sym not in premarket_prices:
+                premarket_prices[pos_sym] = self.store.get_mark_to_market_price(pos_sym, premarket_dt)
         start_equity = self.broker.compute_equity(premarket_prices)
 
         logger.info(f"\n>>> DAY {day_idx}/{total_days}: {d_str} | Start Equity: ${start_equity:,.2f} | {macro_open['summary']}")
@@ -170,11 +197,11 @@ class AgenticTradingSimulator:
         )
 
         # =====================================================================
-        # PHASE 1: 08:30 EST PRE-MARKET ANALYSIS ACROSS ALL STOCKS (Fundamental + Scores)
+        # PHASE 1: 08:30 EST PRE-MARKET ANALYSIS ACROSS TOP STOCKS (Fundamental + Scores)
         # =====================================================================
         premarket_dossiers = {
             s: self.store.build_point_in_time_dossier(s, premarket_dt, is_premarket=True)
-            for s in self.symbols
+            for s in active_symbols
         }
         pm_parsed, pm_raw = self.debate_engine.run_premarket_all_stocks(
             trade_date=d_str,
@@ -196,7 +223,7 @@ class AgenticTradingSimulator:
         ])
         self._append_day_transcript(
             d_str,
-            f"## 🌅 08:30 EST Pre-Market Master Brief (1 Hour Before Open — All Stocks)\n"
+            f"## 🌅 08:30 EST Pre-Market Master Brief (1 Hour Before Open — Top Movement Stocks)\n"
             f"**Daily Macro Thesis:** {pm_parsed.get('daily_macro_thesis', 'N/A')}\n\n"
             f"| Symbol | Bias | Priority | Gameplan |\n|:---|:---:|:---:|:---|\n{watch_md}\n\n---"
         )
@@ -226,12 +253,27 @@ class AgenticTradingSimulator:
                     )
             prev_cp_dt = cp_dt
 
-            # 2b. Build causal hourly dossiers across ALL stocks
+            # 2b. Build causal hourly dossiers across dynamic top movement stocks (+ open positions)
+            if self.dynamic_universe:
+                top_hourly = self.store.rank_universe_by_movement_score(cp_dt, top_n=self.top_n_candidates, is_premarket=False)
+                active_symbols = [m["symbol"] for m in top_hourly]
+                for s in list(self.broker.positions.keys()):
+                    if s not in active_symbols:
+                        active_symbols.append(s)
+                hourly_rank_table = ", ".join([f"**{m['symbol']}** ({m['movement_score']:.1f})" for m in top_hourly])
+            else:
+                active_symbols = list(self.symbols)
+                hourly_rank_table = ", ".join(self.symbols)
+
             hourly_dossiers = {
                 s: self.store.build_point_in_time_dossier(s, cp_dt, is_premarket=False)
-                for s in self.symbols
+                for s in active_symbols
             }
-            cur_prices = {s: hourly_dossiers[s]["quote"]["price"] for s in self.symbols}
+            cur_prices = {s: hourly_dossiers[s]["quote"]["price"] for s in active_symbols}
+            for pos_sym in self.broker.positions:
+                if pos_sym not in cur_prices:
+                    cur_prices[pos_sym] = self.store.get_mark_to_market_price(pos_sym, cp_dt)
+
             equity_now = self.broker.compute_equity(cur_prices)
             bp_now = self.broker.available_buying_power(cur_prices)
             macro_now = self.store.get_macro_as_of(cp_dt)
@@ -239,7 +281,7 @@ class AgenticTradingSimulator:
             # 2c. Select stocks to debate this hour
             triage_note = ""
             if self.debate_policy == "all":
-                debate_syms = list(self.symbols)
+                debate_syms = list(active_symbols)
                 triage_md = f"**All-Stocks Mode:** Evaluating full debates across all {len(debate_syms)} symbols at {cp_label}."
             else:
                 # Always ensure open positions can be triaged, plus high-signal breakouts
@@ -257,14 +299,14 @@ class AgenticTradingSimulator:
                 debate_syms = triage_parsed.get("debate_symbols", [])[:self.max_debates_per_hour]
                 triage_note = triage_parsed.get("hourly_market_note", "")
                 triage_details = triage_parsed.get("symbol_triage_notes", {})
-                triage_md = f"**Hourly Technical Triage:** {triage_note}\n**Selected for Deep Debate:** `{', '.join(debate_syms)}`\n" + "\n".join([
+                triage_md = f"**Top Movement Movers ({cp_dt.strftime('%H:%M')}):** {hourly_rank_table}\n\n**Hourly Technical Triage:** {triage_note}\n**Selected for Deep Debate:** `{', '.join(debate_syms)}`\n" + "\n".join([
                     f"- **{k}:** {v}" for k, v in triage_details.items()
                 ])
 
             self.memory.record_hourly_snapshot(
                 time_label=cp_dt.strftime("%H:%M"),
                 triage_summary=triage_note or f"Debated {', '.join(debate_syms)}",
-                symbol_states={s: hourly_dossiers[s]["quote"] for s in self.symbols}
+                symbol_states={s: hourly_dossiers[s]["quote"] for s in active_symbols}
             )
             self._append_day_transcript(
                 d_str,
@@ -384,7 +426,8 @@ class AgenticTradingSimulator:
         # =====================================================================
         # PHASE 3: END OF DAY MARK-TO-MARKET & ADAPTIVE MEMORY REFLECTION
         # =====================================================================
-        eod_prices = {s: self.store.get_mark_to_market_price(s, eod_dt) for s in self.symbols}
+        eval_symbols = set(self.broker.positions.keys()) | set(active_symbols if 'active_symbols' in locals() else self.symbols)
+        eod_prices = {s: self.store.get_mark_to_market_price(s, eod_dt) for s in eval_symbols}
         end_equity = self.broker.record_equity_point(f"{d_str} 16:00", eod_prices)
         daily_pnl = round(end_equity - start_equity, 2)
         daily_pnl_pct = round((daily_pnl / start_equity * 100.0), 2) if start_equity > 0 else 0.0
