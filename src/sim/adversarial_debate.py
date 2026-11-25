@@ -147,25 +147,36 @@ class AdversarialDebateEngine:
             stocks_digest="\n".join(digest_lines)
         )
 
-        res = LLMManager.generate(
-            prompt=usr_p,
-            system_prompt=sys_p,
-            preferred_provider=self.analyst_provider,
-            model=self.analyst_model,
-            symbol="PREMARKET",
-            temperature=0.25,
-            max_tokens=1600,
-            strict_llm=True,
-            max_retries=3
-        )
-        raw = res["response"]
-        parsed = extract_json_object(raw) or {
-            "daily_macro_thesis": raw[:280],
-            "watchlist": [
-                {"symbol": sym, "bias": "NEUTRAL", "priority": idx + 1, "plan": "Monitor opening bell"}
+        try:
+            res = LLMManager.generate(
+                prompt=usr_p,
+                system_prompt=sys_p,
+                preferred_provider=self.analyst_provider,
+                model=self.analyst_model,
+                symbol="PREMARKET",
+                temperature=0.25,
+                max_tokens=1600,
+                strict_llm=True,
+                max_retries=5
+            )
+            raw = res["response"]
+            parsed = extract_json_object(raw) or {}
+        except Exception as e:
+            logger.warning(f"Premarket analysis LLM failed after retries: {e}. Using deterministic watchlist.")
+            raw = f"Premarket deterministic fallback due to LLM provider load: {e}"
+            parsed = {}
+
+        if not parsed.get("watchlist"):
+            parsed["daily_macro_thesis"] = parsed.get("daily_macro_thesis") or f"{macro_summary}. Focus on highest-impulse S&P 500 movement movers."
+            parsed["watchlist"] = [
+                {
+                    "symbol": sym,
+                    "bias": "BULLISH" if dossiers[sym]["catalyst_scores"].get("net_directional_spread", 0) > 5 else ("BEARISH" if dossiers[sym]["catalyst_scores"].get("net_directional_spread", 0) < -5 else "NEUTRAL"),
+                    "priority": idx + 1,
+                    "plan": "Dynamic top-10 movement catalyst setup; evaluate at regular session open"
+                }
                 for idx, sym in enumerate(dossiers.keys())
             ]
-        }
         return parsed, raw
 
     def run_hourly_triage(

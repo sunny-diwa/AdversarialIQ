@@ -1029,7 +1029,12 @@ def enrich_ecosystem_items(
     def _enrich_single(item: Dict[str, Any]) -> Dict[str, Any]:
         sym = item.get("symbol", "").strip().upper()
         clean = dict(item)
-        if sym and not sym.endswith(".KS") and not sym.endswith(".TW"):
+        is_valid_ticker = bool(
+            sym and len(sym) <= 5 and sym.isalpha() and
+            sym not in ("ENTERPRISE", "GOVT", "COMMERCIAL", "RETAIL", "CONSUMER", "GLOBAL", "OEM") and
+            not sym.endswith(".KS") and not sym.endswith(".TW")
+        )
+        if is_valid_ticker:
             try:
                 q = q_lookup(sym)
                 clean["price"] = round(float(q.get("price") or 100.0), 2)
@@ -1099,20 +1104,44 @@ def calculate_ecosystem_catalyst_scores(
     """
     sym = symbol.strip().upper()
     
-    # 1. Direct news sentiment
+    # 1. Direct news sentiment & fundamental catalyst calibration
     try:
         direct_news = news_info if news_info is not None else fetch_breaking_news(sym)
         dir_score = float(direct_news.get("overall_sentiment", {}).get("score", 0.0) or 0.0)
+        has_exec_cat = (
+            direct_news.get("overall_sentiment", {}).get("has_executive_catalyst", False) or
+            ("EXECUTIVE_LEADERSHIP" in direct_news.get("top_catalysts", []))
+        )
+        has_major_cat = (
+            has_exec_cat or
+            direct_news.get("overall_sentiment", {}).get("is_tier1_catalyst", False) or
+            any(c in ["EXECUTIVE_LEADERSHIP", "EARNINGS", "M&A_DEALS", "FDA_BIOTECH", "REGULATORY_LEGAL"] for c in direct_news.get("top_catalysts", []))
+        )
     except Exception:
         dir_score = 0.0
+        has_exec_cat = False
+        has_major_cat = False
 
-    dir_intensity = min(98.0, max(22.0, 22.0 + abs(dir_score) * 135.0))
-    if dir_score > 0.02:
-        dir_bull = min(98.0, max(30.0, 35.0 + dir_score * 115.0))
-        dir_bear = max(5.0, min(40.0, 35.0 - dir_score * 50.0))
-    elif dir_score < -0.02:
-        dir_bull = max(5.0, min(40.0, 35.0 - abs(dir_score) * 50.0))
-        dir_bear = min(98.0, max(30.0, 35.0 + abs(dir_score) * 115.0))
+    # Base catalyst intensity from breaking news
+    dir_intensity = min(99.0, max(25.0, 25.0 + abs(dir_score) * 85.0))
+    if has_major_cat:
+        dir_intensity = min(99.0, dir_intensity + 20.0)
+    if abs(dir_score) >= 0.65:
+        dir_intensity = max(88.0, dir_intensity)
+
+    # Directional conviction driven primarily by fundamental news
+    if dir_score > 0.05:
+        dir_bull = min(99.0, max(45.0, 48.0 + dir_score * 65.0))
+        dir_bear = max(5.0, min(25.0, 25.0 - dir_score * 25.0))
+        if has_major_cat and dir_score >= 0.25:
+            dir_bull = min(99.0, dir_bull + 20.0)
+            dir_bear = max(5.0, dir_bear - 15.0)
+    elif dir_score < -0.05:
+        dir_bull = max(5.0, min(25.0, 25.0 - abs(dir_score) * 25.0))
+        dir_bear = min(99.0, max(45.0, 48.0 + abs(dir_score) * 65.0))
+        if has_major_cat and dir_score <= -0.25:
+            dir_bear = min(99.0, dir_bear + 20.0)
+            dir_bull = max(5.0, dir_bull - 15.0)
     else:
         dir_bull = 35.0
         dir_bear = 35.0
@@ -1202,18 +1231,44 @@ def calculate_ecosystem_catalyst_scores(
             comp_bull_list.append(22.0)
             comp_bear_list.append(22.0)
 
-    avg_supp_vol = sum(supp_vol_list)/len(supp_vol_list) if supp_vol_list else 30.0
-    avg_cust_vol = sum(cust_vol_list)/len(cust_vol_list) if cust_vol_list else 35.0
-    avg_comp_vol = sum(comp_vol_list)/len(comp_vol_list) if comp_vol_list else 25.0
+    # Aggregate ecosystem entity factors with graceful handling for single-entity/missing partner lists
+    avg_supp_vol = (sum(supp_vol_list)/len(supp_vol_list)) if supp_vol_list else dir_intensity
+    avg_cust_vol = (sum(cust_vol_list)/len(cust_vol_list)) if cust_vol_list else dir_intensity
+    avg_comp_vol = (sum(comp_vol_list)/len(comp_vol_list)) if comp_vol_list else (25.0 if abs(dir_score) < 0.1 else dir_intensity * 0.7)
 
-    avg_supp_bull = sum(supp_bull_list)/len(supp_bull_list) if supp_bull_list else 25.0
-    avg_supp_bear = sum(supp_bear_list)/len(supp_bear_list) if supp_bear_list else 25.0
+    avg_supp_bull = (sum(supp_bull_list)/len(supp_bull_list)) if supp_bull_list else dir_bull
+    avg_supp_bear = (sum(supp_bear_list)/len(supp_bear_list)) if supp_bear_list else dir_bear
 
-    avg_cust_bull = sum(cust_bull_list)/len(cust_bull_list) if cust_bull_list else 30.0
-    avg_cust_bear = sum(cust_bear_list)/len(cust_bear_list) if cust_bear_list else 25.0
+    avg_cust_bull = (sum(cust_bull_list)/len(cust_bull_list)) if cust_bull_list else dir_bull
+    avg_cust_bear = (sum(cust_bear_list)/len(cust_bear_list)) if cust_bear_list else dir_bear
 
-    avg_comp_bull = sum(comp_bull_list)/len(comp_bull_list) if comp_bull_list else 20.0
-    avg_comp_bear = sum(comp_bear_list)/len(comp_bear_list) if comp_bear_list else 20.0
+    avg_comp_bull = (sum(comp_bull_list)/len(comp_bull_list)) if comp_bull_list else (20.0 if abs(dir_score) < 0.1 else dir_bull * 0.8)
+    avg_comp_bear = (sum(comp_bear_list)/len(comp_bear_list)) if comp_bear_list else (20.0 if abs(dir_score) < 0.1 else dir_bear * 0.8)
+
+    # If direct fundamental catalyst is extreme (>=85), do not allow minor partner drift to heavily dilute conviction
+    if dir_bull >= 85.0:
+        avg_supp_bull = max(avg_supp_bull, 45.0)
+        avg_cust_bull = max(avg_cust_bull, 45.0)
+    elif dir_bear >= 85.0:
+        avg_supp_bear = max(avg_supp_bear, 45.0)
+        avg_cust_bear = max(avg_cust_bear, 45.0)
+
+    # Cross-entity catalyst spillover (e.g. hyperscaler capex boom or supplier production halt)
+    # If direct company news is quiet, but customers or suppliers have a major catalyst, spill it over!
+    if abs(dir_score) <= 0.15:
+        if avg_cust_bull >= 55.0:
+            dir_bull = max(dir_bull, avg_cust_bull * 0.85)
+            dir_intensity = max(dir_intensity, avg_cust_vol * 0.80)
+        elif avg_cust_bear >= 55.0:
+            dir_bear = max(dir_bear, avg_cust_bear * 0.85)
+            dir_intensity = max(dir_intensity, avg_cust_vol * 0.80)
+
+        if avg_supp_bear >= 55.0:
+            dir_bear = max(dir_bear, avg_supp_bear * 0.85)
+            dir_intensity = max(dir_intensity, avg_supp_vol * 0.80)
+        elif avg_supp_bull >= 55.0:
+            dir_bull = max(dir_bull, avg_supp_bull * 0.85)
+            dir_intensity = max(dir_intensity, avg_supp_vol * 0.80)
 
     # 6. Technical scorecard touch
     sma20 = float(tech_info.get("sma20") or price)
@@ -1238,13 +1293,14 @@ def calculate_ecosystem_catalyst_scores(
     tech_bear = ((100.0 - trend_score) * 0.55) + ((100.0 - mom_score) * 0.45)
 
     # 7. Live Session Movement Probability Score (0-100, Non-Directional Impulse)
+    # Calibrated to be overwhelmingly driven by fundamental catalysts and ecosystem shocks (94% fundamental, 6% technical/price)
     movement_prob = round(
-        0.28 * dir_intensity +
-        0.24 * price_impulse +
-        0.20 * avg_cust_vol +
+        0.54 * dir_intensity +
+        0.22 * avg_cust_vol +
         0.14 * avg_supp_vol +
-        0.08 * avg_comp_vol +
-        0.06 * mom_score, 1
+        0.04 * avg_comp_vol +
+        0.03 * price_impulse +
+        0.03 * mom_score, 1
     )
     movement_prob = min(98.0, max(15.0, movement_prob))
 
@@ -1262,21 +1318,22 @@ def calculate_ecosystem_catalyst_scores(
         mov_desc = "Muted ecosystem catalyst activity; stock trading in quiescent baseline range."
 
     # 8. Live Session Directional Prediction Scores (Up vs Down)
+    # Fundamentals & direct news catalysts account for 93% of directional bias; technicals/price account for 7% (3% technicals, 4% price)
     up_score = round(
-        0.26 * dir_bull +
-        0.24 * price_bull +
-        0.22 * avg_cust_bull +
-        0.14 * avg_supp_bull +
-        0.04 * avg_comp_bull +
-        0.10 * tech_bull, 1
+        0.58 * dir_bull +
+        0.19 * avg_cust_bull +
+        0.11 * avg_supp_bull +
+        0.05 * avg_comp_bull +
+        0.04 * price_bull +
+        0.03 * tech_bull, 1
     )
     down_score = round(
-        0.26 * dir_bear +
-        0.24 * price_bear +
-        0.22 * avg_cust_bear +
-        0.14 * avg_supp_bear +
-        0.04 * avg_comp_bear +
-        0.10 * tech_bear, 1
+        0.58 * dir_bear +
+        0.19 * avg_cust_bear +
+        0.11 * avg_supp_bear +
+        0.05 * avg_comp_bear +
+        0.04 * price_bear +
+        0.03 * tech_bear, 1
     )
 
     up_score = min(98.0, max(5.0, up_score))
@@ -1290,14 +1347,14 @@ def calculate_ecosystem_catalyst_scores(
         dominant_bias = "BALANCED / DUAL-SIDED VOLATILITY"
 
     # 9. Start-of-Day (Pre-Market Catalyst Projection)
-    # Evaluates movement potential right as trading begins using news, partner sentiment, and opening gap
+    # Pre-market direction driven 93% by news & ecosystem partner fundamentals, 7% by opening gap
     sod_gap_impulse = min(95.0, max(25.0, 30.0 + abs(open_gap) * 6.5))
     sod_mov_prob = round(
-        0.40 * dir_intensity +
-        0.25 * avg_cust_vol +
-        0.18 * avg_supp_vol +
-        0.10 * avg_comp_vol +
-        0.07 * sod_gap_impulse, 1
+        0.58 * dir_intensity +
+        0.22 * avg_cust_vol +
+        0.14 * avg_supp_vol +
+        0.04 * avg_comp_vol +
+        0.02 * sod_gap_impulse, 1
     )
     sod_mov_prob = min(98.0, max(18.0, sod_mov_prob))
     
@@ -1305,18 +1362,18 @@ def calculate_ecosystem_catalyst_scores(
     sod_gap_bear = min(95.0, max(20.0, 40.0 + abs(open_gap) * 4.0)) if open_gap < 0 else max(10.0, 35.0 - open_gap * 3.0)
     
     sod_up = round(
-        0.35 * dir_bull +
-        0.25 * avg_cust_bull +
-        0.18 * avg_supp_bull +
-        0.07 * avg_comp_bull +
-        0.15 * sod_gap_bull, 1
+        0.58 * dir_bull +
+        0.20 * avg_cust_bull +
+        0.13 * avg_supp_bull +
+        0.04 * avg_comp_bull +
+        0.05 * sod_gap_bull, 1
     )
     sod_down = round(
-        0.35 * dir_bear +
-        0.25 * avg_cust_bear +
-        0.18 * avg_supp_bear +
-        0.07 * avg_comp_bear +
-        0.15 * sod_gap_bear, 1
+        0.58 * dir_bear +
+        0.20 * avg_cust_bear +
+        0.13 * avg_supp_bear +
+        0.04 * avg_comp_bear +
+        0.05 * sod_gap_bear, 1
     )
     sod_up = min(98.0, max(5.0, sod_up))
     sod_down = min(98.0, max(5.0, sod_down))

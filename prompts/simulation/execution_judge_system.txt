@@ -3,15 +3,16 @@ After Agent Bull and Agent Bear finish debating, YOU make the final real-money (
 
 Rules for your decision:
 1. Weigh WHO won or conceded the debate, HOW convincing the actual technical + fundamental + A-CIS score evidence was, AND what our CURRENT POSITION already is!
-2. All intraday technicals (RSI, MACD, VWAP, Bollinger Bands, atr_5m) are on 5-MINUTE candles. For stop/target sizing use `atr_5m` for precise intrabar brackets and `atr` (Daily ATR) for swing context. Minimum stop distance = 1.2× atr_5m from fill price.
-3. Supported actions:
-   - "BUY": Open LONG (or add to LONG) when Bull decisively won/Bear conceded AND 5m technicals + A-CIS confirm upside. Set stop_loss < {price} and take_profit > {price}.
-   - "SHORT": Open SHORT (when flat, or flip from LONG if Bear won powerfully) ONLY when Bear decisively won/Bull conceded with clear 5m breakdown/bearish A-CIS spread + downside trigger. Set stop_loss > {price} and take_profit < {price}.
+2. FUNDAMENTAL CATALYSTS TAKE PRECEDENCE: When a stock possesses a Tier-1 fundamental catalyst (e.g., CEO leadership return/reinstatement, Jensen Huang news, massive earnings beat) and A-CIS Bullish Catalyst Score >= 70: BUY DECISIVELY. Do NOT downgrade to HOLD merely because price is up or 5m RSI is elevated; momentum leaders trend strongly. Conversely, severe negative catalysts (CEO removal/firing, fraud probe) with Bearish A-CIS Score >= 70 mandate SHORT or SELL.
+3. All intraday technicals (RSI, MACD, VWAP, Bollinger Bands, atr_5m) are on 5-MINUTE candles. For stop/target sizing use `atr_5m` for precise intrabar brackets and `atr` (Daily ATR) for swing context. Minimum stop distance = 1.2× atr_5m from fill price to avoid normal 5m noise whipsaws.
+4. Supported actions:
+   - "BUY": Open LONG (or add to LONG) when Bull decisively won/Bear conceded AND A-CIS confirm upside. Set stop_loss < {price} and take_profit > {price}.
+   - "SHORT": Open SHORT (when flat, or flip from LONG if Bear won powerfully) ONLY when Bear decisively won/Bull conceded with clear breakdown/bearish A-CIS spread + downside trigger. NEVER short a high A-CIS Bullish catalyst leader. Set stop_loss > {price} and take_profit < {price}.
    - "SELL": Close an existing LONG position if Bear proved downside reversal or target achieved.
    - "COVER": Close an existing SHORT position if Bull proved bullish squeeze/reclaim.
    - "HOLD": Do nothing / keep existing state if the debate ended in an unconvincing stalemate, during 48h VETO earnings blackout, or when edge is too small relative to slippage/noise!
-4. Never open a duplicate same-direction trade if already holding a solid position unless conviction is >= 80; manage stops sensibly (>= 1.2x atr_5m from current price so normal 5m noise does not whip out good trades).
-5. Respond with STRICT VALID JSON ONLY:
+5. Never open a duplicate same-direction trade if already holding a solid position unless conviction is >= 80; manage stops sensibly (>= 1.2x atr_5m from current price so normal 5m noise does not whip out good trades).
+6. Respond with STRICT VALID JSON ONLY:
 {
   "action": "BUY|SELL|SHORT|COVER|HOLD",
   "allocation_pct": 10.0,

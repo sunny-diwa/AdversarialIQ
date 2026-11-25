@@ -20,19 +20,22 @@ from src.core.config import FINNHUB_API_KEY, SP500_MAP, get_cached, set_cached
 
 logger = logging.getLogger("NewsEngine")
 
-# Catalyst classification keywords
+# Catalyst classification keywords & high-conviction phrases
 CATALYST_PATTERNS = {
     "EXECUTIVE_LEADERSHIP": [
         r"\bceo\b", r"\bjensen\b", r"\bhuang\b", r"\breinstat\b", r"\bappoint\b",
-        r"\bresign\b", r"\bboard\b", r"\bexecutive\b", r"\bleadership\b", r"\bfounder\b"
+        r"\bresign\b", r"\bboard\b", r"\bexecutive\b", r"\bleadership\b", r"\bfounder\b",
+        r"\bousted\b", r"\bouster\b", r"\bremoved\b", r"\bfired\b", r"\bstepped down\b",
+        r"\breturn\b", r"\breturns\b", r"\bback\b", r"\breplace\b", r"\bsuccessor\b"
     ],
     "POLITICAL_TRADE": [
         r"\btrump\b", r"\btariff\b", r"\bwhite house\b", r"\bnational security\b",
-        r"\bcommerce\b", r"\bgovernment\b", r"\bbiden\b"
+        r"\bcommerce\b", r"\bgovernment\b", r"\bbiden\b", r"\btrade war\b", r"\bexport control\b"
     ],
     "EARNINGS": [
         r"\bearnings\b", r"\beps\b", r"\brevenue\b", r"\bquarterly\b", r"\bbeat\b",
-        r"\bmiss\b", r"\bprofit\b", r"\bguidance\b", r"\bq[1-4]\b", r"\bfinancial results\b"
+        r"\bmiss\b", r"\bprofit\b", r"\bguidance\b", r"\bq[1-4]\b", r"\bfinancial results\b",
+        r"\btopline\b", r"\bbottomline\b", r"\bforecast\b", r"\bblowout\b"
     ],
     "FDA_BIOTECH": [
         r"\bfda\b", r"\bphase\s+[1-3]\b", r"\bapproval\b", r"\bclinical trial\b",
@@ -40,11 +43,12 @@ CATALYST_PATTERNS = {
     ],
     "M&A_DEALS": [
         r"\bacquisition\b", r"\bmerger\b", r"\bbuyout\b", r"\btakeover\b",
-        r"\bdeal\b", r"\bpartnership\b", r"\bcontract\b", r"\bagreement\b"
+        r"\bdeal\b", r"\bpartnership\b", r"\bcontract\b", r"\bagreement\b",
+        r"\bhyperscale\b", r"\bmulti-billion\b"
     ],
     "REGULATORY_LEGAL": [
         r"\blawsuit\b", r"\bdoj\b", r"\bsec\b", r"\binvestigation\b", r"\bsanctions\b",
-        r"\bantitrust\b", r"\bfine\b", r"\bsettlement\b", r"\bsubpoena\b"
+        r"\bantitrust\b", r"\bfine\b", r"\bsettlement\b", r"\bsubpoena\b", r"\bfraud\b"
     ],
     "MACRO_RATES": [
         r"\bfed\b", r"\brates\b", r"\binflation\b", r"\bcpi\b", r"\byield\b",
@@ -52,21 +56,70 @@ CATALYST_PATTERNS = {
     ],
     "UPGRADE_DOWNGRADE": [
         r"\bupgrade\b", r"\bdowngrade\b", r"\bprice target\b", r"\boutperform\b",
-        r"\bunderperform\b", r"\bbuy rating\b", r"\bsell rating\b"
+        r"\bunderperform\b", r"\bbuy rating\b", r"\bsell rating\b", r"\boverweight\b"
     ]
 }
 
+# High-impact Tier-1 multi-word phrases for instant high-conviction classification
+TIER1_BULLISH_PHRASES = [
+    r"reinstat\w*\s+(as\s+)?ceo",
+    r"reinstat\w*\s+(as\s+)?president",
+    r"jensen\s+huang\s+(reinstat|return|back|lead)",
+    r"ceo\s+(reinstat|return|back|appointed)",
+    r"board\s+reinstat\w*",
+    r"welcomes\s+back\s+ceo",
+    r"historic\s+rally",
+    r"blowout\s+quarter",
+    r"record\s+(earnings|revenue|profit|demand)",
+    r"beats?\s+and\s+raises?",
+    r"unprecedented\s+demand",
+    r"cleared\s+of\s+charges",
+    r"antitrust\s+dismissed",
+    r"definitive\s+agreement\s+to\s+acquire",
+    r"acquir\w*\s+.*premium",
+    r"buyout\s+agreement",
+    r"merger\s+agreement",
+    r"breakthrough\s+therapy\s+approval",
+    r"commercial\s+cloud\s+revenue\s+jumps"
+]
+
+TIER1_BEARISH_PHRASES = [
+    r"ceo\s+(removed|fired|ousted|resigns?|forced\s+out|steps\s+down)",
+    r"board\s+(removes|fires|ousts)\s+ceo",
+    r"abrupt\s+(resignation|departure|ouster)",
+    r"accounting\s+(fraud|irregularities|probe)",
+    r"doj\s+(probe|lawsuit|investigation|indictment)",
+    r"sec\s+(investigation|subpoena|charges)",
+    r"slashes\s+.*guidance",
+    r"massive\s+miss",
+    r"guidance\s+cut",
+    r"bankruptcy\s+filing",
+    r"default\s+on\s+debt",
+    r"share\s+losses"
+]
+
 POSITIVE_WORDS = {
-    "surge", "jump", "soar", "gain", "rally", "record", "beat", "higher",
-    "profit", "strong", "bullish", "upgrade", "growth", "breakout", "exceed",
-    "dividend", "buyback", "boost", "outperform", "milestone", "advancing",
-    "reinstated", "reinstate", "rehire", "return", "cheers", "skyrocket", "skyrockets", "u-turn"
+    "surge", "surges", "surging", "jump", "jumps", "jumped", "soar", "soars", "soaring",
+    "gain", "gains", "gained", "rally", "rallies", "rallying", "record", "beat", "beats", "beating",
+    "higher", "profit", "profitable", "strong", "stronger", "bullish", "upgrade", "upgrades", "upgraded",
+    "growth", "breakout", "exceed", "exceeds", "exceeded", "dividend", "buyback", "boost", "boosts",
+    "outperform", "outperformed", "outperforming", "milestone", "milestones", "advancing", "reinstated",
+    "reinstate", "reinstates", "reinstatement", "reappointed", "appointed", "rehire", "return", "returns",
+    "returned", "cheers", "cheered", "skyrocket", "skyrockets", "skyrocketing", "u-turn", "accelerates",
+    "accelerating", "historic", "breakthrough", "dominant", "dominance", "unprecedented", "restored",
+    "restores", "reversal", "cleared", "approval", "secured", "partnership", "back", "solid", "resilient",
+    "expansion", "acquire", "acquired", "acquisition", "buyout", "premium", "takeover", "merger"
 }
 
 NEGATIVE_WORDS = {
-    "drop", "plunge", "fall", "slump", "decline", "miss", "lower", "loss",
-    "weak", "bearish", "downgrade", "probe", "investigation", "lawsuit", "cut",
-    "warning", "slashes", "debt", "default", "scandal", "risk", "disappoint"
+    "drop", "drops", "dropping", "plunge", "plunges", "plunging", "fall", "falls", "falling",
+    "slump", "slumps", "slumping", "decline", "declines", "declining", "miss", "misses", "missed",
+    "lower", "loss", "losses", "weak", "weaker", "weakness", "bearish", "downgrade", "downgrades",
+    "downgraded", "probe", "probes", "investigation", "lawsuit", "cut", "cuts", "cutting",
+    "warning", "slashes", "slashed", "debt", "default", "scandal", "risk", "risks", "disappoint",
+    "disappoints", "disappointed", "removed", "removes", "removal", "ousted", "ouster", "fired",
+    "fires", "firing", "resigned", "resigns", "resignation", "terminated", "termination",
+    "fraud", "subpoena", "sanctions", "indictment", "antitrust", "collapse", "collapses", "collapsing"
 }
 
 
@@ -83,29 +136,66 @@ def tag_catalysts(text: str) -> List[str]:
 
 
 def calculate_sentiment(text: str) -> Dict[str, Any]:
-    """Computes financial sentiment polarity score (-1.0 to +1.0) and label."""
-    words = re.findall(r"\b[a-z]+\b", text.lower())
+    """
+    Computes high-conviction financial sentiment polarity score (-1.0 to +1.0) and catalyst intensity.
+    Properly captures executive leadership shocks (e.g. CEO removed/reinstated, Jensen Huang news),
+    earnings surprises, and regulatory actions.
+    """
+    lower_text = text.lower()
+    
+    # 1. Check Tier-1 High Impact Multi-Word Phrases
+    tier1_bull_matches = sum(1 for p in TIER1_BULLISH_PHRASES if re.search(p, lower_text))
+    tier1_bear_matches = sum(1 for p in TIER1_BEARISH_PHRASES if re.search(p, lower_text))
+
+    # 2. Tokenized word counting
+    words = re.findall(r"\b[a-z]+\b", lower_text)
     pos_count = sum(1 for w in words if w in POSITIVE_WORDS)
     neg_count = sum(1 for w in words if w in NEGATIVE_WORDS)
-    total = pos_count + neg_count
 
-    if total == 0:
+    # High-impact Tier-1 phrases heavily weight the score
+    effective_pos = pos_count + (tier1_bull_matches * 5.0)
+    effective_neg = neg_count + (tier1_bear_matches * 5.0)
+    total_effective = effective_pos + effective_neg
+
+    is_tier1 = (tier1_bull_matches > 0) or (tier1_bear_matches > 0)
+
+    if total_effective == 0:
         score = 0.0
         label = "NEUTRAL"
+        intensity = "LOW"
     else:
-        score = (pos_count - neg_count) / total
-        if score > 0.15:
+        raw_score = (effective_pos - effective_neg) / total_effective
+        
+        # If Tier-1 leadership/catalyst phrase is detected, ensure decisive conviction
+        if tier1_bull_matches > 0 and tier1_bear_matches == 0:
+            score = max(0.85, raw_score)
             label = "BULLISH"
-        elif score < -0.15:
+            intensity = "EXTREME"
+        elif tier1_bear_matches > 0 and tier1_bull_matches == 0:
+            score = min(-0.85, raw_score)
             label = "BEARISH"
+            intensity = "EXTREME"
         else:
-            label = "NEUTRAL"
+            score = raw_score
+            if score > 0.15:
+                label = "BULLISH"
+                intensity = "HIGH" if score >= 0.50 else "MODERATE"
+            elif score < -0.15:
+                label = "BEARISH"
+                intensity = "HIGH" if score <= -0.50 else "MODERATE"
+            else:
+                label = "NEUTRAL"
+                intensity = "LOW"
 
     return {
         "score": round(score, 2),
         "label": label,
+        "intensity": intensity,
+        "is_tier1_catalyst": is_tier1,
         "pos_signals": pos_count,
-        "neg_signals": neg_count
+        "neg_signals": neg_count,
+        "tier1_bull_matches": tier1_bull_matches,
+        "tier1_bear_matches": tier1_bear_matches
     }
 
 
@@ -348,13 +438,47 @@ def fetch_breaking_news(symbol: str) -> Dict[str, Any]:
                 "catalysts": cats
             })
 
-    # Compute aggregate sentiment & catalyst frequency
+    # Compute catalyst-weighted aggregate sentiment & catalyst frequency
     bullish_count = sum(1 for a in articles if a.get("sentiment") == "BULLISH")
     bearish_count = sum(1 for a in articles if a.get("sentiment") == "BEARISH")
     neutral_count = sum(1 for a in articles if a.get("sentiment") == "NEUTRAL")
 
     if articles:
-        avg_score = sum(a["sentiment_score"] for a in articles) / len(articles)
+        total_w = 0.0
+        weighted_sum = 0.0
+        has_exec_catalyst = False
+        max_abs_score = 0.0
+        decisive_lead_score = 0.0
+
+        for a in articles:
+            sc = float(a.get("sentiment_score", 0.0))
+            cats = a.get("catalysts", [])
+            w = 1.0
+            if "EXECUTIVE_LEADERSHIP" in cats:
+                w = 4.0
+                has_exec_catalyst = True
+            elif "EARNINGS" in cats or "M&A_DEALS" in cats:
+                w = 2.5
+            elif "REGULATORY_LEGAL" in cats or "UPGRADE_DOWNGRADE" in cats:
+                w = 2.0
+            
+            if abs(sc) >= 0.70:
+                w *= 1.5
+            
+            if abs(sc) > max_abs_score:
+                max_abs_score = abs(sc)
+                decisive_lead_score = sc
+
+            weighted_sum += sc * w
+            total_w += w
+
+        avg_score = weighted_sum / max(1.0, total_w)
+        
+        # If there is a massive Tier-1 leadership shock (e.g. Jensen Huang reinstated / CEO removed),
+        # do not allow filler articles to wash out the conviction!
+        if has_exec_catalyst and abs(decisive_lead_score) >= 0.70:
+            avg_score = (avg_score * 0.40) + (decisive_lead_score * 0.60)
+
         all_catalysts = [c for a in articles for c in a["catalysts"] if c != "GENERAL_NEWS"]
         cat_counts = {}
         for c in all_catalysts:
@@ -362,6 +486,7 @@ def fetch_breaking_news(symbol: str) -> Dict[str, Any]:
         top_catalysts = sorted(cat_counts.keys(), key=lambda k: cat_counts[k], reverse=True)[:3]
     else:
         avg_score = 0.0
+        has_exec_catalyst = False
         top_catalysts = ["MOMENTUM", "MARKET_STRUCTURE"]
 
     if avg_score > 0.15:
@@ -379,7 +504,8 @@ def fetch_breaking_news(symbol: str) -> Dict[str, Any]:
             "label": overall_label,
             "bullish_count": bullish_count,
             "bearish_count": bearish_count,
-            "neutral_count": neutral_count
+            "neutral_count": neutral_count,
+            "has_executive_catalyst": has_exec_catalyst
         },
         "top_catalysts": top_catalysts or ["MACRO_RATES"],
         "article_count": len(articles)
