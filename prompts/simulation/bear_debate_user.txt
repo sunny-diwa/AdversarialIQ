@@ -1,0 +1,14 @@
+TARGET: {symbol} | TIME: {as_of} ({session_mode})
+BEAR PRIVATE MEMORY:
+{bear_memory}
+
+SESSION & DAY MEMORY:
+{session_context}
+
+POINT-IN-TIME MARKET, TECHNICAL, NEWS & A-CIS SCORES DOSSIER:
+{dossier_block}
+
+BULL'S OPENING PROSECUTION:
+{opponent_message}
+
+OPENING TASK (Round 1): Dismantle Bull's points above and prosecute the strongest Bearish / Downside case for {symbol}. Cite exact technicals, macro/VIX, news/fundamental hazards, and A-CIS scores. Be concise (<= 170 words). End with `VERDICT_TAG: MAINTAIN`.

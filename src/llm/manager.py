@@ -45,11 +45,13 @@ class LLMManager:
     ]
 
     GEMINI_MODELS = [
-        {"id": "gemini-4-hydrogen", "name": "Google Gemini 4 Hydrogen (Free Tier / Recommended)", "context": 1048576},
-        {"id": "gemini-3.5-flash", "name": "Google Gemini 3.5 Flash", "context": 1048576},
-        {"id": "gemini-3.1-flash-lite", "name": "Google Gemini 3.1 Flash Lite", "context": 1048576},
-        {"id": "gemini-2.5-flash", "name": "Google Gemini 2.5 Flash", "context": 1048576}
+        {"id": "gemini-3-flash-preview", "name": "Google Gemini 3 Flash Preview (Recommended / Free Tier)", "context": 1048576},
+        {"id": "gemini-flash-latest", "name": "Google Gemini Flash Latest", "context": 1048576},
+        {"id": "gemini-2.5-flash-lite", "name": "Google Gemini 2.5 Flash Lite", "context": 1048576},
+        {"id": "gemma-4-31b-it", "name": "Google Gemma 4 31B IT", "context": 131072}
     ]
+
+    _MODEL_COOLDOWNS: Dict[str, float] = {}
 
     MISTRAL_MODELS = [
         {"id": "codestral-latest", "name": "Mistral: Codestral Latest (Code & Quant / Recommended)", "context": 256000},
@@ -101,20 +103,21 @@ class LLMManager:
                 "Authorization": f"Bearer {key}",
                 "Content-Type": "application/json"
             }
+            mod = model or "openai/gpt-oss-120b"
             payload = {
-                "model": model or "openai/gpt-oss-120b",
+                "model": mod,
                 "messages": [{"role": "user", "content": "ping"}],
-                "max_tokens": 2
+                "max_tokens": 5
             }
             try:
-                res = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload, timeout=4)
+                res = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload, timeout=5)
                 latency = int((time.time() - start_time) * 1000)
                 if res.status_code == 200:
                     return {
                         "status": "LIVE",
                         "latency_ms": latency,
                         "provider": "Groq Cloud",
-                        "model": model or "llama-3.1-8b-instant",
+                        "model": mod,
                         "message": f"Connected to Groq Cloud ({latency}ms latency)."
                     }
                 else:
@@ -136,11 +139,11 @@ class LLMManager:
                     "provider": "Google AI Studio",
                     "error": "Missing Gemini API Key. Enter key in settings or set GEMINI_API_KEY env."
                 }
-            mod = model or "gemini-4-hydrogen"
+            mod = model or "gemini-3-flash-preview"
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{mod}:generateContent?key={key}"
-            payload = {"contents": [{"parts": [{"text": "ping"}]}], "generationConfig": {"maxOutputTokens": 2}}
+            payload = {"contents": [{"parts": [{"text": "ping"}]}], "generationConfig": {"maxOutputTokens": 5}}
             try:
-                res = requests.post(url, json=payload, timeout=4)
+                res = requests.post(url, json=payload, timeout=8)
                 latency = int((time.time() - start_time) * 1000)
                 if res.status_code == 200:
                     return {
@@ -164,21 +167,22 @@ class LLMManager:
                     "provider": "Mistral AI",
                     "error": "Missing Mistral API Key. Enter key in settings or set MISTRAL_API_KEY env."
                 }
+            mod = model or "codestral-latest"
             headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
             payload = {
-                "model": model or "codestral-latest",
+                "model": mod,
                 "messages": [{"role": "user", "content": "ping"}],
-                "max_tokens": 2
+                "max_tokens": 5
             }
             try:
-                res = requests.post("https://api.mistral.ai/v1/chat/completions", headers=headers, json=payload, timeout=4)
+                res = requests.post("https://api.mistral.ai/v1/chat/completions", headers=headers, json=payload, timeout=5)
                 latency = int((time.time() - start_time) * 1000)
                 if res.status_code == 200:
                     return {
                         "status": "LIVE",
                         "latency_ms": latency,
                         "provider": "Mistral AI",
-                        "model": model or "mistral-small-latest",
+                        "model": mod,
                         "message": f"Connected to Mistral AI ({latency}ms latency)."
                     }
                 else:
@@ -280,75 +284,132 @@ class LLMManager:
         mistral_api_key: Optional[str] = None,
         nvidia_api_key: Optional[str] = None,
         ollama_base_url: Optional[str] = None,
-        symbol: Optional[str] = "AAPL"
+        symbol: Optional[str] = "AAPL",
+        temperature: float = 0.3,
+        max_tokens: int = 1500,
+        messages: Optional[List[Dict[str, str]]] = None,
+        strict_llm: bool = False,
+        max_retries: int = 2
     ) -> Dict[str, Any]:
         """
-        Executes generation using preferred provider with automatic failover and trace logging.
-        Order of failover: preferred -> Groq -> Gemini -> Mistral -> NVIDIA -> Ollama -> Quant Rule Engine.
+        Executes generation using preferred provider with rate-limit cooldown awareness,
+        multi-model/multi-provider failover, and trace logging.
+        If strict_llm=True, waits out transient 429/503 cooldowns and raises on hard failure
+        rather than returning rule-based fallback prose.
         """
         prov = (preferred_provider or "groq").lower().strip()
-        mod = model or ("openai/gpt-oss-120b" if prov == "groq" else ("gemini-4-hydrogen" if prov in ("gemini", "google") else "codestral-latest"))
+        if prov == "groq":
+            mod = model or "openai/gpt-oss-120b"
+        elif prov in ("gemini", "google"):
+            mod = model or "gemini-3-flash-preview"
+        elif prov == "mistral":
+            mod = model or "codestral-latest"
+        elif prov == "nvidia":
+            mod = model or "z-ai/glm-5.3-flash"
+        else:
+            mod = model or "llama3"
 
-        # 1. Try preferred provider
-        res = cls._try_provider(
-            provider=prov,
-            model=mod,
-            prompt=prompt,
-            system_prompt=system_prompt,
-            groq_key=groq_api_key or GROQ_API_KEY,
-            gemini_key=gemini_api_key or GEMINI_API_KEY,
-            mistral_key=mistral_api_key or MISTRAL_API_KEY,
-            nvidia_key=nvidia_api_key or NVIDIA_API_KEY,
-            ollama_url=ollama_base_url or OLLAMA_BASE_URL,
-            symbol=symbol
-        )
-        if res and not res.get("error"):
-            return {
-                "response": res["content"],
-                "provider": res["provider_name"],
-                "model": mod,
-                "failover": False
-            }
+        g_key = groq_api_key or GROQ_API_KEY
+        gem_key = gemini_api_key or GEMINI_API_KEY
+        m_key = mistral_api_key or MISTRAL_API_KEY
+        nv_key = nvidia_api_key or NVIDIA_API_KEY
+        ol_url = ollama_base_url or OLLAMA_BASE_URL
 
-        logger.warning(f"Preferred provider {prov} failed ({res.get('error') if res else 'Unknown'}). Initiating failover...")
+        # Build prioritized execution pool
+        pool: List[tuple] = [(prov, mod)]
+        fallback_pool = [
+            ("groq", "openai/gpt-oss-120b"),
+            ("groq", "qwen/qwen3.8-27b"),
+            ("groq", "openai/gpt-oss-20b"),
+            ("mistral", "ministral-8b-latest"),
+            ("mistral", "codestral-latest"),
+            ("gemini", "gemini-3-flash-preview"),
+            ("gemini", "gemini-flash-latest"),
+            ("gemini", "gemma-4-31b-it"),
+            ("groq", "allam-2-7b"),
+        ]
+        for pair in fallback_pool:
+            if pair not in pool:
+                pool.append(pair)
 
-        # 2. Ordered failover chain across active free-tier providers
-        candidates = ["groq", "mistral", "gemini"]
-        if prov in candidates:
-            candidates.remove(prov)
+        last_error = "No external providers configured"
+        attempts = max(5, max_retries + 1) if strict_llm else 1
 
-        for candidate in candidates:
-            cand_mod = None
-            if candidate == "groq":
-                cand_mod = "openai/gpt-oss-120b"
-            elif candidate == "gemini":
-                cand_mod = "gemini-4-hydrogen"
-            elif candidate == "mistral":
-                cand_mod = "codestral-latest"
+        for attempt in range(attempts):
+            now_ts = time.time()
+            tried_any = False
+            min_cooldown_remaining = None
 
-            cand_res = cls._try_provider(
-                provider=candidate,
-                model=cand_mod,
-                prompt=prompt,
-                system_prompt=system_prompt,
-                groq_key=groq_api_key or GROQ_API_KEY,
-                gemini_key=gemini_api_key or GEMINI_API_KEY,
-                mistral_key=mistral_api_key or MISTRAL_API_KEY,
-                nvidia_key=nvidia_api_key or NVIDIA_API_KEY,
-                ollama_url=ollama_base_url or OLLAMA_BASE_URL,
-                symbol=symbol
-            )
-            if cand_res and not cand_res.get("error"):
-                logger.info(f"Failover to {candidate} ({cand_mod}) succeeded.")
-                return {
-                    "response": cand_res["content"],
-                    "provider": cand_res["provider_name"],
-                    "model": cand_mod,
-                    "failover": True,
-                    "failover_from": prov
-                }
+            for idx, (cand_prov, cand_mod) in enumerate(pool):
+                # Skip providers without credentials
+                if cand_prov == "groq" and not g_key:
+                    continue
+                if cand_prov in ("gemini", "google") and not gem_key:
+                    continue
+                if cand_prov in ("mistral",) and not m_key:
+                    continue
+                if cand_prov == "nvidia" and not nv_key:
+                    continue
 
-        # 3. Final Fallback: Autonomous Quantitative Rule Engine
+                pool_key = f"{cand_prov}:{cand_mod}"
+                cooldown_until = cls._MODEL_COOLDOWNS.get(pool_key, 0.0)
+                if now_ts < cooldown_until:
+                    rem = cooldown_until - now_ts
+                    if min_cooldown_remaining is None or rem < min_cooldown_remaining:
+                        min_cooldown_remaining = rem
+                    continue
+
+                tried_any = True
+                res = cls._try_provider(
+                    provider=cand_prov,
+                    model=cand_mod,
+                    prompt=prompt,
+                    system_prompt=system_prompt,
+                    groq_key=g_key,
+                    gemini_key=gem_key,
+                    mistral_key=m_key,
+                    nvidia_key=nv_key,
+                    ollama_url=ol_url,
+                    symbol=symbol,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    messages=messages
+                )
+                if res and not res.get("error"):
+                    is_failover = idx > 0 or attempt > 0
+                    if is_failover:
+                        logger.info(f"LLM generation succeeded via {cand_prov} ({cand_mod}) [attempt {attempt+1}].")
+                    return {
+                        "response": res["content"],
+                        "provider": res["provider_name"],
+                        "model": cand_mod,
+                        "failover": is_failover,
+                        "failover_from": prov if is_failover else None
+                    }
+
+                err = (res or {}).get("error", "Unknown error")
+                last_error = err
+                # Apply rate-limit or transient cooldown per specific provider:model
+                if "429" in err or "rate" in err.lower():
+                    retry_sec = float((res or {}).get("retry_after") or 8.0)
+                    cls._MODEL_COOLDOWNS[pool_key] = time.time() + min(25.0, max(3.0, retry_sec))
+                elif "503" in err or "502" in err or "timeout" in err.lower():
+                    cls._MODEL_COOLDOWNS[pool_key] = time.time() + 10.0
+
+                if idx == 0:
+                    logger.warning(f"Preferred provider {prov}/{mod} failed ({err}). Trying backup models...")
+
+            if strict_llm and attempt < attempts - 1:
+                sleep_s = min(25.0, max(3.0, (min_cooldown_remaining or 5.0) + 1.0))
+                logger.info(f"All LLM pool candidates cooled down or busy. Waiting {sleep_s:.1f}s before retry {attempt+2}/{attempts}...")
+                time.sleep(sleep_s)
+            else:
+                break
+
+        if strict_llm:
+            raise RuntimeError(f"Strict LLM execution failed across all providers/retries: {last_error}")
+
+        # 3. Non-strict UI fallback: Autonomous Quantitative Rule Engine
         logger.info("All external LLM providers unavailable. Activating Autonomous Quant Rule Engine.")
         quant_content = cls._generate_quant_response(prompt, symbol)
         LLMTracer.record_trace(
@@ -369,6 +430,25 @@ class LLMManager:
         }
 
     @classmethod
+    def _build_openai_messages(
+        cls,
+        system_prompt: str,
+        prompt: str,
+        messages: Optional[List[Dict[str, str]]] = None
+    ) -> List[Dict[str, str]]:
+        """Builds clean OpenAI-style messages list supporting optional multi-turn history."""
+        out = [{"role": "system", "content": system_prompt}]
+        if messages:
+            for m in messages:
+                role = m.get("role", "user")
+                if role not in ("user", "assistant", "system"):
+                    role = "user"
+                out.append({"role": role, "content": str(m.get("content", ""))})
+        if prompt:
+            out.append({"role": "user", "content": prompt})
+        return out
+
+    @classmethod
     def _try_provider(
         cls,
         provider: str,
@@ -380,53 +460,68 @@ class LLMManager:
         mistral_key: str,
         nvidia_key: str,
         ollama_url: str,
-        symbol: Optional[str] = None
+        symbol: Optional[str] = None,
+        temperature: float = 0.3,
+        max_tokens: int = 1500,
+        messages: Optional[List[Dict[str, str]]] = None
     ) -> Optional[Dict[str, Any]]:
         """Invokes a specific provider and records trace."""
         start_t = time.time()
+        trace_prompt = prompt or (messages[-1].get("content", "") if messages else "")
         try:
             if provider == "groq":
                 if not groq_key:
                     return {"error": "No Groq API key"}
                 mod = model or "openai/gpt-oss-120b"
                 headers = {"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"}
+                msg_list = cls._build_openai_messages(system_prompt, prompt, messages)
                 payload = {
                     "model": mod,
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": prompt}
-                    ],
-                    "temperature": 0.3,
-                    "max_tokens": 1500
+                    "messages": msg_list,
+                    "temperature": temperature,
+                    "max_tokens": max_tokens
                 }
-                res = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload, timeout=8)
+                res = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload, timeout=18)
                 latency = int((time.time() - start_t) * 1000)
                 if res.status_code == 200:
-                    content = res.json()["choices"][0]["message"]["content"]
-                    LLMTracer.record_trace("Groq Cloud", mod, latency, prompt, content, "SUCCESS", symbol)
+                    msg_obj = res.json()["choices"][0]["message"]
+                    content = (msg_obj.get("content") or "").strip()
+                    if not content and msg_obj.get("reasoning"):
+                        content = str(msg_obj.get("reasoning")).strip()
+                    LLMTracer.record_trace("Groq Cloud", mod, latency, trace_prompt, content, "SUCCESS", symbol)
                     return {"content": content, "provider_name": "Groq Cloud"}
-                err_msg = f"HTTP {res.status_code}: {res.text[:120]}"
-                LLMTracer.record_trace("Groq Cloud", mod, latency, prompt, "", "ERROR", symbol, err_msg)
-                return {"error": err_msg}
+                retry_after = res.headers.get("retry-after") or 6.0
+                err_msg = f"HTTP {res.status_code}: {res.text[:140]}"
+                LLMTracer.record_trace("Groq Cloud", mod, latency, trace_prompt, "", "ERROR", symbol, err_msg)
+                return {"error": err_msg, "retry_after": retry_after}
 
             elif provider in ("gemini", "google"):
                 if not gemini_key:
                     return {"error": "No Gemini API key"}
-                mod = model or "gemini-4-hydrogen"
+                mod = model or "gemini-3-flash-preview"
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{mod}:generateContent?key={gemini_key}"
+                contents = []
+                if messages:
+                    for m in messages:
+                        g_role = "model" if m.get("role") == "assistant" else "user"
+                        contents.append({"role": g_role, "parts": [{"text": str(m.get("content", ""))}]})
+                if prompt:
+                    contents.append({"role": "user", "parts": [{"text": prompt}]})
                 payload = {
-                    "contents": [{"parts": [{"text": f"System Directive:\n{system_prompt}\n\nUser Request:\n{prompt}"}]}],
-                    "generationConfig": {"temperature": 0.3, "maxOutputTokens": 1500}
+                    "systemInstruction": {"parts": [{"text": system_prompt}]},
+                    "contents": contents,
+                    "generationConfig": {"temperature": temperature, "maxOutputTokens": max_tokens}
                 }
-                res = requests.post(url, json=payload, timeout=10)
+                res = requests.post(url, json=payload, timeout=20)
                 latency = int((time.time() - start_t) * 1000)
                 if res.status_code == 200:
                     data = res.json()
-                    content = data["candidates"][0]["content"]["parts"][0]["text"]
-                    LLMTracer.record_trace("Google AI Studio", mod, latency, prompt, content, "SUCCESS", symbol)
+                    parts = data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+                    content = "\n".join([p.get("text", "") for p in parts if p.get("text")]).strip()
+                    LLMTracer.record_trace("Google AI Studio", mod, latency, trace_prompt, content, "SUCCESS", symbol)
                     return {"content": content, "provider_name": "Google AI Studio"}
-                err_msg = f"HTTP {res.status_code}: {res.text[:120]}"
-                LLMTracer.record_trace("Google AI Studio", mod, latency, prompt, "", "ERROR", symbol, err_msg)
+                err_msg = f"HTTP {res.status_code}: {res.text[:140]}"
+                LLMTracer.record_trace("Google AI Studio", mod, latency, trace_prompt, "", "ERROR", symbol, err_msg)
                 return {"error": err_msg}
 
             elif provider == "mistral":
@@ -434,71 +529,71 @@ class LLMManager:
                     return {"error": "No Mistral API key"}
                 mod = model or "codestral-latest"
                 headers = {"Authorization": f"Bearer {mistral_key}", "Content-Type": "application/json"}
+                msg_list = cls._build_openai_messages(system_prompt, prompt, messages)
                 payload = {
                     "model": mod,
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": prompt}
-                    ],
-                    "temperature": 0.3,
-                    "max_tokens": 1500
+                    "messages": msg_list,
+                    "temperature": temperature,
+                    "max_tokens": max_tokens
                 }
-                res = requests.post("https://api.mistral.ai/v1/chat/completions", headers=headers, json=payload, timeout=8)
+                res = requests.post("https://api.mistral.ai/v1/chat/completions", headers=headers, json=payload, timeout=15)
                 latency = int((time.time() - start_t) * 1000)
                 if res.status_code == 200:
-                    content = res.json()["choices"][0]["message"]["content"]
-                    LLMTracer.record_trace("Mistral AI", mod, latency, prompt, content, "SUCCESS", symbol)
+                    content = res.json()["choices"][0]["message"]["content"].strip()
+                    LLMTracer.record_trace("Mistral AI", mod, latency, trace_prompt, content, "SUCCESS", symbol)
                     return {"content": content, "provider_name": "Mistral AI"}
-                err_msg = f"HTTP {res.status_code}: {res.text[:120]}"
-                LLMTracer.record_trace("Mistral AI", mod, latency, prompt, "", "ERROR", symbol, err_msg)
-                return {"error": err_msg}
+                retry_after = res.headers.get("retry-after") or 5.0
+                err_msg = f"HTTP {res.status_code}: {res.text[:140]}"
+                LLMTracer.record_trace("Mistral AI", mod, latency, trace_prompt, "", "ERROR", symbol, err_msg)
+                return {"error": err_msg, "retry_after": retry_after}
 
             elif provider == "nvidia":
                 if not nvidia_key:
                     return {"error": "No NVIDIA API key"}
                 mod = model or "z-ai/glm-5.3-flash"
                 headers = {"Authorization": f"Bearer {nvidia_key}", "Content-Type": "application/json"}
+                msg_list = cls._build_openai_messages(system_prompt, prompt, messages)
                 payload = {
                     "model": mod,
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": prompt}
-                    ],
-                    "temperature": 0.3,
-                    "max_tokens": 1200
+                    "messages": msg_list,
+                    "temperature": temperature,
+                    "max_tokens": min(max_tokens, 2000)
                 }
-                res = requests.post("https://integrate.api.nvidia.com/v1/chat/completions", headers=headers, json=payload, timeout=8)
+                res = requests.post("https://integrate.api.nvidia.com/v1/chat/completions", headers=headers, json=payload, timeout=15)
                 latency = int((time.time() - start_t) * 1000)
                 if res.status_code == 200:
-                    content = res.json()["choices"][0]["message"]["content"]
-                    LLMTracer.record_trace("NVIDIA NIM", mod, latency, prompt, content, "SUCCESS", symbol)
+                    content = res.json()["choices"][0]["message"]["content"].strip()
+                    LLMTracer.record_trace("NVIDIA NIM", mod, latency, trace_prompt, content, "SUCCESS", symbol)
                     return {"content": content, "provider_name": "NVIDIA NIM"}
-                err_msg = f"HTTP {res.status_code}: {res.text[:120]}"
-                LLMTracer.record_trace("NVIDIA NIM", mod, latency, prompt, "", "ERROR", symbol, err_msg)
+                err_msg = f"HTTP {res.status_code}: {res.text[:140]}"
+                LLMTracer.record_trace("NVIDIA NIM", mod, latency, trace_prompt, "", "ERROR", symbol, err_msg)
                 return {"error": err_msg}
 
             elif provider == "ollama":
                 url = ollama_url.rstrip("/")
                 mod = model or "llama3"
+                history_str = ""
+                if messages:
+                    history_str = "\n".join([f"{m.get('role', 'user').upper()}: {m.get('content', '')}" for m in messages]) + "\n"
                 payload = {
                     "model": mod,
-                    "prompt": f"{system_prompt}\n\n{prompt}",
+                    "prompt": f"{system_prompt}\n\n{history_str}{prompt}",
                     "stream": False,
-                    "options": {"temperature": 0.3}
+                    "options": {"temperature": temperature}
                 }
-                res = requests.post(f"{url}/api/generate", json=payload, timeout=12)
+                res = requests.post(f"{url}/api/generate", json=payload, timeout=20)
                 latency = int((time.time() - start_t) * 1000)
                 if res.status_code == 200:
-                    content = res.json().get("response", "")
-                    LLMTracer.record_trace("Ollama Local", mod, latency, prompt, content, "SUCCESS", symbol)
+                    content = res.json().get("response", "").strip()
+                    LLMTracer.record_trace("Ollama Local", mod, latency, trace_prompt, content, "SUCCESS", symbol)
                     return {"content": content, "provider_name": "Ollama Local"}
                 err_msg = f"Ollama HTTP {res.status_code}"
-                LLMTracer.record_trace("Ollama Local", mod, latency, prompt, "", "ERROR", symbol, err_msg)
+                LLMTracer.record_trace("Ollama Local", mod, latency, trace_prompt, "", "ERROR", symbol, err_msg)
                 return {"error": err_msg}
 
         except Exception as e:
             latency = int((time.time() - start_t) * 1000)
-            LLMTracer.record_trace(provider, model or "default", latency, prompt, "", "ERROR", symbol, str(e))
+            LLMTracer.record_trace(provider, model or "default", latency, trace_prompt, "", "ERROR", symbol, str(e))
             return {"error": str(e)}
 
         return None

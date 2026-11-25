@@ -43,6 +43,7 @@ IS_DEV = ENV.lower() == "development"
 SEC_EDGAR_IDENTITY = os.environ.get("SEC_EDGAR_IDENTITY", "AdversarialIQ diwasunnyhack519@gmail.com")
 
 # 1. Alpaca US Paper Trading API
+ALPACA_ENABLED = os.environ.get("ALPACA_ENABLED", "true").strip().lower() not in ("false", "0", "no", "off")
 ALPACA_API_KEY = os.environ.get("ALPACA_API_KEY", "").strip()
 ALPACA_SECRET_KEY = os.environ.get("ALPACA_SECRET_KEY", "").strip()
 ALPACA_BASE_URL = os.environ.get("ALPACA_BASE_URL", "https://paper-api.alpaca.markets").strip().rstrip("/")

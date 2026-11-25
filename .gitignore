@@ -62,6 +62,4 @@ Thumbs.db
 # Logs
 *.log
 
-data/historical/
-data/adversarial_memory.db
-data/users.db
+data/

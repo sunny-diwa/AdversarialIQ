@@ -977,7 +977,7 @@ def _query_gemini_grounding(symbol: str, company_name: str) -> Optional[Dict[str
         return None
 
     # Check internet / DNS connectivity quickly
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key={key}"
     prompt_text = load_prompt(
         "ecosystem/gemini_grounding_user.txt",
         symbol=symbol,
@@ -1012,21 +1012,30 @@ def _query_gemini_grounding(symbol: str, company_name: str) -> Optional[Dict[str
 # PUBLIC EXPORTED API & ADVERSARIALIQ PREDICTIVE SCORING ENGINE
 # =============================================================================
 
-def enrich_ecosystem_items(items: List[Dict[str, Any]], entity_type: str) -> List[Dict[str, Any]]:
+def enrich_ecosystem_items(
+    items: List[Dict[str, Any]],
+    entity_type: str,
+    quote_fn=None,
+    news_fn=None
+) -> List[Dict[str, Any]]:
     """
-    Enriches ecosystem items (suppliers, customers, competitors) with real-time stock quotes,
-    percentage returns, and dependency news sentiment using parallel execution for rapid responsiveness.
+    Enriches ecosystem items (suppliers, customers, competitors) with stock quotes,
+    percentage returns, and dependency news sentiment using parallel execution.
+    Supports injected quote_fn / news_fn for point-in-time historical simulation.
     """
+    q_lookup = quote_fn or fetch_stock_quote
+    n_lookup = news_fn or fetch_breaking_news
+
     def _enrich_single(item: Dict[str, Any]) -> Dict[str, Any]:
         sym = item.get("symbol", "").strip().upper()
         clean = dict(item)
         if sym and not sym.endswith(".KS") and not sym.endswith(".TW"):
             try:
-                q = fetch_stock_quote(sym)
+                q = q_lookup(sym)
                 clean["price"] = round(float(q.get("price") or 100.0), 2)
                 clean["change"] = round(float(q.get("change") or 0.0), 2)
                 clean["pct_change"] = round(float(q.get("pct_change") or 0.0), 2)
-                clean["status"] = "UP" if clean["pct_change"] >= 0 else "DOWN"
+                clean["status"] = "UP" if clean["pct_change"] > 0 else ("DOWN" if clean["pct_change"] < 0 else "FLAT")
             except Exception:
                 clean["price"] = 100.0
                 clean["change"] = 0.0
@@ -1036,7 +1045,7 @@ def enrich_ecosystem_items(items: List[Dict[str, Any]], entity_type: str) -> Lis
             # Targeted news retrieval for highest criticality nodes
             if clean.get("criticality") in ("EXTREME", "CRITICAL") or entity_type == "competitor":
                 try:
-                    news_data = fetch_breaking_news(sym)
+                    news_data = n_lookup(sym)
                     arts = news_data.get("articles", [])
                     if arts:
                         clean["latest_news"] = arts[0].get("headline") or arts[0].get("title", "")
@@ -1073,7 +1082,8 @@ def calculate_ecosystem_catalyst_scores(
     tech_info: Dict[str, Any],
     suppliers: List[Dict[str, Any]],
     customers: List[Dict[str, Any]],
-    competitors: List[Dict[str, Any]]
+    competitors: List[Dict[str, Any]],
+    news_info: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """
     Deterministic AdversarialIQ Ecosystem Volatility & Directional Catalyst Engine (A-CIS).
@@ -1091,18 +1101,21 @@ def calculate_ecosystem_catalyst_scores(
     
     # 1. Direct news sentiment
     try:
-        direct_news = fetch_breaking_news(sym)
+        direct_news = news_info if news_info is not None else fetch_breaking_news(sym)
         dir_score = float(direct_news.get("overall_sentiment", {}).get("score", 0.0) or 0.0)
     except Exception:
         dir_score = 0.0
 
     dir_intensity = min(98.0, max(22.0, 22.0 + abs(dir_score) * 135.0))
-    if dir_score >= 0:
+    if dir_score > 0.02:
         dir_bull = min(98.0, max(30.0, 35.0 + dir_score * 115.0))
         dir_bear = max(5.0, min(40.0, 35.0 - dir_score * 50.0))
-    else:
+    elif dir_score < -0.02:
         dir_bull = max(5.0, min(40.0, 35.0 - abs(dir_score) * 50.0))
         dir_bear = min(98.0, max(30.0, 35.0 + abs(dir_score) * 115.0))
+    else:
+        dir_bull = 35.0
+        dir_bear = 35.0
 
     # 2. Company price momentum & volume flow
     price = float(quote_info.get("price") or 100.0)
@@ -1113,17 +1126,22 @@ def calculate_ecosystem_catalyst_scores(
     avg_vol = int(quote_info.get("avg_volume_10d") or vol)
     vol_ratio = vol / (avg_vol + 1e-6)
     
-    # Opening gap at start of the day
-    open_gap = round(((open_p - prev_close) / (prev_close + 1e-6)) * 100.0, 2) if prev_close > 0 else 0.0
+    # Opening gap (or pre-market gap if quote_info holds pre-market price)
+    open_gap = float(quote_info.get("premarket_gap_pct")) if quote_info.get("premarket_gap_pct") is not None else (
+        round(((open_p - prev_close) / (prev_close + 1e-6)) * 100.0, 2) if prev_close > 0 else 0.0
+    )
     
     abs_pct = abs(company_pct)
     price_impulse = min(98.0, max(20.0, 22.0 + (abs_pct ** 0.82) * 4.8 + max(0.0, vol_ratio - 1.0) * 12.0))
-    if company_pct >= 0:
+    if company_pct > 0:
         price_bull = min(98.0, max(30.0, 40.0 + min(company_pct, 30.0) * 1.8))
         price_bear = max(5.0, min(35.0, 35.0 - min(company_pct, 30.0) * 1.0))
-    else:
+    elif company_pct < 0:
         price_bull = max(5.0, min(35.0, 35.0 - min(abs_pct, 30.0) * 1.0))
         price_bear = min(98.0, max(30.0, 40.0 + min(abs_pct, 30.0) * 1.8))
+    else:
+        price_bull = 35.0
+        price_bear = 35.0
 
     # 3. Supplier factor (news sentiment + price action + bottleneck criticality)
     supp_vol_list = []
@@ -1135,12 +1153,15 @@ def calculate_ecosystem_catalyst_scores(
         crit_w = 1.8 if s.get("criticality") in ["EXTREME", "CRITICAL"] else (1.4 if s.get("criticality") == "HIGH" else 1.0)
         s_vol = (abs(p) * 8.0 + (30.0 if sent != "NEUTRAL" else 15.0)) * crit_w
         supp_vol_list.append(min(100.0, s_vol))
-        if sent == "BULLISH" or p > 0:
+        if sent == "BULLISH" or p > 0.15:
             supp_bull_list.append(min(95.0, (40.0 + max(0.0, p) * 10.0 + (30.0 if sent == "BULLISH" else 0.0)) * crit_w / 1.5))
             supp_bear_list.append(max(8.0, 25.0 - max(0.0, p) * 5.0))
-        else:
+        elif sent == "BEARISH" or p < -0.15:
             supp_bull_list.append(max(8.0, 25.0 - abs(p) * 5.0))
             supp_bear_list.append(min(95.0, (40.0 + abs(p) * 10.0 + (30.0 if sent == "BEARISH" else 0.0)) * crit_w / 1.5))
+        else:
+            supp_bull_list.append(25.0)
+            supp_bear_list.append(25.0)
 
     # 4. Customer / Demand factor (news sentiment + price action + revenue exposure)
     cust_vol_list = []
@@ -1152,12 +1173,15 @@ def calculate_ecosystem_catalyst_scores(
         rev_w = max(1.0, float(c.get("revenue_share_pct", 10.0)) / 8.0)
         c_vol = (abs(p) * 10.0 + (35.0 if sent != "NEUTRAL" else 15.0)) * rev_w
         cust_vol_list.append(min(100.0, c_vol))
-        if sent == "BULLISH" or p > 0:
+        if sent == "BULLISH" or p > 0.15:
             cust_bull_list.append(min(98.0, (45.0 + max(0.0, p) * 12.0 + (35.0 if sent == "BULLISH" else 0.0)) * rev_w / 1.4))
             cust_bear_list.append(max(6.0, 20.0 - max(0.0, p) * 6.0))
-        else:
+        elif sent == "BEARISH" or p < -0.15:
             cust_bull_list.append(max(6.0, 20.0 - abs(p) * 6.0))
             cust_bear_list.append(min(98.0, (45.0 + abs(p) * 12.0 + (35.0 if sent == "BEARISH" else 0.0)) * rev_w / 1.4))
+        else:
+            cust_bull_list.append(28.0)
+            cust_bear_list.append(28.0)
 
     # 5. Competitor factor (news sentiment + price action + threat level)
     comp_vol_list = []
@@ -1168,12 +1192,15 @@ def calculate_ecosystem_catalyst_scores(
         sent = cp.get("news_sentiment", "NEUTRAL")
         th_w = 1.4 if cp.get("threat_level") == "HIGH" else 1.0
         comp_vol_list.append(min(100.0, (abs(p) * 7.0 + (25.0 if sent != "NEUTRAL" else 10.0)) * th_w))
-        if sent == "BEARISH" or p < 0:
+        if sent == "BEARISH" or p < -0.15:
             comp_bull_list.append(min(90.0, 35.0 + abs(p) * 10.0 + (30.0 if sent == "BEARISH" else 0.0)))
             comp_bear_list.append(max(10.0, 25.0 - abs(p) * 5.0))
-        else:
+        elif sent == "BULLISH" or p > 0.15:
             comp_bull_list.append(max(10.0, 25.0 - p * 5.0))
             comp_bear_list.append(min(90.0, 35.0 + p * 10.0 + (30.0 if sent == "BULLISH" else 0.0)))
+        else:
+            comp_bull_list.append(22.0)
+            comp_bear_list.append(22.0)
 
     avg_supp_vol = sum(supp_vol_list)/len(supp_vol_list) if supp_vol_list else 30.0
     avg_cust_vol = sum(cust_vol_list)/len(cust_vol_list) if cust_vol_list else 35.0
@@ -1334,15 +1361,28 @@ def calculate_ecosystem_catalyst_scores(
     }
 
 
-def fetch_company_ecosystem(symbol: str) -> Dict[str, Any]:
+def fetch_company_ecosystem(
+    symbol: str,
+    quote_override: Optional[Dict[str, Any]] = None,
+    tech_override: Optional[Dict[str, Any]] = None,
+    news_override: Optional[Dict[str, Any]] = None,
+    quote_fn=None,
+    news_fn=None,
+    use_gemini_grounding: bool = True,
+    as_of_label: Optional[str] = None
+) -> Dict[str, Any]:
     """
     Primary API function: returns complete 4D supply chain, customer, competitor,
-    and consumer analysis for any S&P 500 company, enriched with live stock prices,
+    and consumer analysis for any S&P 500 company, enriched with stock prices,
     dependency news sentiment, and the AdversarialIQ Ecosystem Catalyst Impact & Directional Score.
+    Supports injected overrides/lookups for zero-lookahead historical simulation.
     """
     sym = symbol.strip().upper()
-    if sym in _ECOSYSTEM_CACHE:
-        return _ECOSYSTEM_CACHE[sym]
+    is_live_mode = (quote_override is None and tech_override is None and news_override is None and quote_fn is None and news_fn is None)
+    if is_live_mode and sym in _ECOSYSTEM_CACHE:
+        cached_entry = _ECOSYSTEM_CACHE[sym]
+        if isinstance(cached_entry, dict) and time.time() - cached_entry.get("_ts", 0) < 120:
+            return cached_entry["data"]
 
     meta = SP500_MAP.get(sym, {
         "symbol": sym,
@@ -1351,43 +1391,46 @@ def fetch_company_ecosystem(symbol: str) -> Dict[str, Any]:
         "sub_industry": "S&P 500 Constituent"
     })
 
-    # 1. Start with curated knowledge base if available
+    # 1. Start with curated knowledge base if available (deep copy so mutations never pollute)
     if sym in CURATED_ECOSYSTEMS:
-        base_data = CURATED_ECOSYSTEMS[sym]
+        base_data = json.loads(json.dumps(CURATED_ECOSYSTEMS[sym]))
     else:
         base_data = _generate_sector_taxonomy_ecosystem(sym, meta)
 
-    # 2. Enrich with live quote & technicals
-    quote_info = {}
-    tech_info = {}
-    try:
-        quote_info = fetch_stock_quote(sym)
-    except Exception:
-        pass
-    try:
-        tech_info = fetch_stock_technicals(sym)
-    except Exception:
-        pass
+    # 2. Enrich with quote & technicals (either point-in-time override or live)
+    quote_info = quote_override if quote_override is not None else {}
+    tech_info = tech_override if tech_override is not None else {}
+    if quote_override is None:
+        try:
+            quote_info = (quote_fn or fetch_stock_quote)(sym)
+        except Exception:
+            pass
+    if tech_override is None:
+        try:
+            tech_info = fetch_stock_technicals(sym)
+        except Exception:
+            pass
 
-    # 3. Check for Google Grounding / Gemini live updates
+    # 3. Check for Google Grounding / Gemini live updates (disabled during historical replay to prevent lookahead)
     grounding_notes = "Curated Institutional Knowledge & S&P 500 SEC 10-K Taxonomy"
-    try:
-        grounded = _query_gemini_grounding(sym, meta.get("name", sym))
-        if grounded:
-            grounding_notes = "Google Grounded Live Search + SEC 10-K Disclosures"
-            if "pricing_power_summary" in grounded and grounded["pricing_power_summary"]:
-                base_data["consumer_breakdown"]["pricing_power"]["notes"] = grounded["pricing_power_summary"]
-    except Exception:
-        pass
+    if use_gemini_grounding:
+        try:
+            grounded = _query_gemini_grounding(sym, meta.get("name", sym))
+            if grounded:
+                grounding_notes = "Google Grounded Live Search + SEC 10-K Disclosures"
+                if "pricing_power_summary" in grounded and grounded["pricing_power_summary"]:
+                    base_data["consumer_breakdown"]["pricing_power"]["notes"] = grounded["pricing_power_summary"]
+        except Exception:
+            pass
 
     # 4. Enrich suppliers, customers, competitors with real stock prices and dependency news
     raw_suppliers = base_data.get("upstream_suppliers", [])
     raw_customers = base_data.get("downstream_customers", [])
     raw_competitors = base_data.get("competitors", [])
 
-    enriched_suppliers = enrich_ecosystem_items(raw_suppliers, "supplier")
-    enriched_customers = enrich_ecosystem_items(raw_customers, "customer")
-    enriched_competitors = enrich_ecosystem_items(raw_competitors, "competitor")
+    enriched_suppliers = enrich_ecosystem_items(raw_suppliers, "supplier", quote_fn=quote_fn, news_fn=news_fn)
+    enriched_customers = enrich_ecosystem_items(raw_customers, "customer", quote_fn=quote_fn, news_fn=news_fn)
+    enriched_competitors = enrich_ecosystem_items(raw_competitors, "competitor", quote_fn=quote_fn, news_fn=news_fn)
 
     # 5. Compute deterministic AdversarialIQ Ecosystem Catalyst & Directional Scores
     catalyst_scores = calculate_ecosystem_catalyst_scores(
@@ -1397,7 +1440,8 @@ def fetch_company_ecosystem(symbol: str) -> Dict[str, Any]:
         tech_info=tech_info,
         suppliers=enriched_suppliers,
         customers=enriched_customers,
-        competitors=enriched_competitors
+        competitors=enriched_competitors,
+        news_info=news_override if news_override is not None else (news_fn(sym) if news_fn else None)
     )
 
     result = {
@@ -1414,8 +1458,9 @@ def fetch_company_ecosystem(symbol: str) -> Dict[str, Any]:
         "grounding_source": grounding_notes,
         "market_price": quote_info.get("price", 100.0),
         "day_change_pct": quote_info.get("pct_change", 0.0),
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S EST")
+        "timestamp": as_of_label or datetime.now().strftime("%Y-%m-%d %H:%M:%S EST")
     }
 
-    _ECOSYSTEM_CACHE[sym] = result
+    if is_live_mode:
+        _ECOSYSTEM_CACHE[sym] = {"_ts": time.time(), "data": result}
     return result

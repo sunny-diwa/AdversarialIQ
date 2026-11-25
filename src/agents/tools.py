@@ -772,12 +772,12 @@ def tool_get_portfolio_status() -> Dict[str, Any]:
     try:
         port = get_portfolio_state()
         equity = port.get("total_equity", 10000.0)
-        cash = port.get("cash_balance", 10000.0)
+        cash = port.get("cash", port.get("cash_balance", 10000.0))
         positions = port.get("positions", [])
-        win_rate = port.get("win_rate_pct", 0.0)
+        win_rate = port.get("win_rate", port.get("win_rate_pct", 0.0))
 
         pos_rows = "\n".join([
-            f"| **{p.get('symbol')}** | `{p.get('quantity')}` | `${p.get('avg_entry_price', 0.0):.2f}` | `${p.get('current_price', 0.0):.2f}` | `{p.get('unrealized_pnl_pct', 0.0):+.2f}%` |"
+            f"| **{p.get('symbol')}** | `{p.get('quantity')}` | `${p.get('avg_price', p.get('avg_entry_price', 0.0)):.2f}` | `${p.get('current_price', 0.0):.2f}` | `{p.get('unrealized_pct', p.get('unrealized_pnl_pct', 0.0)):+.2f}%` |"
             for p in positions
         ]) or "| — | No open positions | — | — | — |"
 
@@ -885,24 +885,33 @@ def tool_get_company_ecosystem(symbol: str) -> Dict[str, Any]:
         pricing = consumer.get("pricing_power", {})
         switching = consumer.get("switching_costs", {})
         concentration = consumer.get("customer_concentration", {})
+        scores = data.get("catalyst_scores", {})
+        sod = scores.get("start_of_day", {})
 
         supp_bullets = "\n".join([
-            f"- **`{s.get('symbol', 'N/A')}` ({s.get('name', 'Supplier')})**: {s.get('role', 'Component')} [{s.get('tier', 'Tier 1')}] — *Criticality: {s.get('criticality', 'HIGH')}*"
+            f"- **`{s.get('symbol', 'N/A')}` ({s.get('name', 'Supplier')})**: {s.get('role', 'Component')} [{s.get('tier', 'Tier 1')}] — *Criticality: {s.get('criticality', 'HIGH')} | {s.get('pct_change', 0):+.2f}%*"
             for s in suppliers[:5]
         ]) or "- No critical upstream bottleneck dependencies identified."
 
         cust_bullets = "\n".join([
-            f"- **`{c.get('symbol', 'N/A')}` ({c.get('name', 'Customer')})**: {c.get('role', 'Client')} (~{c.get('revenue_share_pct', 0)}% Rev) — *{c.get('use_case', 'Commercial deployment')}*"
+            f"- **`{c.get('symbol', 'N/A')}` ({c.get('name', 'Customer')})**: {c.get('role', 'Client')} (~{c.get('revenue_share_pct', 0)}% Rev) — *{c.get('use_case', 'Commercial deployment')} | {c.get('pct_change', 0):+.2f}%*"
             for c in customers[:5]
         ]) or "- Diversified commercial client accounts."
 
         comp_bullets = "\n".join([
-            f"- **`{cp.get('symbol', 'N/A')}` ({cp.get('name', 'Competitor')})**: Moat `{cp.get('moat_rating', 'NARROW')}` | Threat `{cp.get('threat_level', 'MODERATE')}` | Share ~{cp.get('market_share_pct', 0)}% — *{cp.get('competitive_advantage', '')}*"
+            f"- **`{cp.get('symbol', 'N/A')}` ({cp.get('name', 'Competitor')})**: Moat `{cp.get('moat_rating', 'NARROW')}` | Threat `{cp.get('threat_level', 'MODERATE')}` | Share ~{cp.get('market_share_pct', 0)}% — *{cp.get('pct_change', 0):+.2f}%*"
             for cp in competitors[:5]
         ]) or "- Sector peers in same GICS classification."
 
         md = f"""### 🌐 Supply Chain & Ecosystem Intelligence: **{sym}** ({data.get('company_name', sym)})
 **Sector:** `{data.get('sector', 'N/A')}` | **Sub-Industry:** `{data.get('sub_industry', 'N/A')}` | **Source:** `{data.get('grounding_source', 'SEC 10-K & Knowledge Graph')}`
+
+---
+
+#### 📊 A-CIS Catalyst & Directional Scores:
+- **Live Session Directional Spread:** Up **`{scores.get('up_score', 50)}`** vs Down **`{scores.get('down_score', 50)}`** (Net: `{scores.get('net_directional_spread', 0):+.1f}` | Bias: `{scores.get('dominant_bias', 'BALANCED')}`)
+- **Movement Impulse Probability:** **`{scores.get('movement_probability_score', 50)}/100`** (*{scores.get('movement_label', 'MODERATE')}*)
+- **Start-of-Day Projection:** Up `{sod.get('up_score', 50)}` vs Down `{sod.get('down_score', 50)}` (Open Gap: `{sod.get('open_gap_pct', 0):+.2f}%` | `{sod.get('dominant_bias', 'BALANCED')}`)
 
 ---
 

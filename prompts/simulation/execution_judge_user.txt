@@ -1,0 +1,19 @@
+TARGET: {symbol} | CURRENT PRICE: ${price} | DAILY ATR14: ${atr} | EARNINGS STATUS: {earnings_status}
+TIME: {as_of} ({session_mode})
+PORTFOLIO CONTEXT: Equity=${equity} | Available Buying Power=${buying_power} | Open Positions={open_count}/{max_pos}
+CURRENT POSITION IN {symbol}: {current_position}
+
+EXECUTOR PRIVATE MEMORY:
+{executor_memory}
+
+SESSION & DAY MEMORY:
+{session_context}
+
+CALCULATED SCORES & INDICATORS SUMMARY:
+{score_summary}
+
+FULL ADVERSARIAL DEBATE OUTCOME:
+Outcome: {debate_outcome} (Rounds: {rounds_used} | Conceded By: {conceded_by})
+{debate_transcript}
+
+Output strictly the JSON execution decision object.
